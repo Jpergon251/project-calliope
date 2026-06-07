@@ -1,0 +1,39 @@
+.app-container {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+
+
+
+    display: grid;
+
+    grid-template-columns:
+        250px 1fr;
+
+    grid-template-rows:
+        1fr 80px;
+
+    grid-template-areas:
+        "sidebar main"
+        "playerbar playerbar";
+
+    height: 100vh;
+
+    .sidebar {
+        background-color: var(--sidebar-bg);
+        padding: 20px;
+        grid-area: sidebar;
+    }
+
+    .main {
+        margin: 20px;
+        grid-area: main;
+    }
+
+    .playerbar {
+        grid-area: playerbar;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+    }
+}
+

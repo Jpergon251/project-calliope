@@ -1,0 +1,45 @@
+.navbar{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+
+    .pages-list{
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .page-item {
+            a {
+                border-radius: var(--radius-sm);
+                padding: 10px;
+                color:
+                  var(--text-primary);
+
+                text-decoration:
+                  none;
+
+                font-size:
+                  18px;
+
+                transition:
+                  color 0.2s;
+
+                display: block;
+            }
+
+            a:hover {
+                background-color:
+                  var(--bg-hover);
+            }
+
+            a:visited {
+                color:
+                  var(--text-primary);
+            }
+        }
+    }
+}
+   

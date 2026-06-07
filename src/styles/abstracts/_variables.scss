@@ -1,0 +1,57 @@
+:root {
+
+  // ==========
+  // BACKGROUNDS
+  // ==========
+  --bg-primary: #121212;
+  --bg-secondary: #181818;
+  --bg-tertiary: #242424;
+  --bg-hover: #424242;
+
+  // ==========
+  // PLAYER
+  // ==========
+  --player-bg: #101010;
+  --sidebar-bg: #151515;
+  --card-bg: #1d1d1d;
+
+  // ==========
+  // TEXT
+  // ==========
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --text-muted: #7d7d7d;
+
+  // ==========
+  // ACCENT
+  // ==========
+  --accent: #1db954;
+  --accent-hover: #1ed760;
+
+  // ==========
+  // BORDERS
+  // ==========
+  --border-color: #2b2b2b;
+
+  // ==========
+  // SHADOWS
+  // ==========
+  --shadow-sm:
+    0 2px 8px rgba(0,0,0,.2);
+
+  --shadow-md:
+    0 4px 16px rgba(0,0,0,.35);
+
+  // ==========
+  // RADIUS
+  // ==========
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  // ==========
+  // TRANSITIONS
+  // ==========
+  --transition-fast: .15s ease;
+  --transition-normal: .25s ease;
+}
