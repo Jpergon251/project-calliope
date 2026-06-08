@@ -1,28 +1,69 @@
 <template>
     <div class="song-list-container">
+
+        <section class="playlist-cover">
+          <!-- <image class="playlist-cover" ></image> -->
+          <Music2 class="icon-cover"/>
+          <div class="playlist-actions">
+
+            <button class="add" :disabled="playlist.id === 'all'">
+              <Plus/>
+            </button>
+
+            <button class="edit">
+              <Pencil/>
+            </button>
+
+            <button class="menu">
+              <EllipsisVertical/>
+            </button>
+
+          </div>
+        </section>
         <ul class="song-list">
             <li 
             v-for="(song, index) in songs" :key="index"
             @click="library.playSong(song)"
             class="song-item"
             >
-                <span class="song-name">{{ song.name }}</span>
+                
+                  <div class="song-cover">
+
+                    <img
+                      v-if="song.cover"
+                      :src="song.cover"
+                      :alt="song.name"
+                      class="cover-image"
+                    />
+
+                    <DiscAlbum
+                      v-else
+                      class="cover-image"
+                    />
+
+                    <span class="song-name">{{ song.name }}</span>
+                  </div>
+                
                 <span class="song-duration">{{ formatDuration(song.duration) }}</span>
+                
             </li>
         </ul>
     </div>
 </template>
 
 <script setup>
+import { DiscAlbum,  EllipsisVertical,  Menu,  Music2, Pencil, Plus } from "lucide-vue-next";
 import { useLibraryStore }
 from "../stores/libraryStore.js";
+import Library from "../pages/Library.vue";
 
 const library =
 useLibraryStore();
 
 const props =
 defineProps({
-  songs: Array
+  songs: Array,
+  playlist: Object
 });
 function formatDuration(
   seconds
@@ -44,4 +85,6 @@ function formatDuration(
       .padStart(2, "0")
   }`;
 }
+
+
 </script>

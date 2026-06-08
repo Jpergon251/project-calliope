@@ -2,21 +2,29 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px;
-    background-color: var(--player-bg);
+    background-color: var(--bg-secondary);
+    padding: 10px 0;
     border-top: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    z-index: 1000;
+    .song-info{
+        width: 95%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        .song-name{
+            font-size: 20px;
+        }
+    }
+
     .progress{
         width: 80%;
-        margin-bottom: 10px;
         align-items: center;
 
-        input[type="range"]{
+        input[type="range"] {
             width: 100%;
-            
+            cursor: pointer;
         }
+
         .time-info{
             display: flex;
             justify-content: space-between;
@@ -30,5 +38,34 @@
     .controls{
         display: flex;
         gap: 20px;
+        button{
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            transition: color 0.2s;
+            border-radius: var(--radius-sm);
+            &:hover {
+                background-color: var(--accent);
+            }
+        }
+
+        
+    }
+    .volume{
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+
+        .volume-slider {
+            width: 100px;
+            cursor: pointer;
+        }
     }
 }

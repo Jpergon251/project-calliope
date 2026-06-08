@@ -9,6 +9,10 @@
 @use "components/_songlist";
 @use "components/_sidebar";
 
+// pages
+@use "pages/playlist";
+@use "pages/settings";
+
 // abstract styles
 @use "abstracts/_mixins";
 @use "abstracts/_variables";

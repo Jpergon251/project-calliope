@@ -1,15 +1,15 @@
-
 <template>
   <div class="playlist-page">
 
-    <h2>
+    <h1 class="playlist-title">
       {{ playlist?.name }}
-    </h2>
+    </h1>
 
     <SongList
       :songs="
         playlist?.songs || []
       "
+      :playlist="playlist"
     />
 
   </div>

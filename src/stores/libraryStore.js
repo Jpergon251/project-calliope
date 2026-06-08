@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
-
+import { parseBlob }
+from "music-metadata";
 import { dbPromise } from "../lib/db";
 
 export const useLibraryStore = defineStore("library", () => {
@@ -159,6 +160,10 @@ export const useLibraryStore = defineStore("library", () => {
   // =========================
 
 
+  function cleanFileName(name) {
+    return name.replace(/\.[^/.]+$/, "");
+  }
+
   function getAudioDuration(file) {
 
     return new Promise(
@@ -199,32 +204,34 @@ export const useLibraryStore = defineStore("library", () => {
     const list = [];
 
     for await (const entry of folderHandle.value.values()) {
+
       if (
         entry.kind === "file" &&
         /\.(mp3|flac|wav|ogg)$/i.test(entry.name)
       ) {
+
         const file = await entry.getFile();
 
-        const duration =
-        await getAudioDuration(
-          file
-        );
-
         list.push({
-          id:
-            `${file.name}-${file.size}`,
+          id: `${file.name}-${file.size}`,
+          file,
 
-          name: file.name,
+          name: cleanFileName(file.name),
+          duration: null,
 
-          duration,
+          // placeholder metadata
+          title: cleanFileName(file.name),
+          artist: "Unknown",
+          cover: null,
 
-          file
+          metadataLoaded: false
         });
       }
     }
 
-
     songs.value = list;
+    loadMetadataForSongs();
+    console.log(songs.value)
   }
 
   async function selectFolder() {
@@ -239,6 +246,27 @@ export const useLibraryStore = defineStore("library", () => {
     await scanFolder();
   }
 
+  async function removeFolder() {
+
+    const db =
+      await dbPromise;
+
+    await db.delete(
+      "settings",
+      "music-folder"
+    );
+
+    folderHandle.value =
+      null;
+
+    songs.value = [];
+
+    playingSong.value =
+      null;
+
+    audio.pause();
+    audio.src = "";
+  }
   async function loadSavedFolder() {
     const db = await dbPromise;
 
@@ -263,6 +291,43 @@ export const useLibraryStore = defineStore("library", () => {
     await scanFolder();
   }
 
+  async function loadMetadataForSongs() {
+
+    for (const song of songs.value) {
+
+      try {
+
+        const metadata =
+          await parseBlob(song.file);
+
+        song.title =
+          metadata.common.title || song.name;
+
+        song.artist =
+          metadata.common.artist || "Unknown";
+
+        song.cover =
+          metadata.common.picture?.[0]
+            ? URL.createObjectURL(
+                new Blob(
+                  [metadata.common.picture[0].data],
+                  { type: metadata.common.picture[0].format }
+                )
+              )
+            : null;
+
+        song.duration =
+          metadata.format.duration;
+
+        song.metadataLoaded = true;
+
+      } catch (e) {
+        console.warn("Metadata error", song.name);
+      }
+    }
+  }
+
+
   // =========================
   // RETURN
   // =========================
@@ -286,6 +351,7 @@ export const useLibraryStore = defineStore("library", () => {
     seek,
 // FOLDER ACTIONS
     selectFolder,
-    loadSavedFolder
+    loadSavedFolder,
+    removeFolder
   };
 });

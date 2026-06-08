@@ -3,10 +3,10 @@
   // ==========
   // BACKGROUNDS
   // ==========
-  --bg-primary: #121212;
+  --bg-primary: #070707;
   --bg-secondary: #181818;
   --bg-tertiary: #242424;
-  --bg-hover: #424242;
+  --bg-hover: #424242; 
 
   // ==========
   // PLAYER
@@ -14,6 +14,7 @@
   --player-bg: #101010;
   --sidebar-bg: #151515;
   --card-bg: #1d1d1d;
+  --card-hover-bg: #2a2a2a;
 
   // ==========
   // TEXT
@@ -21,18 +22,21 @@
   --text-primary: #ffffff;
   --text-secondary: #b3b3b3;
   --text-muted: #7d7d7d;
+  --text-inverted: #000000;
 
   // ==========
   // ACCENT
   // ==========
-  --accent: #1db954;
-  --accent-hover: #1ed760;
+  --accent: #27b459;
+  --accent-hover: #30e971;
+  --accent-active: #1aa34a;
+  --accent-muted: #19613280;
 
   // ==========
   // BORDERS
   // ==========
   --border-color: #2b2b2b;
-
+  --border-hover: #222222;
   // ==========
   // SHADOWS
   // ==========
@@ -54,4 +58,5 @@
   // ==========
   --transition-fast: .15s ease;
   --transition-normal: .25s ease;
+
 }

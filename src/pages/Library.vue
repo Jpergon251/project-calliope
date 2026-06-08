@@ -1,7 +1,7 @@
 <template>
 
     <div class="library-page">
-        <h2>Library</h2>
+        <h1>Library</h1>
         <PlaylistList />
     </div>
 

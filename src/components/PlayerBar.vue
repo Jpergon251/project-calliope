@@ -10,6 +10,7 @@
             step="0.1"
             v-model="library.currentTime"
             @input="library.seek(library.currentTime)"
+            class="progress-bar"
         />
     
         <section class="time-info">
@@ -23,44 +24,47 @@
         </section>
     </section>
 <!-- Song Info -->
+
     <section class="song-info">
-      <div v-if="library.playingSong">
-        <h3 class="song-name">{{ library.playingSong.name }}</h3>
-      </div>
-      <p v-else>No song is currently playing.</p>
+      <h3 class="song-name" v-if="library.playingSong">{{ library.playingSong.name }}</h3>
+      <p v-else class="song-name">No song is currently playing.</p>
+
+      <!-- Controls -->
+      <section class="controls">
+        <button @click="library.playPreviousSong()">
+          <SkipBack class="control-icon" fill="white" />
+        </button>
+
+        <button @click="library.togglePlay()">
+          <Pause v-if="library.isPlaying" class="control-icon" fill="white" />
+          <Play v-else class="control-icon" fill="white"/>
+        </button>
+        
+        <button @click="library.playNextSong()">
+          <SkipForward class="control-icon" fill="white" />
+        </button>
+      </section>
+
+    <!-- Volume Control -->
+      <section class="volume">
+        <Volume v-if="library.volume > 0 && library.volume <= 0.2" fill="white" />
+        <Volume1 v-else-if="library.volume > 0.20 && library.volume <= 0.80" fill="white" />
+        <Volume2 v-else-if="library.volume > 0.80" fill="white" />
+        <VolumeOff v-if="library.volume == 0" fill="white" />
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            v-model="library.volume"
+            class="volume-slider"
+        />
+      </section>
     </section>
 
-<!-- Controls -->
 
-    <section class="controls">
-      <button @click="library.playPreviousSong()">
-        <SkipBack class="control-icon" />
-      </button>
+    
 
-      <button @click="library.togglePlay()">
-        <Pause v-if="library.isPlaying" class="control-icon" />
-        <Play v-else class="control-icon" />
-      </button>
-      
-      <button @click="library.playNextSong()">
-        <SkipForward class="control-icon" />
-      </button>
-    </section>
-
-<!-- Volume Control -->
-    <section class="volume">
-      <Volume v-if="library.volume > 0 && library.volume <= 0.2" />
-      <Volume1 v-else-if="library.volume > 0.20 && library.volume <= 0.80" />
-      <Volume2 v-else-if="library.volume > 0.80" />
-      <VolumeOff v-if="library.volume == 0" />
-      <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          v-model="library.volume"
-      />
-    </section>
 
   </div>
 </template>
