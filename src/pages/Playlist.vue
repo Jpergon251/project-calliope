@@ -7,13 +7,14 @@
 
     <SongList
       :songs="
-        playlist?.songs || []
+        playlistSongs || []
       "
       :playlist="playlist"
     />
 
   </div>
 </template>
+
 <script setup>
 import { computed }
 from "vue";
@@ -43,4 +44,26 @@ computed(() =>
       route.params.playlistId
   )
 );
+
+const playlistSongs =
+computed(() => {
+
+  if (!playlist.value)
+    return [];
+
+  // Playlist especial
+  if (
+    playlist.value.id ===
+    "all"
+  ) {
+    return library.songs;
+  }
+
+  return library.songs.filter(
+    song =>
+      playlist.value.songIds?.includes(
+        song.id
+      )
+  );
+});
 </script>

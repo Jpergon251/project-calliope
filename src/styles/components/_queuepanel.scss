@@ -1,0 +1,102 @@
+.queue-overlay {
+    background: var(--bg-secondary);
+
+  position: absolute;
+  bottom: 138px;
+  right: 25%;
+  z-index: 1000;
+  border-radius: 10px 10px  0  0;
+    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    border-right: 2px solid rgba(255, 255, 255, 0.1);
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+
+
+  .queue-drawer {
+    width: 280px;
+    max-height: 400px;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 10px;
+
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      h3 {
+        margin: 0;
+      }
+
+      button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-primary);
+        font-size: 16px;
+
+        &:hover {
+          color: var(--accent);
+        }
+      }
+    }
+
+    .now-playing {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+
+      h4 {
+        margin: 0;
+        font-size: 12px;
+        opacity: 0.7;
+      }
+
+      div {
+        font-size: 14px;
+        font-weight: bold;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .queue-list {
+      flex: 1;
+      overflow-y: auto;
+
+      h4 {
+        margin: 0 0 5px 0;
+        font-size: 12px;
+        opacity: 0.7;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+          padding: 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+
+          &:hover {
+            background: var(--accent);
+          }
+
+          &.active {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+}

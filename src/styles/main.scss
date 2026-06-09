@@ -1,18 +1,22 @@
 // Global styles
-@use "base/_global";
-@use "base/_reset";
-@use "base/_typography";
+@use "base/global";
+@use "base/reset";
+@use "base/typography";
 
 // Component styles
-@use "components/_playlistlist";
-@use "components/_playerbar";
-@use "components/_songlist";
-@use "components/_sidebar";
+@use "components/playlistlist";
+@use "components/playerbar";
+@use "components/songlist";
+@use "components/sidebar";
+@use "components/addsongmodal";
+@use "components/allsonglist";
+@use "components/queuepanel";
 
 // pages
 @use "pages/playlist";
 @use "pages/settings";
+@use "pages/song";
 
 // abstract styles
-@use "abstracts/_mixins";
-@use "abstracts/_variables";
+@use "abstracts/mixins";
+@use "abstracts/variables";

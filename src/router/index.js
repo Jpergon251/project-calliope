@@ -3,13 +3,15 @@ import Home from '../pages/Home.vue'
 import Library from '../pages/Library.vue'
 import Playlist from '../pages/Playlist.vue'
 import Settings from '../pages/Settings.vue'
+import Song from '../pages/Song.vue'
 
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
   {path: '/library',name: 'Library',component: Library},
   {path: '/playlist/:playlistId', name: 'playlist', component: Playlist, props: true},
-  {path: '/settings',name:'Settings', component: Settings}
+  {path: '/settings',name:'Settings', component: Settings},
+  {path: '/song/:id',name: 'song', component: Song, props: true}
 
 ]
 

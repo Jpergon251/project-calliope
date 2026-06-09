@@ -6,7 +6,7 @@
           <Music2 class="icon-cover"/>
           <div class="playlist-actions">
 
-            <button class="add" :disabled="playlist.id === 'all'">
+            <button class="add" :disabled="playlist.id === 'all'" @click="showAddSongsModal = true">
               <Plus/>
             </button>
 
@@ -20,10 +20,17 @@
 
           </div>
         </section>
+
+        <AddSongsModal
+          v-if="showAddSongsModal"
+          :playlist="playlist"
+          :songs="library.songs"
+          @close="showAddSongsModal = false"
+        />
         <ul class="song-list">
             <li 
             v-for="(song, index) in songs" :key="index"
-            @click="library.playSong(song)"
+            @click="library.playSong(song,songs)"
             class="song-item"
             >
                 
@@ -41,7 +48,12 @@
                       class="cover-image"
                     />
 
-                    <span class="song-name">{{ song.name }}</span>
+                    <div class="song-info">
+                      <span class="song-name">{{ song.name }}</span>
+                      <span class="song-artist">{{ song.artist }}</span>
+
+                    </div>
+                    
                   </div>
                 
                 <span class="song-duration">{{ formatDuration(song.duration) }}</span>
@@ -52,13 +64,18 @@
 </template>
 
 <script setup>
-import { DiscAlbum,  EllipsisVertical,  Menu,  Music2, Pencil, Plus } from "lucide-vue-next";
+import { DiscAlbum,  EllipsisVertical,  Import,  Menu,  Music2, Pencil, Plus } from "lucide-vue-next";
 import { useLibraryStore }
 from "../stores/libraryStore.js";
 import Library from "../pages/Library.vue";
+import { computed, ref } from "vue";
+import AddSongsModal from "./AddSongsModal.vue";
 
 const library =
 useLibraryStore();
+
+const showAddSongsModal =
+  ref(false);
 
 const props =
 defineProps({
@@ -85,6 +102,8 @@ function formatDuration(
       .padStart(2, "0")
   }`;
 }
+
+
 
 
 </script>

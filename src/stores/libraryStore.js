@@ -10,26 +10,34 @@ export const useLibraryStore = defineStore("library", () => {
   // STATE
   // =========================
   const songs = ref([]);
-  const playlists = ref([
-    {
-      id: "all",
-      name: "All Songs",
-      get songs() {
-        return songs.value;
-      }
-    }
-  ]);
 
+  const defaultPlaylist = {
+    id: "all",
+    name: "All Songs",
+    get songs() {
+      return songs.value;
+    }
+  };
+
+  const savedPlaylists =
+    JSON.parse(
+      localStorage.getItem("playlists") || "[]"
+    );
+
+  const playlists = ref([
+    defaultPlaylist,
+    ...savedPlaylists
+  ]);
   const folderHandle = ref(null);
 
   let currentUrl = null;
-
+  const playQueue = ref([]);
   const playingSong = ref(null);
   const isPlaying = ref(false);
   const currentTime = ref(0);
   const duration = ref(0);
   const volume = ref(1);
-
+  const currentPlaylistId = ref(null);
   // =========================
   // AUDIO ENGINE
   // =========================
@@ -73,29 +81,113 @@ export const useLibraryStore = defineStore("library", () => {
     localStorage.setItem("volume", v);
   });
 
+
+  //=========
+  // Playlist management
+  //=========
+  function createPlaylist({ name, cover }) {
+
+    const playlist = {
+      id: crypto.randomUUID(),
+      name,
+      cover,
+      songsIds: []
+    };
+
+    playlists.value.push(playlist);
+
+    // console.log("PLAYLISTS:", playlists.value);
+
+    savePlaylists();
+  }
+
+  function savePlaylists() {
+
+    const playlistsToSave =
+      playlists.value.filter(
+        p => p.id !== "all"
+      );
+
+    console.log(
+      "GUARDANDO:",
+      playlistsToSave
+    );
+
+    localStorage.setItem(
+      "playlists",
+      JSON.stringify(playlistsToSave)
+    );
+  }
+
+  function addSongToPlaylist(
+    playlistId,
+    songId
+  ) {
+
+    const playlist =
+      playlists.value.find(
+        p => p.id === playlistId
+      );
+
+    if (!playlist) return;
+
+    if (!playlist.songIds) {
+      playlist.songIds = [];
+    }
+
+    if (
+      playlist.songIds.includes(songId)
+    ) return;
+
+    playlist.songIds.push(songId);
+
+    savePlaylists();
+  }
+
+  function isSongInPlaylist(
+    playlistId,
+    songId
+  ) {
+
+    const playlist =
+      playlists.value.find(
+        p => p.id === playlistId
+      );
+
+    if (!playlist) return false;
+
+    return (
+      playlist.songIds ?? []
+    ).includes(songId);
+  }
   // =========================
   // PLAYER ACTIONS
   // =========================
-  function playSong(song) {
 
-    if (currentUrl) {
-      URL.revokeObjectURL(
-        currentUrl
-      );
+  function playFromPlaylist(song, playlist = null) {
+    const queue = playlist?.songs
+      ? playlist.songs
+      : songs.value;
+
+    currentPlaylistId.value = playlist?.id ?? null;
+
+    playSong(song, queue);
+  }
+
+  function playSong(song, queue) {
+    if (queue) {
+      playQueue.value = queue;
     }
 
-    currentUrl =
-      URL.createObjectURL(
-        song.file
-      );
+    if (currentUrl) {
+      URL.revokeObjectURL(currentUrl);
+    }
 
-    audio.src =
-      currentUrl;
-
+    currentUrl = URL.createObjectURL(song.file);
+    audio.src = currentUrl;
     audio.play();
 
-    playingSong.value =
-      song;
+    playingSong.value = song;
   }
 
   function playPreviousSong() {
@@ -104,19 +196,23 @@ export const useLibraryStore = defineStore("library", () => {
       return;
 
     const currentIndex =
-      songs.value.findIndex(
+      playQueue.value.findIndex(
         song =>
           song.id ===
           playingSong.value.id
       );
 
     const previousSong =
-      songs.value[
+      playQueue.value[
         currentIndex - 1
       ];
 
     if (previousSong) {
-      playSong(previousSong);
+
+      playSong(
+        previousSong,
+        playQueue.value
+      );
     }
   }
   
@@ -126,19 +222,22 @@ export const useLibraryStore = defineStore("library", () => {
       return;
 
     const currentIndex =
-      songs.value.findIndex(
+      playQueue.value.findIndex(
         song =>
           song.id ===
           playingSong.value.id
       );
 
     const nextSong =
-      songs.value[
+      playQueue.value[
         currentIndex + 1
       ];
 
     if (nextSong) {
-      playSong(nextSong);
+      playSong(
+        nextSong,
+        playQueue.value
+      );
     }
   }
 
@@ -231,7 +330,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     songs.value = list;
     loadMetadataForSongs();
-    console.log(songs.value)
+    // console.log(songs.value)
   }
 
   async function selectFolder() {
@@ -328,6 +427,7 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
 
+
   // =========================
   // RETURN
   // =========================
@@ -346,12 +446,18 @@ export const useLibraryStore = defineStore("library", () => {
 // PLAYER ACTIONS
     playPreviousSong,
     playNextSong,
+    playQueue,
     playSong,
     togglePlay,
     seek,
 // FOLDER ACTIONS
     selectFolder,
     loadSavedFolder,
-    removeFolder
+    removeFolder,
+
+// PLAYLIST
+    createPlaylist,
+    addSongToPlaylist,
+    isSongInPlaylist
   };
 });
