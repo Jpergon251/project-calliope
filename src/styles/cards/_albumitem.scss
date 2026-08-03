@@ -1,0 +1,26 @@
+.album-item {
+
+    
+
+    .album-name,.album-artist {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--text-primary);
+        text-align: center;
+    }
+
+    .album-link {
+        color: var(--text-primary);
+        text-decoration: none;
+
+        .album-image{
+            aspect-ratio: 1 / 1;
+        }
+
+        &:hover {
+            text-decoration: underline;
+        }
+        
+    }
+}

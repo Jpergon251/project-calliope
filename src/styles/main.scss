@@ -1,22 +1,37 @@
+// abstract styles
+@use "abstracts/mixins";
+@use "abstracts/variables";
+
 // Global styles
 @use "base/global";
 @use "base/reset";
 @use "base/typography";
 
 // Component styles
-@use "components/playlistlist";
+@use "components/pllist";
 @use "components/playerbar";
 @use "components/songlist";
 @use "components/sidebar";
 @use "components/addsongmodal";
+@use "components/allalbumlist";
 @use "components/allsonglist";
 @use "components/queuepanel";
+@use "components/albumlist";
+@use "components/screens/welcomescreen";
+@use "components/screens/loadingscreen";
+
+// Items
+@use "cards/mediacard";
+@use "cards/albumitem";
+@use "cards/songitem";
+@use "cards/playlistitem";
 
 // pages
+@use "pages/home";
+@use "pages/library";
 @use "pages/playlist";
 @use "pages/settings";
 @use "pages/song";
-
-// abstract styles
-@use "abstracts/mixins";
-@use "abstracts/variables";
+@use "pages/songspage";
+@use "pages/albumspage";
+@use "pages/about";

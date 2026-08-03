@@ -3,48 +3,51 @@
   // ==========
   // BACKGROUNDS
   // ==========
-  --bg-primary: #070707;
-  --bg-secondary: #181818;
-  --bg-tertiary: #242424;
-  --bg-hover: #424242; 
+  --bg-primary: #090b09;
+  --bg-secondary: #171b17;
+  --bg-tertiary: #222722;
+  --bg-hover: #2b332b;
 
   // ==========
   // PLAYER
   // ==========
-  --player-bg: #101010;
-  --sidebar-bg: #151515;
-  --card-bg: #1d1d1d;
-  --card-hover-bg: #2a2a2a;
+  --player-bg: #111311;
+  --sidebar-bg: #141714;
+  --card-bg: #1b201b;
+  --card-hover-bg: #262d26;
 
   // ==========
   // TEXT
   // ==========
   --text-primary: #ffffff;
-  --text-secondary: #b3b3b3;
-  --text-muted: #7d7d7d;
+  --text-secondary: #bdbdbd;
+  --text-muted: #7a7a7a;
   --text-inverted: #000000;
 
   // ==========
   // ACCENT
   // ==========
-  --accent: #27b459;
-  --accent-hover: #30e971;
-  --accent-active: #1aa34a;
-  --accent-muted: #19613280;
+  --accent: #14B814;
+  --accent-hover: #2AC62A;
+  --accent-active: #109910;
+  --accent-muted: rgba(20,184,20,.18);
+
+  // Tonos del verde
+  --accent-light: #4ED44E;
+  --accent-dark: #298529;
+  --accent-darker: #2A522A;
 
   // ==========
   // BORDERS
   // ==========
-  --border-color: #2b2b2b;
-  --border-hover: #222222;
+  --border-color: #2D332D;
+  --border-hover: #3A433A;
+
   // ==========
   // SHADOWS
   // ==========
-  --shadow-sm:
-    0 2px 8px rgba(0,0,0,.2);
-
-  --shadow-md:
-    0 4px 16px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.40);
 
   // ==========
   // RADIUS
@@ -59,6 +62,9 @@
   --transition-fast: .15s ease;
   --transition-normal: .25s ease;
 
-  --cancel-color: rgb(200, 65, 65);
-  --check-color: rgb(65, 200, 65);
+  // ==========
+  // STATUS
+  // ==========
+  --cancel-color: #D85A5A;
+  --check-color: #38C976;
 }

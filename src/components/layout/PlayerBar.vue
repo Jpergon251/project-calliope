@@ -8,8 +8,8 @@
             min="0"
             :max="library.duration || 0"
             step="0.1"
-            v-model="library.currentTime"
-            @input="library.seek(library.currentTime)"
+            :value="library.currentTime"
+            @input="handleSeek($event)"
             class="progress-bar"
         />
     
@@ -57,31 +57,8 @@
       </section>
 
     <!-- Volume Control -->
-      <section class="volume">
-          <button class="volume-button" @click="showVolume = !showVolume">
-              <Volume v-if="library.volume <= 0.2 & library.volume > 0" fill="white" />
-              <Volume1 v-if="library.volume <= 0.8 & library.volume > 0.2" fill="white" />
-              <Volume2 v-if="library.volume > 0.8" fill="white" />
-              <VolumeOff v-if="library.volume == 0" fill="white" />
-          </button>
-
-          <div v-if="showVolume" class="volume-slider-container">
-              <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  v-model="library.volume"
-                  class="volume-slider"
-              />
-          </div>
-      </section>
+      <VolumeModal :library="library"/>
     </section>
-
-
-    
-
-
   </div>
 
   <QueuePanel
@@ -92,18 +69,24 @@
 </template>
 
 <script setup>
-import { Volume, Volume1, Volume2, VolumeOff, Play, Pause, SkipBack, SkipForward, ListMusic } from "lucide-vue-next";
-import { useLibraryStore }
-from "../stores/libraryStore.js";
-import SongCover from "./SongCover.vue";
-import QueuePanel from "./QueuePanel.vue"
+import { Play, Pause, SkipBack, SkipForward, ListMusic } from "lucide-vue-next";
+import { useLibraryStore } from "../../stores/libraryStore.js";
+import SongCover from "../library/SongCover.vue";
+import QueuePanel from "../player/QueuePanel.vue"
 const library =
 useLibraryStore();
 import { ref } from "vue";
+import VolumeModal from "../player/VolumeModal.vue";
 
 
 const showQueue = ref(false);
-const showVolume = ref(false);
+
+function handleSeek(event) {
+  const nextTime = Number(event.target.value);
+  library.currentTime = nextTime;
+  library.seek(nextTime);
+}
+
 function formatTime(seconds) {
 
   if (

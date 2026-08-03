@@ -1,25 +1,43 @@
 .queue-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+
+  pointer-events: auto;
+
+  background: transparent;
+
+  .queue-drawer {
+    position: absolute;
+
+    bottom: 140px;
+    right: 25%;
+
+    width: 280px;
+    max-height: 400px;
+    padding: 25px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
     background: var(--bg-secondary);
 
-  position: absolute;
-  bottom: 138px;
-  right: 25%;
-  z-index: 1000;
-  border-radius: 10px 10px  0  0;
+    border-radius: 10px 10px 0 0;
+
     border-top: 2px solid rgba(255, 255, 255, 0.1);
     border-right: 2px solid rgba(255, 255, 255, 0.1);
     border-left: 2px solid rgba(255, 255, 255, 0.1);
 
+    overflow: hidden;
 
-  .queue-drawer {
-    width: 280px;
-    max-height: 400px;
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border-radius: 10px;
-
+    // =====================
+    // HEADER
+    // =====================
     .queue-header {
       display: flex;
       justify-content: space-between;
@@ -33,6 +51,7 @@
         background: none;
         border: none;
         cursor: pointer;
+
         color: var(--text-primary);
         font-size: 16px;
 
@@ -42,7 +61,10 @@
       }
     }
 
-    .now-playing {
+    // =====================
+    // NOW PLAYING
+    // =====================
+    .now-playing,.previous-song {
       display: flex;
       flex-direction: column;
       gap: 5px;
@@ -56,12 +78,16 @@
       div {
         font-size: 14px;
         font-weight: bold;
+
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
       }
     }
 
+    // =====================
+    // QUEUE LIST
+    // =====================
     .queue-list {
       flex: 1;
       overflow-y: auto;
@@ -80,12 +106,13 @@
         li {
           padding: 8px;
           border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
 
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          font-size: 14px;
+          cursor: pointer;
 
           &:hover {
             background: var(--accent);
@@ -94,6 +121,53 @@
           &.active {
             background: rgba(255, 255, 255, 0.1);
             font-weight: bold;
+          }
+
+          // =====================
+          // SONG INFO
+          // =====================
+          .song-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            min-width: 0;
+            width: 100%;
+
+            .song-index {
+              flex-shrink: 0;
+              opacity: 0.7;
+            }
+
+            .song-name {
+              flex: 1;
+              min-width: 0;
+
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+            }
+          }
+
+          // =====================
+          // CONTROLS
+          // =====================
+          .song-controls {
+            display: flex;
+            gap: 6px;
+
+            button {
+              background: none;
+              border: none;
+              cursor: pointer;
+
+              color: var(--text-primary);
+
+              &:disabled {
+                cursor: default;
+              }
+
+            }
           }
         }
       }

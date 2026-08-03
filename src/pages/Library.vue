@@ -2,16 +2,18 @@
 
     <div class="library-page">
         <h1>Library</h1>
-        <PlaylistList />
-        <AllSongList :songs="songs"/>
+        <PLList />
+        <AllSongList/>
+        <AllAlbumList />
     </div>
 
 
 </template>
 
 <script setup>
-import AllSongList from "../components/AllSongList.vue";
-import PlaylistList from "../components/PlaylistList.vue";
+import AllAlbumList from "../components/library/AllAlbumList.vue";
+import AllSongList from "../components/library/AllSongList.vue";
+import PLList from "../components/library/PLList.vue";
 import { useLibraryStore } from "../stores/libraryStore.js";
 const library = useLibraryStore();
 const songs = library.songs

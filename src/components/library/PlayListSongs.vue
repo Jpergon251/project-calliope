@@ -2,15 +2,15 @@
     <div class="song-list-container">
 
         <section class="playlist-cover">
-          <!-- <image class="playlist-cover" ></image> -->
-          <Music2 class="icon-cover"/>
-          <div class="playlist-actions">
+          <img v-if="cover" class="playlist-cover-img" :src="cover" alt="Playlist Cover"/>
+          <Music2 v-else class="icon-cover"/>
+          <div v-if="playlist" class="playlist-actions">
 
-            <button class="add" :disabled="playlist.id === 'all'" @click="showAddSongsModal = true">
+            <button class="add" @click="showAddSongsModal = true">
               <Plus/>
             </button>
 
-            <button class="edit">
+            <button class="edit" @click="$emit('edit')" aria-label="Edit playlist">
               <Pencil/>
             </button>
 
@@ -30,7 +30,7 @@
         <ul class="song-list">
             <li 
             v-for="(song, index) in songs" :key="index"
-            @click="library.playSong(song,songs)"
+            @click="library.playFromPlaylist(song,songs)"
             class="song-item"
             >
                 
@@ -64,12 +64,12 @@
 </template>
 
 <script setup>
-import { DiscAlbum,  EllipsisVertical,  Import,  Menu,  Music2, Pencil, Plus } from "lucide-vue-next";
+import { DiscAlbum, EllipsisVertical, Music2, Pencil, Plus } from "lucide-vue-next";
 import { useLibraryStore }
-from "../stores/libraryStore.js";
-import Library from "../pages/Library.vue";
+from "../../stores/libraryStore.js";
+import Library from "../../pages/Library.vue";
 import { computed, ref } from "vue";
-import AddSongsModal from "./AddSongsModal.vue";
+import AddSongsModal from "../modals/AddSongsModal.vue"
 
 const library =
 useLibraryStore();
@@ -77,11 +77,14 @@ useLibraryStore();
 const showAddSongsModal =
   ref(false);
 
-const props =
-defineProps({
-  songs: Array,
-  playlist: Object
+const props = defineProps({
+    songs: Array,
+    playlist: Object,
+    cover: String
 });
+
+defineEmits(["edit"]);
+
 function formatDuration(
   seconds
 ) {

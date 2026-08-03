@@ -1,25 +1,32 @@
 <template>
-  <section class="top-section">
-    <Sidebar class="sidebar"/>
-    <RouterView class="main"/>
-  </section>
-  <section class="bottom-section">
-    <PlayerBar />
-  </section>
+ 
+  <LoadingScreen
+      v-if="library.loading"
+  />
+
+  <WelcomeScreen
+    v-else-if="!library.folderHandle && library.initialized && !library.loading"
+  />
+  <MainLayout
+      v-if="library.folderHandle && library.initialized && !library.loading"
+  />
+
 </template>
 
 <script setup>
-import Sidebar from "./components/Sidebar.vue"
-import PlayerBar from "./components/PlayerBar.vue"
 
 import { onMounted } from "vue";
+/* Test comment from AI agent */
 import { useLibraryStore } from "./stores/libraryStore";
-import { Section } from "lucide-vue-next";
+import MainLayout from "./components/screens/MainLayout.vue";
+import WelcomeScreen from "./components/screens/WelcomeScreen.vue";
+import LoadingScreen from "./components/screens/LoadingScreen.vue";
+
 
 const library = useLibraryStore();
 
-onMounted(() => {
-  library.loadSavedFolder();
+onMounted(async () => {
+  await library.init();
 });
 
 

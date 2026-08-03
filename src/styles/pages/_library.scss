@@ -1,0 +1,16 @@
+.library-page {
+    min-height: 100%;
+    padding: clamp(20px, 4vw, 48px);
+    box-sizing: border-box;
+
+    > h1 {
+        margin: 0 0 28px;
+        font-size: clamp(2rem, 4vw, 3rem);
+        letter-spacing: -.035em;
+        line-height: 1.1;
+    }
+
+    > * + * {
+        margin-top: 36px;
+    }
+}

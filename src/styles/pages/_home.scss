@@ -1,0 +1,30 @@
+.home {
+    display: grid;
+    min-height: 100%;
+    place-items: center;
+    padding: clamp(32px, 8vw, 96px);
+    box-sizing: border-box;
+
+    .empty-message {
+        max-width: 680px;
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: clamp(1.45rem, 3vw, 2.35rem);
+        font-weight: 500;
+        line-height: 1.35;
+        text-align: center;
+
+        a {
+            color: var(--accent-light);
+            font-weight: 700;
+            text-decoration-color: var(--accent-muted);
+            text-underline-offset: 5px;
+            transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
+
+            &:hover {
+                color: var(--accent-hover);
+                text-decoration-color: currentColor;
+            }
+        }
+    }
+}

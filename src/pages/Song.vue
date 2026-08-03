@@ -1,34 +1,64 @@
 <template>
-  <div class="song-page" v-if="song">
+<div class="song-page" v-if="song">
 
-    <div class="song-layout">
+  <div class="song-layout">
 
-      <!-- LEFT: COVER -->
-      <div class="cover-section">
-        <img v-if="song.cover" :src="song.cover" />
-        <DiscAlbum v-else class="fallback" />
+    <div class="cover-section">
+      <img
+        v-if="song.cover"
+        :src="song.cover"
+      />
+
+      <DiscAlbum
+        v-else
+        class="fallback"
+      />
+    </div>
+
+    <div class="info-section">
+
+      <h1>{{ song.title }}</h1>
+
+      <h2>{{ song.artist }}</h2>
+
+      <span class="duration">
+        {{ format(song.duration) }}
+      </span>
+
+      <div class="actions">
+
+        <button
+          class="primary"
+          @click="library.playSong(song)"
+        >
+          <Play fill="currentColor"/>
+        </button>
+
+        <button class="secondary">
+          <Heart/>
+        </button>
+
+        <button class="secondary">
+          <Plus/>
+        </button>
+
       </div>
 
-      <!-- RIGHT: INFO -->
-      <div class="info-section">
+      <div class="metadata">
 
-        <h1 class="title">{{ song.name }}</h1>
-        <p class="artist">{{ song.artist }}</p>
+        <div>
+          <span>Album</span>
+          <strong>{{ song.album || "Unknown" }}</strong>
+        </div>
 
-        <p class="duration">
-          {{ format(song.duration) }}
-        </p>
+        <div>
+          <span>Artist</span>
+          <strong>{{ song.artist }}</strong>
+        </div>
 
-        <div class="actions">
-
-          <button class="play-btn" @click="library.playSong(song)">
-            <Play fill="white"/>
-          </button>
-
-          <button class="secondary">
-            Add to playlist
-          </button>
-
+        <div>
+          <span>Duration</span>
+          <strong>{{ format(song.duration) }}</strong>
         </div>
 
       </div>
@@ -36,13 +66,15 @@
     </div>
 
   </div>
+
+</div>
 </template>
 
 <script setup>
 import { useRoute } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
 import { computed } from "vue";
-import { DiscAlbum, Play } from "lucide-vue-next";
+import { DiscAlbum, Play, Heart, Plus } from "lucide-vue-next";
 
 const route = useRoute();
 const library = useLibraryStore();

@@ -76,7 +76,7 @@ import {
 import {
   useLibraryStore
 }
-from "../stores/libraryStore";
+from "../../stores/libraryStore";
 
 const library =
 useLibraryStore();

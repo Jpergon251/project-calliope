@@ -1,0 +1,138 @@
+.all-playlist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 0;
+    .playlist-title {
+        display:flex;
+        align-items:center;
+        justify-content: space-between;
+
+        h2 {
+            margin: 0;
+        }
+
+        .create-playlist-button{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 13px;
+            color: var(--accent);
+            background: var(--accent-muted);
+            border: 1px solid var(--accent-dark);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font: inherit;
+            font-weight: 600;
+            transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+
+            &:hover{
+                color: var(--text-primary);
+                background: var(--accent);
+                transform: translateY(-1px);
+            }
+        }
+    }
+    .playlist-list {
+        display: flex;
+        padding: 10px;
+        gap: 35px;
+        list-style: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        flex-wrap: nowrap;
+
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        scroll-snap-type: x proximity;
+
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+
+        .modal-card {
+            width: min(100%, 420px);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            .modal-title{
+                margin: 0 0 22px;
+                font-size: 1.5rem;
+            }
+            .input-fields{
+                display: flex;
+                flex-direction: column;
+                gap: 7px;
+                label{
+                    color: var(--text-secondary);
+                    font-size: .9rem;
+                    font-weight: 500;
+                    span{
+                        color: var(--text-muted);
+                        font-size: inherit;
+                    }
+                }
+                input {
+                    margin-bottom: 11px;
+                    padding: 11px 12px;
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--radius-sm);
+                    outline: none;
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                    font: inherit;
+
+                    &:focus {
+                        border-color: var(--accent);
+                        box-shadow: 0 0 0 3px var(--accent-muted);
+                    }
+                }
+            }
+            .actions{
+                
+                display: flex;
+                margin-top: 8px;
+                gap: 10px;
+                justify-content: flex-end;
+
+                button{
+                    padding: 10px 15px;
+                    cursor: pointer;
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--radius-sm);
+                    font: inherit;
+                }
+                .cancel-button{
+                    color: var(--text-primary);
+                    background: transparent;
+                }
+                .check-button{
+                    color: var(--text-primary);
+                    border-color: var(--accent);
+                    background: var(--accent);
+
+                    &:hover {
+                        background: var(--accent-hover);
+                    }
+                }
+            }
+
+        }
+    }
+
+}
