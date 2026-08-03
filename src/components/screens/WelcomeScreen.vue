@@ -56,7 +56,6 @@ function chooseMusic(){
     }
 }
 
-
 async function handleFiles(event){
 
     const files = [...event.target.files];
