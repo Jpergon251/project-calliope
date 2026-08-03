@@ -15,11 +15,18 @@
 
             <button
                 class="folder-button"
-                @click="library.selectFolder()"
+                @click="chooseMusic"
             >
                 Seleccionar carpeta de música
             </button>
-
+            <input
+                ref="fileInput"
+                type="file"
+                multiple
+                accept="audio/*"
+                hidden
+                @change="handleFiles"
+            />
             <span class="note">
                 Puedes cambiar la carpeta más tarde desde Configuración.
             </span>
@@ -31,6 +38,31 @@
 <script setup>
 import Logo from "../common/Logo.vue";
 import { useLibraryStore } from "../../stores/libraryStore";
+import { ref } from "vue";
 
+const fileInput = ref(null);
 const library = useLibraryStore();
+
+function chooseMusic(){
+
+    if ("showDirectoryPicker" in window) {
+
+        library.selectFolder();
+
+    } else {
+
+        fileInput.value.click();
+
+    }
+}
+
+
+async function handleFiles(event){
+
+    const files = [...event.target.files];
+
+    await library.selectFiles(files);
+
+}
+
 </script>

@@ -502,6 +502,38 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
 
+  async function selectFiles(files) {
+
+    const list = [];
+
+    for (const file of files) {
+
+        if (!/\.(mp3|flac|wav|ogg)$/i.test(file.name)) {
+            continue;
+        }
+
+        list.push({
+            id: `${file.name}-${file.size}`,
+            file,
+
+            name: cleanFileName(file.name),
+            duration: null,
+
+            title: cleanFileName(file.name),
+            artist: "Unknown",
+            cover: null,
+
+            metadataLoaded: false
+        });
+    }
+
+
+    songs.value = list;
+
+    sortSongs();
+
+    await loadMetadataForSongs();
+  }
 async function loadMetadataForSongs() {
 
   const db = await dbPromise;
@@ -851,6 +883,7 @@ async function rebuildLibrary() {
 // FOLDER ACTIONS
     selectFolder,
     removeFolder,
+    selectFiles,
     rescanLibrary,
     rebuildLibrary,
     sortSongs,
