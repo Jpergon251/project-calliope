@@ -8,19 +8,19 @@
 
                 <router-link to="/" class="page-link">
                     <House class="page-icon"/>
-                    <span class="page-name">Home</span>
+                    <span class="page-name">Inicio</span>
                 </router-link>
                 <router-link to="/library" class="page-link">
                     <LibraryIcon class="page-icon"/>
-                    <span class="page-name">Library</span>
+                    <span class="page-name">Biblioteca</span>
                 </router-link>
                 <router-link to="/settings" class="page-link">
                     <Settings class="page-icon"/>
-                    <span class="page-name">Settings</span>
+                    <span class="page-name">Configuración</span>
                 </router-link>
                 <router-link to="/about" class="page-link">
                     <CircleHelp class="page-icon"/>
-                    <span class="page-name">About</span>
+                    <span class="page-name">Acerca de</span>
                 </router-link>
             </li>
             

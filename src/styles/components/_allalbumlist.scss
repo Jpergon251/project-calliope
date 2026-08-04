@@ -16,7 +16,7 @@
 
         .view-all {
             color: var(--text-secondary);
-            text-decoration: none;
+            text-decoration: underline;
 
             transition: color .2s;
 
@@ -36,7 +36,7 @@
         border: none;
         border-radius: 20px;
 
-        background: var(--bg-secondary);
+        background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
 
         color: var(--text-primary);
 

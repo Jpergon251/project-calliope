@@ -5,7 +5,7 @@
     min-height: 126px;
     padding: 10px clamp(16px, 3vw, 32px) 14px;
     box-sizing: border-box;
-    background: var(--player-bg);
+    background: linear-gradient(135deg, var(--player-bg) 0%, var(--bg-secondary) 100%);
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, .18);
 

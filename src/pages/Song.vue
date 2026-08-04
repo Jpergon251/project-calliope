@@ -9,10 +9,7 @@
         :src="song.cover"
       />
 
-      <DiscAlbum
-        v-else
-        class="fallback"
-      />
+      <SongIconCover class="fallback" v-else/>
     </div>
 
     <div class="info-section">
@@ -34,12 +31,12 @@
           <Play fill="currentColor"/>
         </button>
 
-        <button class="secondary">
-          <Heart/>
-        </button>
-
-        <button class="secondary">
-          <Plus/>
+        <button class="secondary"
+          @click="library.toggleFavorite(song)"
+          :class="{ active: song.favorite }"
+        >
+          <Heart fill="currentColor" v-if="song.favorite"/>
+          <Heart v-else/>
         </button>
 
       </div>
@@ -75,6 +72,7 @@ import { useRoute } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
 import { computed } from "vue";
 import { DiscAlbum, Play, Heart, Plus } from "lucide-vue-next";
+import SongIconCover from "../components/common/SongIconCover.vue";
 
 const route = useRoute();
 const library = useLibraryStore();

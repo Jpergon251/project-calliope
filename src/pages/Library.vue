@@ -1,7 +1,7 @@
 <template>
 
     <div class="library-page">
-        <h1>Library</h1>
+        <h1>Biblioteca</h1>
         <PLList />
         <AllSongList/>
         <AllAlbumList />

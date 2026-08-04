@@ -4,6 +4,7 @@
     min-height: 100%;
     gap: 30px;
     border-right: 1px solid var(--border-color);
+    background: linear-gradient(180deg, var(--sidebar-bg), var(--bg-primary));
     .logo{
       display: flex;
       flex-direction: row;

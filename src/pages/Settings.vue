@@ -1,13 +1,13 @@
 <template>
   <div class="settings-page">
-    <h1>Settings</h1>
+    <h1>Configuración</h1>
 
     <section class="music-library">
 
-      <h2>Music Library</h2>
+      <h2>Biblioteca de Música</h2>
 
       <p>
-        Songs loaded: {{ library.songs.length }}
+        Canciones cargadas: {{ library.songs.length }}
       </p>
 
       <div class="settings-actions">
@@ -16,7 +16,7 @@
           @click="library.selectFolder()"
           class="settings-button"
         >
-          Change Folder
+          Cambiar carpeta de música
         </button>
 
         <button
@@ -24,46 +24,48 @@
           :disabled="!library.folderHandle"
           class="settings-button"
         >
-          Remove Folder
+          Eliminar carpeta de música
         </button>
       </div>
     </section>
 
     <section class="library-health">
 
-      <h2>Library Health</h2>
+      <h2>Salud de la Biblioteca</h2>
 
       <p>
-        Songs without metadata:
-        <strong>{{ songsWithoutMetadata }}</strong>
+        Canciónes sin metadatos: <strong>{{ songsWithoutMetadata }}</strong>
       </p>
 
       <p class="health-description">
-        Metadata helps organize your library, group albums, improve search and display the correct song information.
+        Los metadatos ayudan a organizar tu biblioteca, agrupar álbumes, mejorar la búsqueda y mostrar la información correcta de las canciones.
       </p>
 
-      <button
-        class="settings-button"
-        disabled
-      >
-        Fix Metadata (Coming Soon)
-      </button>
+      <section class="health-actions">
+        <button
+          class="settings-button"
+          disabled
+        >
+          Escanear metadatos (Próximamente)
+        </button>
 
-      <button
-        @click="library.rescanLibrary()"
-        :disabled="!library.folderHandle"
-        class="settings-button"
-      >
-        Rescan Library
-      </button>
+        <button
+          @click="library.rescanLibrary()"
+          :disabled="!library.folderHandle"
+          class="settings-button"
+        >
+          Escanear de nuevo
+        </button>
 
-      <button
-        @click="rebuild"
-        :disabled="!library.folderHandle"
-        class="settings-button"
-      >
-        Rebuild Library
-</button>
+        <button
+          @click="rebuild"
+          :disabled="!library.folderHandle"
+          class="settings-button"
+        >
+          Reconstruir Biblioteca
+        </button>
+      </section>
+      
     </section>
 
   </div>

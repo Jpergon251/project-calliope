@@ -38,6 +38,38 @@
         }
     }
 
+    .favorite-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--border-color);
+        border-radius: 50%;
+        background: rgba(9, 11, 9, 0.8);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+
+        .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        &.active {
+            background: var(--accent-muted);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        &:hover {
+            transform: translateY(-1px);
+            border-color: var(--accent);
+        }
+    }
+
     .media-cover:hover {
 
         .play-btn {

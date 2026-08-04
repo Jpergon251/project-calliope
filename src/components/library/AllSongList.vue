@@ -2,19 +2,19 @@
   <section class="all-songs">
 
     <header class="title">
-      <h2>Songs</h2>
+      <h2>Canciones</h2>
 
       <RouterLink
         to="/songs"
         class="view-all"
       >
-        View all →
+        Ver todo
       </RouterLink>
     </header>
 
     <input
       type="search"
-      placeholder="Search your song..."
+      placeholder="Busca tu canción..."
       v-model="query"
     />
 

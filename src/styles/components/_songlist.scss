@@ -17,18 +17,27 @@
             border-radius: 12px;
             margin: 20px;
         }
-        .icon-cover {
+        .background{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
             width: 500px;
-            height: 500px;
             aspect-ratio: 1 / 1;
-            flex-shrink: 0;
-            object-fit: cover;
-            object-position: center;
+
+            background: linear-gradient(180deg, var(--accent-dark), var(--bg-primary));
+
+            border: 1px solid var(--border-color);
             border-radius: 12px;
             margin: 20px;
-            border: 1px solid var(--border-color);    
-            
+
+            svg {
+                width: 45%;
+                height: 45%;
+                color: white;
+            }
         }
+        
         
         .playlist-actions{
             display: flex;

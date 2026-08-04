@@ -9,7 +9,7 @@
         </div>
         <ul class="playlist-list">
             <li 
-            v-for="playlist in library.playlists"
+            v-for="playlist in playlistList"
             :key="playlist.id"
             class="playlist-card"
             >
@@ -22,20 +22,20 @@
         <div v-if="showCreatePlaylist" class="modal-backdrop">
             <form class="modal-card" @submit.prevent="createPlaylist">
 
-                <h3 class="modal-title">Create playlist</h3>
+                <h3 class="modal-title">Crear playlist</h3>
 
                 <div class="input-fields">
-                    <label for="playlist-name">Playlist name</label>
+                    <label for="playlist-name">Nombre de la playlist</label>
 
                     <input
                     id="playlist-name"
                     v-model="newPlaylistName"
-                    placeholder="Playlist name"
+                    placeholder="Nombre de la playlist"
                     required
                     maxlength="100"
                     />
 
-                    <label for="playlist-cover">Cover URL <span>(Optional)</span></label>
+                    <label for="playlist-cover">URL de la portada <span>(Opcional)</span></label>
 
                     <input
                     id="playlist-cover"
@@ -49,10 +49,10 @@
 
                 <div class="actions">
                     <button type="button" @click="showCreatePlaylist = false" class="cancel-button">
-                        Cancel
+                        Cancelar
                     </button>
                     <button type="submit" class="check-button">
-                        Create playlist
+                        Crear playlist
                     </button>
 
                     
@@ -67,7 +67,7 @@
 import PlaylistItem from "./PlaylistItem.vue";
 import { PlusCircleIcon } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 
 const library = useLibraryStore();
@@ -76,6 +76,13 @@ const showCreatePlaylist = ref(false);
 
 const newPlaylistName = ref("");
 const newPlaylistCover = ref("");
+
+const playlistList = computed(() => {
+  const favorites = library.playlists.find((item) => item.id === library.FAVORITES_PLAYLIST_ID);
+  const others = library.playlists.filter((item) => item.id !== library.FAVORITES_PLAYLIST_ID);
+
+  return favorites ? [favorites, ...others] : others;
+});
 
 function openModal() {
   newPlaylistName.value = "";

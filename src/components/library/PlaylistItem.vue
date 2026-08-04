@@ -13,7 +13,7 @@
                     class="playlist-image"
                 />
 
-                <Music
+                <IconCover
                     v-else
                     class="playlist-image"
                 />
@@ -31,6 +31,7 @@
 <script setup>
 import MediaCard from "../common/MediaCard.vue";
 import { Music } from "lucide-vue-next";
+import IconCover from "../common/IconCover.vue";
 
 defineProps({
     playlist: {

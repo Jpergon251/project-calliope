@@ -6,7 +6,7 @@
     justify-content: center;
     align-items: center;
 
-    background: var(--bg-primary);
+    background: radial-gradient(circle at top left, rgba(20, 184, 20, 0.15), transparent 30%), linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
 
     .welcome-card {
         width: min(500px, 90%);
@@ -51,7 +51,6 @@
             color: var(--text-primary);
             font-size: 2rem;
             font-weight: 700;
-            letter-spacing: .15rem;
         }
 
         .subtitle {
@@ -81,7 +80,7 @@
             border-radius: var(--radius-md);
 
             background: var(--accent);
-            color: var(--text-inverted);
+            color: var(--text-primary);
 
             font-size: .95rem;
             font-weight: 600;

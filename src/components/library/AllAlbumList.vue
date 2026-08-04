@@ -2,20 +2,20 @@
   <section class="albums">
 
     <header class="title">
-      <h2>Albums</h2>
+      <h2>Álbumes</h2>
 
       <RouterLink
         to="/albums"
         class="view-all"
       >
-        View all →
+        Ver todo
       </RouterLink>
     </header>
 
     <input
       v-model="query"
       type="search"
-      placeholder="Search your album..."
+      placeholder="Busca tu álbum..."
     />
 
     <AlbumList :albums="filteredAlbums"/>

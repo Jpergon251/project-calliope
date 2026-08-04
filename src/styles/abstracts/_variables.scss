@@ -67,4 +67,26 @@
   // ==========
   --cancel-color: #D85A5A;
   --check-color: #38C976;
+
+// =========
+// ROADMAP
+// =========
+
+--roadmap: #5B7CFF;
+--roadmap-light: #8CA3FF;
+--roadmap-muted: rgba(91, 124, 255, 0.459);
+--roadmap-dark: #364EA8;
+
+// =========
+// ROADMAP STATUS
+// =========
+
+--status-current: #3dad2e; // En desarrollo / Actual
+--status-next: #f5a623; // Próximo
+--status-planned: #4086d1; // Planeado
+--status-completed: #2fa361; // Completado
+--status-research: #a87a35; // Investigación
+--status-warning: #ce5a5a; // Problemas / bloqueado
+--status-future: #7f6abd; // Futuro / ideas
+
 }

@@ -7,13 +7,13 @@
     <div class="modal-card">
 
       <h2 class="modal-title">
-        <p>Add songs to <span class="playlist-name">{{ playlist.name }}</span></p>
+        <p>Agregar canciones a <span class="playlist-name">{{ playlist.name }}</span></p>
         <button @click="$emit('close')" class="close-button"><CircleX class="icon"/></button>
       </h2>
 
       <input
         v-model="search"
-        placeholder="Search songs, artist..."
+        placeholder="Busca canciones o artistas..."
         class="search-input"
       />
 
@@ -44,15 +44,19 @@
               playlist.id,
               song.id
             )"
-
             @click="addSong(song.id)"
+            class="action-button"
           >
             <Plus/>
           </button>
 
-          <Check
+          <button
             v-else
-          />
+            class="action-button remove"
+            @click="removeSong(song.id)"
+          >
+            <Check />
+          </button>
 
         </li>
 
@@ -119,13 +123,11 @@ computed(() => {
   );
 });
 
-function addSong(
-  songId
-) {
+async function addSong(songId) {
+  await library.addSongToPlaylist(props.playlist.id, songId);
+}
 
-  library.addSongToPlaylist(
-    props.playlist.id,
-    songId
-  );
+async function removeSong(songId) {
+  await library.removeSongFromPlaylist(props.playlist.id, songId);
 }
 </script>

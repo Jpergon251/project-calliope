@@ -6,12 +6,12 @@
     </h1>
 
     <PlayListSongs
-      :songs="
-        playlistSongs || []
-      "
+      :songs="playlistSongs || []"
       :playlist="playlist"
       :cover="playlist?.cover"
+      :is-sortable="true"
       @edit="openEditModal"
+      @delete="deleteCurrentPlaylist"
     />
 
     <div v-if="showEditModal" class="playlist-edit-modal">
@@ -48,8 +48,7 @@
 import { computed, ref }
 from "vue";
 
-import { useRoute }
-from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import PlayListSongs
 from "../components//library/PlayListSongs.vue";
@@ -59,11 +58,9 @@ import {
 }
 from "../stores/libraryStore.js";
 
-const route =
-useRoute();
-
-const library =
-useLibraryStore();
+const route = useRoute();
+const router = useRouter();
+const library = useLibraryStore();
 
 const showEditModal = ref(false);
 const editedName = ref("");
@@ -78,26 +75,24 @@ computed(() =>
   )
 );
 
-const playlistSongs =
-computed(() => {
+const playlistSongs = computed(() => {
+  if (!playlist.value) return [];
 
-  if (!playlist.value)
-    return [];
-
-  // Playlist especial
-  if (
-    playlist.value.id ===
-    "all"
-  ) {
+  if (playlist.value.id === "all") {
     return library.songs;
   }
 
-  return library.songs.filter(
-    song =>
-      playlist.value.songIds?.includes(
-        song.id
-      )
-  );
+  const orderedIds = playlist.value.id === library.FAVORITES_PLAYLIST_ID
+    ? (playlist.value.songIds || []).length
+      ? playlist.value.songIds || []
+      : library.songs.filter((song) => song.favorite).map((song) => song.id)
+    : playlist.value.songIds || [];
+
+  const songsById = new Map(library.songs.map((song) => [song.id, song]));
+
+  return orderedIds
+    .map((id) => songsById.get(id))
+    .filter(Boolean);
 });
 
 function openEditModal() {
@@ -117,5 +112,15 @@ async function savePlaylist() {
   });
 
   showEditModal.value = false;
+}
+
+async function deleteCurrentPlaylist() {
+  if (!playlist.value) return;
+
+  await library.deletePlaylist(playlist.value.id);
+
+  if (route.params.playlistId) {
+    router.push("/library");
+  }
 }
 </script>

@@ -5,6 +5,7 @@
         <PlayListSongs
             :songs="albumSongs"
             :cover="albumCover"
+            :is-sortable="false"
         />
 
     </main>

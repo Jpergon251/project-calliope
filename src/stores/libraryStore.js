@@ -5,6 +5,8 @@ import { dbPromise } from "../lib/db";
 
 export const useLibraryStore = defineStore("library", () => {
 
+  const FAVORITES_PLAYLIST_ID = "favorites";
+
   // =========================
   // STATE
   // =========================
@@ -39,6 +41,7 @@ export const useLibraryStore = defineStore("library", () => {
   async function init() {
     await loadAlbums();
     await loadPlaylists();
+    await ensureFavoritesPlaylist();
     await loadSavedFolder();
 
     initialized.value = true
@@ -88,6 +91,8 @@ export const useLibraryStore = defineStore("library", () => {
 
     playlists.value =
       await db.getAll("playlists");
+
+    await ensureFavoritesPlaylist();
   }
 
   // =========================
@@ -140,6 +145,30 @@ export const useLibraryStore = defineStore("library", () => {
 
 
 
+  async function ensureFavoritesPlaylist() {
+    const existing = playlists.value.find((playlist) => playlist.id === FAVORITES_PLAYLIST_ID);
+
+    if (existing) {
+      if (!Array.isArray(existing.songIds)) {
+        existing.songIds = [];
+        await savePlaylist(existing);
+      }
+      return existing;
+    }
+
+    const playlist = {
+      id: FAVORITES_PLAYLIST_ID,
+      name: "Favoritos",
+      cover: null,
+      songIds: []
+    };
+
+    playlists.value = [playlist, ...playlists.value.filter((item) => item.id !== FAVORITES_PLAYLIST_ID)];
+    await savePlaylist(playlist);
+
+    return playlist;
+  }
+
   async function createPlaylist({ name, cover }) {
 
     const playlist = {
@@ -156,6 +185,8 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function updatePlaylist(id, { name, cover }) {
+
+    if (id === FAVORITES_PLAYLIST_ID) return;
 
     const playlist = playlists.value.find(
       item => item.id === id
@@ -205,6 +236,87 @@ export const useLibraryStore = defineStore("library", () => {
 
   }
 
+  async function removeSongFromPlaylist(playlistId, songId) {
+    const playlist = playlists.value.find((p) => p.id === playlistId);
+
+    if (!playlist || !Array.isArray(playlist.songIds)) return;
+
+    playlist.songIds = playlist.songIds.filter((id) => id !== songId);
+
+    await savePlaylist(playlist);
+  }
+
+  async function deletePlaylist(playlistId) {
+    if (playlistId === FAVORITES_PLAYLIST_ID) return;
+
+    const playlist = playlists.value.find((p) => p.id === playlistId);
+
+    if (!playlist) return;
+
+    playlists.value = playlists.value.filter((p) => p.id !== playlistId);
+
+    const db = await dbPromise;
+    await db.delete("playlists", playlistId);
+  }
+
+  async function reorderPlaylistSongs(playlistId, songIds) {
+    if (playlistId === FAVORITES_PLAYLIST_ID) return;
+
+    const playlist = playlists.value.find((p) => p.id === playlistId);
+
+    if (!playlist) return;
+
+    playlist.songIds = songIds;
+    await savePlaylist(playlist);
+  }
+
+  async function syncFavoritesPlaylistFromSongs() {
+    const favoritesPlaylist = playlists.value.find((playlist) => playlist.id === FAVORITES_PLAYLIST_ID);
+
+    if (!favoritesPlaylist) return null;
+
+    const favoriteSongIds = dedupeById(
+      songs.value
+        .filter((song) => song.favorite)
+        .map((song) => song.id)
+    );
+
+    const existingIds = Array.isArray(favoritesPlaylist.songIds)
+      ? favoritesPlaylist.songIds.filter((id) => favoriteSongIds.includes(id))
+      : [];
+
+    const nextSongIds = dedupeById([
+      ...existingIds,
+      ...favoriteSongIds.filter((id) => !existingIds.includes(id))
+    ]);
+
+    if (JSON.stringify(favoritesPlaylist.songIds || []) !== JSON.stringify(nextSongIds)) {
+      favoritesPlaylist.songIds = nextSongIds;
+      await savePlaylist(favoritesPlaylist);
+    }
+
+    return favoritesPlaylist;
+  }
+
+  async function toggleFavorite(song) {
+    if (!song) return;
+
+    const nextFavorite = !song.favorite;
+    song.favorite = nextFavorite;
+
+    const db = await dbPromise;
+    const existingMetadata = await db.get("metadata", song.id);
+
+    await db.put("metadata", {
+      ...(existingMetadata || {}),
+      id: song.id,
+      favorite: nextFavorite
+    });
+
+    await ensureFavoritesPlaylist();
+    await syncFavoritesPlaylistFromSongs();
+  }
+
   function isSongInPlaylist(
     playlistId,
     songId
@@ -225,6 +337,21 @@ export const useLibraryStore = defineStore("library", () => {
   // PLAYER ACTIONS
   // =========================
 
+  function dedupeById(items) {
+    const seen = new Set();
+
+    return items.filter((item) => {
+      const itemId = item?.id ?? item;
+
+      if (!itemId || seen.has(itemId)) {
+        return false;
+      }
+
+      seen.add(itemId);
+      return true;
+    });
+  }
+
   function playFromPlaylist(song, songsList) {
 
     const currentIndex =
@@ -240,18 +367,33 @@ export const useLibraryStore = defineStore("library", () => {
 
   function playSong(
     song,
-    addToHistory = true
+    addToHistory = true,
+    options = {}
   ) {
+    const { removeFromQueue = false } = options;
 
     if (
       addToHistory &&
       playingSong.value &&
       playingSong.value.id !== song.id
     ) {
-      historyQueue.value.push(
-        playingSong.value
+      historyQueue.value = dedupeById([
+        ...historyQueue.value.filter(item => item?.id !== playingSong.value.id),
+        playingSong.value,
+      ]);
+    }
+
+    historyQueue.value = dedupeById(
+      historyQueue.value.filter(item => item?.id !== song.id)
+    );
+
+    if (removeFromQueue) {
+      playQueue.value = dedupeById(
+        playQueue.value.filter(item => item?.id !== song.id)
       );
     }
+
+    playQueue.value = dedupeById(playQueue.value);
 
     if (currentUrl) {
       URL.revokeObjectURL(currentUrl);
@@ -279,12 +421,13 @@ export const useLibraryStore = defineStore("library", () => {
     if (!previousSong) return;
 
     if (playingSong.value) {
-      playQueue.value.unshift(
-        playingSong.value
-      );
+      playQueue.value = dedupeById([
+        playingSong.value,
+        ...playQueue.value.filter(item => item?.id !== playingSong.value.id),
+      ]);
     }
 
-    playSong(previousSong, false);
+    playSong(previousSong, false, { removeFromQueue: true });
   }
   
   function playNextSong() {
@@ -419,6 +562,7 @@ export const useLibraryStore = defineStore("library", () => {
             title: cleanFileName(file.name),
             artist: "Unknown",
             cover: null,
+            favorite: false,
 
             metadataLoaded: false
           });
@@ -522,6 +666,7 @@ export const useLibraryStore = defineStore("library", () => {
             title: cleanFileName(file.name),
             artist: "Unknown",
             cover: null,
+            favorite: false,
 
             metadataLoaded: false
         });
@@ -723,6 +868,8 @@ async function loadMetadataForSongs() {
             )
           ),
 
+        favorite: song.favorite ?? false,
+
         duration:
           metadata.format.duration ?? 0,
 
@@ -764,6 +911,8 @@ async function loadMetadataForSongs() {
         data
       );
 
+      song.favorite = song.favorite ?? false;
+
       song.cover = hasAlbumMetadata ? albumData?.cover ?? null : null;
       song.metadataLoaded =
         true;
@@ -788,9 +937,11 @@ async function loadMetadataForSongs() {
 
       song.metadataLoaded =
         false;
+      song.favorite = song.favorite ?? false;
     }
   }
 
+  await syncFavoritesPlaylistFromSongs();
   await pruneOrphanedAlbums(db);
 }
 
@@ -893,6 +1044,11 @@ async function rebuildLibrary() {
     createPlaylist,
     updatePlaylist,
     addSongToPlaylist,
-    isSongInPlaylist
+    removeSongFromPlaylist,
+    deletePlaylist,
+    reorderPlaylistSongs,
+    toggleFavorite,
+    isSongInPlaylist,
+    FAVORITES_PLAYLIST_ID
   };
 });

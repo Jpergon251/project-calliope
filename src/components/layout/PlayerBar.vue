@@ -31,7 +31,7 @@
         <section class="song-title">
 
           <h3 class="song-name" v-if="library.playingSong">{{ library.playingSong.name }}</h3>
-          <p v-else class="song-name advertisment">No song is currently playing.</p>
+          <p v-else class="song-name advertisment">No hay canción reproduciéndose</p>
           <span class="song-artist" v-if="library.playingSong">{{ library.playingSong.artist }}</span>
         </section>
       </div>

@@ -15,10 +15,9 @@
         }
 
         .view-all {
-
             color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.95rem;
+            text-decoration: underline;
+
             transition: color .2s;
 
             &:hover {
@@ -37,7 +36,7 @@
         border: none;
         border-radius: 20px;
 
-        background: var(--bg-secondary);
+        background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
 
         color: var(--text-primary);
         font-size: 18px;
