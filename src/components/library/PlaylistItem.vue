@@ -13,10 +13,11 @@
                     class="playlist-image"
                 />
 
-                <IconCover
-                    v-else
-                    class="playlist-image"
-                />
+            <IconCover
+                v-else
+                :type="playlist.id === library.FAVORITES_PLAYLIST_ID ? 'favorite' : 'playlist'"
+                class="playlist-image"
+            />
 
             </template>
 
@@ -32,6 +33,11 @@
 import MediaCard from "../common/MediaCard.vue";
 import { Music } from "lucide-vue-next";
 import IconCover from "../common/IconCover.vue";
+
+import { useLibraryStore } from "../../stores/libraryStore";
+
+const library = useLibraryStore();
+
 
 defineProps({
     playlist: {

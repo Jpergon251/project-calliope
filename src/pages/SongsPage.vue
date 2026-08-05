@@ -1,15 +1,25 @@
 <template>
   <main class="songs-page">
 
-    <h1>All songs</h1>
+    <h1>Todas las canciones</h1>
 
     <input
       v-model="query"
       type="search"
-      placeholder="Search..."
+      placeholder="Buscar canciones..."
     />
 
-    <SongList :songs="filteredSongs" />
+    <SongList :songs="filteredSongs" v-if="filteredSongs.length > 0" />
+
+    <section class="no-songs" v-else>
+      <p>
+        No se encontraron canciones.
+      </p>
+      <p>
+        Añade canciones a <strong>tu carpeta</strong> para que aparezcan aquí.
+      </p>
+
+    </section>
 
   </main>
 </template>

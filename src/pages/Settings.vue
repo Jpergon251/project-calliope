@@ -1,112 +1,223 @@
 <template>
-  <div class="settings-page">
-    <h1>Configuración</h1>
+  <main class="settings-page">
 
-    <section class="music-library">
-
-      <h2>Biblioteca de Música</h2>
-
+    <section class="settings-header">
+      <h1>Configuración</h1>
       <p>
-        Canciones cargadas: {{ library.songs.length }}
+        Gestiona tu biblioteca, archivos y opciones de Calliope.
       </p>
+    </section>
+
+
+    <section class="settings-card">
+
+      <div class="settings-card-header">
+        <h2>Biblioteca de Música</h2>
+
+        <p>
+          Administra la carpeta donde Calliope busca tus canciones.
+        </p>
+      </div>
+
+
+      <div class="library-info">
+        <span>
+          Canciones cargadas
+        </span>
+
+        <strong>
+          {{ library.songs.length }}
+        </strong>
+      </div>
+
 
       <div class="settings-actions">
 
-        <button
-          @click="library.selectFolder()"
-          class="settings-button"
-        >
-          Cambiar carpeta de música
-        </button>
+        <div class="setting-action">
 
-        <button
-          @click="removeLibrary"
-          :disabled="!library.folderHandle"
-          class="settings-button"
-        >
-          Eliminar carpeta de música
-        </button>
+          <button
+            @click="library.selectFolder()"
+            class="settings-button"
+          >
+            Cambiar carpeta de música
+          </button>
+
+          <p>
+            Selecciona una nueva carpeta donde se encuentran tus archivos de música.
+          </p>
+
+        </div>
+
+
+        <div class="setting-action">
+
+          <button
+            @click="removeLibrary"
+            :disabled="!library.folderHandle"
+            class="settings-button danger"
+          >
+            Eliminar carpeta de música
+          </button>
+
+          <p>
+            Desvincula la carpeta actual. Tus archivos originales no serán eliminados.
+          </p>
+
+        </div>
+
       </div>
+
     </section>
 
-    <section class="library-health">
 
-      <h2>Salud de la Biblioteca</h2>
 
-      <p>
-        Canciónes sin metadatos: <strong>{{ songsWithoutMetadata }}</strong>
-      </p>
+    <section class="settings-card">
+
+      <div class="settings-card-header">
+
+        <h2>Estado de la Biblioteca</h2>
+
+        <p>
+          Comprueba y mantiene organizada la información de tus canciones.
+        </p>
+
+      </div>
+
+
+      <div class="metadata-status">
+
+        <span>
+          Canciones sin metadatos
+        </span>
+
+        <strong>
+          {{ songsWithoutMetadata }}
+        </strong>
+
+      </div>
+
+
 
       <p class="health-description">
-        Los metadatos ayudan a organizar tu biblioteca, agrupar álbumes, mejorar la búsqueda y mostrar la información correcta de las canciones.
+        Los metadatos contienen información como título, artista, álbum o portada.
+        Calliope los utiliza para organizar tu biblioteca correctamente.
       </p>
 
-      <section class="health-actions">
-        <button
-          class="settings-button"
-          disabled
-        >
-          Escanear metadatos (Próximamente)
-        </button>
 
-        <button
-          @click="library.rescanLibrary()"
-          :disabled="!library.folderHandle"
-          class="settings-button"
-        >
-          Escanear de nuevo
-        </button>
 
-        <button
-          @click="rebuild"
-          :disabled="!library.folderHandle"
-          class="settings-button"
-        >
-          Reconstruir Biblioteca
-        </button>
-      </section>
-      
+      <div class="settings-actions">
+
+
+        <div class="setting-action">
+
+          <button
+            class="settings-button"
+            disabled
+          >
+            Mejorar información de canciones
+          </button>
+
+
+          <p>
+            Completa automáticamente datos faltantes como artista, álbum o portada.
+            Próximamente.
+          </p>
+
+        </div>
+
+
+
+        <div class="setting-action">
+
+          <button
+            @click="library.rescanLibrary()"
+            :disabled="!library.folderHandle"
+            class="settings-button"
+          >
+            Escanear de nuevo
+          </button>
+
+
+          <p>
+            Busca nuevos archivos añadidos a la carpeta seleccionada.
+          </p>
+
+        </div>
+
+
+
+        <div class="setting-action">
+
+          <button
+            @click="rebuild"
+            :disabled="!library.folderHandle"
+            class="settings-button"
+          >
+            Reconstruir biblioteca
+          </button>
+
+
+          <p>
+            Elimina la información guardada y vuelve a analizar todos los archivos desde cero.
+          </p>
+
+        </div>
+
+
+      </div>
+
+
     </section>
 
-  </div>
+
+  </main>
 </template>
 
+
 <script setup>
-import { useLibraryStore } from "../stores/libraryStore.js";
 
 import { computed } from "vue";
+import { useLibraryStore } from "../stores/libraryStore.js";
+
+
+const library = useLibraryStore();
+
+
 
 const songsWithoutMetadata = computed(() =>
   library.songs.filter(song => !song.hasMetadata).length
 );
 
-const library = useLibraryStore();
+
 
 async function removeLibrary() {
 
-  const confirmDelete =
-    confirm(
-      "Remove current music folder?"
-    );
+  const confirmDelete = confirm(
+    "¿Quieres eliminar la carpeta de música seleccionada?\n\nTus archivos originales no serán borrados."
+  );
 
-  if (
-    !confirmDelete
-  ) return;
 
-  await library
-    .removeFolder();
+  if (!confirmDelete) return;
 
-  router.push({ name: "home" });
+
+  await library.removeFolder();
+
 }
+
+
 
 async function rebuild() {
 
   const confirmRebuild = confirm(
-    "This will rebuild your music library from scratch. Playlists and settings will not be affected.\n\nContinue?"
+    "Se reconstruirá la biblioteca desde cero.\n\nLas playlists y configuraciones no se eliminarán.\n\n¿Continuar?"
   );
+
 
   if (!confirmRebuild) return;
 
+
   await library.rebuildLibrary();
+
 }
+
 </script>

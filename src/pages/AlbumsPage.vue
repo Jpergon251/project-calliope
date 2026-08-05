@@ -1,16 +1,25 @@
 <template>
   <main class="albums-page">
 
-    <h1>All Albums</h1>
+    <h1 class="page-title">Todos los álbumes</h1>
 
     <input
       v-model="query"
       type="search"
-      placeholder="Search albums..."
+      placeholder="Busca álbumes..."
     />
 
-    <AlbumList :albums="filteredAlbums" />
+    <AlbumList :albums="filteredAlbums" v-if="filteredAlbums.length > 0" />
 
+    <section class="no-albums" v-else>
+      <p>
+        No se encontraron álbumes.
+      </p>
+      <p>
+        Añade canciones a <strong>tu carpeta</strong> para que aparezcan aquí.
+      </p>
+    </section>
+    
   </main>
 </template>
 

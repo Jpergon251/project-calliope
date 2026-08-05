@@ -1,9 +1,17 @@
 <template>
     <div class="background">
-        <BookHeart/>
+        <BookHeart v-if="type === 'favorite'"/>
+        <ListMusic v-else/>
     </div>
 </template>
 
 <script setup>
-import { BookHeart } from "lucide-vue-next";
+import { BookHeart, ListMusic } from "lucide-vue-next";
+
+defineProps({
+    type: {
+        type: String,
+        default: "playlist"
+    }
+});
 </script>

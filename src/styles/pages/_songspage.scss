@@ -38,6 +38,23 @@
             box-shadow: 0 0 0 3px var(--accent-muted);
         }
     }
+
+    .no-songs,.no-albums{
+        margin-top: 40px;
+        text-align: center;
+    
+        p {
+            max-width: 1200px;
+            font-size: 36px;
+            margin: 40px auto;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            strong{
+                text-transform: uppercase;
+                color: var(--accent);
+            }
+        }
+    }
 }
 
 .songs-page > .song-list {

@@ -3,8 +3,11 @@
 
         <section class="playlist-cover">
           <img v-if="cover" class="playlist-cover-img" :src="cover" alt="Playlist Cover"/>
-          <IconCover v-else class="icon-cover"/>
-
+          <IconCover
+              v-else
+              :type="playlist?.id === library.FAVORITES_PLAYLIST_ID ? 'favorite' : 'playlist'"
+              class="playlist-image"
+          />
           <div v-if="playlist" class="playlist-actions">
             <button class="action-btn play" @click="playListNow" aria-label="Reproducir playlist">
               <Play fill="currentcolor"/>
