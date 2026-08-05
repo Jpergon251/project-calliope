@@ -18,7 +18,15 @@
       v-model="query"
     />
 
-    <SongList :songs="filteredSongs" />
+    <SongList 
+      :songs="filteredSongs" 
+      v-if="filteredSongs.length > 0"
+    />
+    <span v-else class="no-songs">
+      <p>No se encontraron canciones.</p>
+      <p>Añade canciones a tu carpeta para que Calliope las detecte.</p>
+
+    </span>
 
   </section>
 </template>

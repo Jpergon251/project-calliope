@@ -52,6 +52,18 @@
         }
     }
 
+    .no-songs{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+
+        p {
+            margin: 0;
+            color: var(--text-secondary);
+        }
+    }
     .song-list {
 
         display: flex;

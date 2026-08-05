@@ -18,8 +18,14 @@
       placeholder="Busca tu álbum..."
     />
 
-    <AlbumList :albums="filteredAlbums"/>
-
+    <AlbumList 
+      :albums="filteredAlbums"
+      v-if="filteredAlbums.length > 0"
+      />
+    <span v-else class="no-albums">
+      <p>No se encontraron álbumes.</p>
+      <p>Añade canciones a tu carpeta para que Calliope los detecte.</p>
+    </span>
   </section>
 </template>
 
