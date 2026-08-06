@@ -13,28 +13,120 @@
                 Calliope nunca sube tu música. Selecciona la carpeta donde se guardan tus canciones y comienza a escuchar de inmediato.
             </p>
 
-            <button
-                class="folder-button"
-                @click="library.selectFolder()"
-            >
-                Seleccionar carpeta de música
-            </button>
 
-            <span class="note">
-                Puedes cambiar la carpeta más tarde desde Configuración.
-            </span>
+            <template v-if="isSupported">
+
+                <button
+                    class="folder-button"
+                    @click="library.selectFolder()"
+                >
+                    Seleccionar carpeta de música
+                </button>
+
+                <span class="note">
+                    Puedes cambiar la carpeta más tarde desde Configuración.
+                </span>
+
+            </template>
+
+
+            <template v-else>
+
+                <div class="browser-warning">
+
+                    <h3>
+                        Navegador no compatible
+                    </h3>
+
+                    <p>
+                        Calliope necesita acceso a carpetas locales para leer tu biblioteca de música.
+                    </p>
+
+                    <p>
+                        Puedes usar cualquiera de estos navegadores:
+                    </p>
+
+
+                    <div class="browser-grid">
+
+                        <div class="browser-card">
+                            <img 
+                                src="https://images.icon-icons.com/836/PNG/512/Google_Chrome_icon-icons.com_66794.png"
+                                alt="Chrome"
+                            >
+                            <a 
+                                href="https://www.google.com/intl/es_es/chrome/"
+                                target="_blank"
+                                rel="noopener noreferrer"    
+                            >
+                                Chrome
+                            </a>
+                        </div>
+
+
+                        <div class="browser-card">
+                            <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Microsoft_Edge_logo_%282019%29.png"
+                                alt="Edge"
+                            >
+                            <a 
+                                href="https://explore.microsoft.com/es-es/edge/download?form=MA13FJ"
+                                target="_blank"
+                                rel="noopener noreferrer"    
+                            >
+                                Edge
+                            </a>
+                        </div>
+
+
+                        <div class="browser-card">
+                            <img 
+                                src="https://img.icons8.com/color/512/brave-web-browser.png"
+                                alt="Brave"
+                            >
+                            <a 
+                                href="https://brave.com/es/download/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Brave
+                            </a>
+                        </div>
+
+                    </div>
+
+
+                    <p class="chromium-note">
+                        También funciona con otros navegadores basados en <strong>Chromium</strong>.
+                    </p>
+
+
+                    <p class="unsupported-note">
+                        Firefox y Safari todavía no soportan esta función.
+                    </p>
+
+                </div>
+
+            </template>
+
         </div>
 
     </section>
 </template>
 
 <script setup>
+
 import Logo from "../common/Logo.vue";
 import { useLibraryStore } from "../../stores/libraryStore";
-import { ref } from "vue";
+import { computed } from "vue";
 
-const fileInput = ref(null);
+
 const library = useLibraryStore();
+
+
+const isSupported = computed(() => {
+    return "showDirectoryPicker" in window;
+});
 
 
 </script>
