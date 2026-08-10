@@ -6,36 +6,65 @@
         <ul class="pages-list">
             <li class="page-item">
 
+                <!-- Inicio -->
                 <router-link to="/" class="page-link">
                     <House class="page-icon"/>
                     <span class="page-name">Inicio</span>
                 </router-link>
+
+                <!-- Biblioteca -->
                 <router-link to="/library" class="page-link">
                     <LibraryIcon class="page-icon"/>
                     <span class="page-name">Biblioteca</span>
                 </router-link>
+
+                <!-- Configuración -->
                 <router-link to="/settings" class="page-link">
                     <Settings class="page-icon"/>
                     <span class="page-name">Configuración</span>
                 </router-link>
-                <router-link to="/about" class="page-link">
+
+                <!-- Cómo usar -->
+                <router-link to="/how-to-use" class="page-link">
                     <CircleHelp class="page-icon"/>
+                    <span class="page-name">Cómo usar</span>
+                </router-link>
+
+                <!-- Ayúdame -->
+                <router-link to="/support" class="page-link">
+                    <Heart class="page-icon"/>
+                    <span class="page-name">Ayúdame</span>
+                </router-link>
+
+                <!-- Acerca de -->
+                <router-link to="/about" class="page-link">
+                    <Info class="page-icon"/>
                     <span class="page-name">Acerca de</span>
                 </router-link>
-            </li>
-            
 
+            </li>
         </ul>
 
-        <button @click="library.selectFolder()" v-if="library.initialized && !library.folderHandle " class="folder-button">
+        <button
+            @click="library.selectFolder()"
+            v-if="library.initialized && !library.folderHandle"
+            class="folder-button"
+        >
             Select Folder
         </button>
-        <span class="advertisment" v-if="library.initialized && !library.folderHandle ">There is no songs on list, select a folder to see all your songs.</span>
-    </nav>  
+
+        <span
+            class="advertisment"
+            v-if="library.initialized && !library.folderHandle"
+        >
+            There is no songs on list, select a folder to see all your songs.
+        </span>
+
+    </nav>
 
 </template>
 <script setup>
-import { CircleHelp, House, LibraryIcon, Settings } from "lucide-vue-next"
+import { CircleHelp, Heart, House, Info, LibraryIcon, Settings } from "lucide-vue-next"
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import Logo from "../common/Logo.vue";
 

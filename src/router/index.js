@@ -9,7 +9,8 @@ import AlbumPage from '../pages/AlbumPage.vue'
 import SongsPage from '../pages/SongsPage.vue'
 import AlbumsPage from '../pages/AlbumsPage.vue'
 import About from '../pages/About.vue'
-
+import Support from '../pages/SupportPage.vue'
+import HowToUse from '../pages/HowToUse.vue'
 
 const routes = [
   {path: '/', name: 'Home', component: Home },
@@ -21,6 +22,8 @@ const routes = [
   {path: '/settings',name:'Settings', component: Settings},
   {path: '/song/:id',name: 'song', component: Song, props: true},
   {path: '/album/:id',name: 'album', component: AlbumPage, props: true},
+  {path: '/how-to-use', name: 'HowToUse', component: HowToUse},
+  {path: '/support', name: 'Support', component: Support},
 
 ]
 
