@@ -57,14 +57,13 @@
               :class="{
                 active: song.id === library.playingSong?.id,
                 dragging: draggedIndex === index,
-                'drop-top': draggedIndex !== null && hoverIndex === index && draggedIndex > index,
-                'drop-bottom': draggedIndex !== null && hoverIndex === index && draggedIndex < index,
+                'drop-before': draggedIndex !== null && hoverIndex === index && dropPosition === 'before',
+                'drop-after': draggedIndex !== null && hoverIndex === index && dropPosition === 'after',
               }"
               draggable="true"
               @click="playSong(song)"
               @dragstart="startDrag($event, index)"
-              @dragover.prevent="setHoverIndex(index)"
-              @dragleave="clearHoverIndex"
+              @dragover.prevent="setDropPosition(index, $event)"
               @drop="dropSong(index)"
               @dragend="clearDrag"
             >
@@ -124,25 +123,27 @@ const previousSong = computed(() => {
 
 const draggedIndex = ref(null);
 const hoverIndex = ref(null);
+const dropPosition = ref(null);
 
 const startDrag = (event, index) => {
   draggedIndex.value = index;
   hoverIndex.value = index;
+  dropPosition.value = null;
   event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.setData("text/plain", String(index));
 };
 
-const setHoverIndex = (index) => {
-  hoverIndex.value = index;
-};
+const setDropPosition = (index, event) => {
+  const rect = event.currentTarget.getBoundingClientRect();
 
-const clearHoverIndex = () => {
-  hoverIndex.value = null;
+  hoverIndex.value = index;
+  dropPosition.value = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
 };
 
 const clearDrag = () => {
   draggedIndex.value = null;
   hoverIndex.value = null;
+  dropPosition.value = null;
 };
 
 const dropSong = (targetIndex) => {
@@ -153,9 +154,12 @@ const dropSong = (targetIndex) => {
 
   const queueCopy = [...library.playQueue];
   const [movedSong] = queueCopy.splice(draggedIndex.value, 1);
-  const normalizedTarget = draggedIndex.value < targetIndex ? targetIndex - 1 : targetIndex;
+  const isMovingDown = draggedIndex.value < targetIndex;
+  const insertIndex = dropPosition.value === "after"
+    ? (isMovingDown ? targetIndex : targetIndex + 1)
+    : (isMovingDown ? targetIndex - 1 : targetIndex);
 
-  queueCopy.splice(normalizedTarget, 0, movedSong);
+  queueCopy.splice(insertIndex, 0, movedSong);
   library.playQueue = queueCopy;
   clearDrag();
 };
