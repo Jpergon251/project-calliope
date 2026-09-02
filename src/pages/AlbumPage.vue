@@ -1,6 +1,10 @@
 <template>
     <main class="album-page">
 
+        <div class="album-atmosphere" aria-hidden="true">
+            <AudioVisualizer />
+        </div>
+
         
         <PlayListSongs
             :songs="albumSongs"
@@ -18,6 +22,7 @@ import { useRoute } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore";
 
 import PlayListSongs from "../components/library/PlayListSongs.vue";
+import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 
 import { watch } from "vue";
 

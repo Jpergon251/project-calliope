@@ -22,19 +22,30 @@
       }
     }
     .pages-list{
-      list-style: none;
       padding: 0;
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 22px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
 
-      .page-item {
+      .nav-section {
         width: 100%;
         display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: 4px;
+
+        .nav-section-title {
+          margin: 0 12px 6px;
+          color: var(--text-muted);
+          font-size: .68rem;
+          font-weight: 700;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+        }
 
         .page-link{
           width: 100%;
@@ -83,7 +94,6 @@
     }
     .folder-button{
       width: 100%;
-      margin-top: auto;
       font-size: .9rem;
       font-weight: 600;
       color: var(--text-primary);
@@ -102,6 +112,39 @@
       font-size: .78rem;
       line-height: 1.45;
     }
+
+    .support-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 11px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: .95rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s, background-color 0.2s;
+      flex: 0 0 auto;
+
+      .page-icon {
+        width: 19px;
+        height: 19px;
+        color: var(--text-muted);
+      }
+
+      &.router-link-exact-active,
+      &:hover {
+        background-color: var(--bg-hover);
+        color: var(--text-primary);
+      }
+
+      &.router-link-exact-active .page-icon,
+      &:hover .page-icon {
+        color: var(--accent-light);
+      }
+    }
 }
 
 @media (max-width: 760px) {
@@ -114,15 +157,29 @@
       display: none;
     }
 
-    .pages-list .page-item {
+    .pages-list {
+      flex: 0 0 auto;
       flex-direction: row;
+      gap: 8px;
       overflow-x: auto;
 
-      .page-link {
-        width: auto;
+      .nav-section {
         flex: 0 0 auto;
+        width: auto;
+        flex-direction: row;
+
+        .nav-section-title {
+          display: none;
+        }
+
+        .page-link {
+          width: auto;
+          flex: 0 0 auto;
+        }
       }
     }
+
+    .support-link { width: auto; flex: 0 0 auto; }
 
     .folder-button,
     .advertisment {

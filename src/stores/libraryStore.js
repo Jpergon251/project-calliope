@@ -2,6 +2,8 @@ import { defineStore } from "pinia";
 import { ref, watch, toRaw } from "vue";
 import { parseBlob } from "music-metadata"; // ✅ CORREGIDO: Error sintáctico original - parseBlob ahora importado correctamente
 import { dbPromise } from "../lib/db";
+import { writeAudioMetadata } from "../services/audioTagWriter.js";
+import { readFormat } from "taglib-wasm/simple";
 
 export const useLibraryStore = defineStore("library", () => {
 
@@ -32,6 +34,10 @@ export const useLibraryStore = defineStore("library", () => {
   const currentPlaylistId = ref(null);
   const metadataCacheVersion = 4;
 
+  function songIdForFile(file) {
+    return file.name;
+  }
+
 
   
   // =========================
@@ -55,15 +61,21 @@ export const useLibraryStore = defineStore("library", () => {
 
     albums.value = data.map(album => ({
       ...album,
-      // ⚠️ MEMORY LEAK FIX: Crear URL solo si no tiene cover o necesita reemplazo
-      cover: album.cover && !album._urlCreated 
-        ? URL.createObjectURL(album.cover)
-        : album.cover || null,
-      // 🔒 Limpieza: marcar que hemos creado la URL para evitar duplicados
-      _urlCreated: album.cover ? true : null
+      cover: toCoverUrl(album.cover),
+      _urlCreated: isBinaryCover(album.cover) ? true : null
     }));
 
     sortAlbums();
+  }
+
+  function isBinaryCover(cover) {
+    return cover instanceof Blob || cover instanceof File;
+  }
+
+  function toCoverUrl(cover) {
+    if (!cover) return null;
+    if (typeof cover === "string") return cover;
+    return isBinaryCover(cover) ? URL.createObjectURL(cover) : null;
   }
 
   async function loadSavedFolder() {
@@ -99,6 +111,30 @@ export const useLibraryStore = defineStore("library", () => {
   // AUDIO ENGINE
   // =========================
   const audio = new Audio();
+  let audioContext = null;
+  let audioAnalyser = null;
+  let audioSource = null;
+
+  function getAudioAnalyser() {
+    if (audioAnalyser) return audioAnalyser;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+
+    audioContext = new AudioContextClass();
+    audioAnalyser = audioContext.createAnalyser();
+    audioAnalyser.fftSize = 256;
+    audioAnalyser.smoothingTimeConstant = 0.78;
+    audioSource = audioContext.createMediaElementSource(audio);
+    audioSource.connect(audioAnalyser);
+    audioAnalyser.connect(audioContext.destination);
+    return audioAnalyser;
+  }
+
+  function resumeAudioAnalyser() {
+    return audioContext?.state === "suspended"
+      ? audioContext.resume()
+      : Promise.resolve();
+  }
 
   // sincronizar estado real del audio
   audio.addEventListener("play", () => {
@@ -533,7 +569,7 @@ export const useLibraryStore = defineStore("library", () => {
 
   }
 
-  async function scanFolder() {
+  async function scanFolder(forceMetadata = false) {
 
     if (!folderHandle.value) return;
 
@@ -545,16 +581,22 @@ export const useLibraryStore = defineStore("library", () => {
 
       for await (const entry of folderHandle.value.values()) {
 
-        if (
-          entry.kind === "file" &&
-          /\.(mp3|flac|wav|ogg)$/i.test(entry.name)
-        ) {
+        if (entry.kind === "file") {
 
           const file = await entry.getFile();
+          let format;
+          try {
+            format = await readFormat(file);
+          } catch {
+            continue;
+          }
+          if (!format || format === "unknown") continue;
 
           list.push({
-            id: `${file.name}-${file.size}`,
+            id: songIdForFile(file),
             file,
+            fileHandle: entry,
+            directoryHandle: folderHandle.value,
 
             name: cleanFileName(file.name),
             duration: null,
@@ -573,7 +615,7 @@ export const useLibraryStore = defineStore("library", () => {
 
       sortSongs();
 
-      await loadMetadataForSongs();
+      await loadMetadataForSongs(forceMetadata);
 
     } finally {
 
@@ -657,7 +699,7 @@ export const useLibraryStore = defineStore("library", () => {
         }
 
         list.push({
-            id: `${file.name}-${file.size}`,
+            id: songIdForFile(file),
             file,
 
             name: cleanFileName(file.name),
@@ -679,7 +721,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     await loadMetadataForSongs();
   }
-async function loadMetadataForSongs() {
+async function loadMetadataForSongs(forceRescan= false) {
 
   const db = await dbPromise;
 
@@ -694,7 +736,7 @@ async function loadMetadataForSongs() {
       const cached =
         await db.get("metadata", song.id);
 
-      if (cached?.cacheVersion === metadataCacheVersion) {
+      if (!forceRescan && cached?.cacheVersion === metadataCacheVersion) {
 
         Object.assign(song, cached);
 
@@ -980,23 +1022,18 @@ async function rebuildLibrary() {
 
   try {
 
-    const db = await dbPromise;
-
     for (const album of albums.value) {
       if (album.cover) {
         URL.revokeObjectURL(album.cover);
       }
     }
-    // Borrar caché
-    await db.clear("metadata");
-    await db.clear("albums");
 
-    // Limpiar memoria
     songs.value = [];
     albums.value = [];
 
-    // Reconstruir
-    await scanFolder();
+    await loadAlbums();
+
+    await scanFolder(true);
 
   } finally {
 
@@ -1004,6 +1041,194 @@ async function rebuildLibrary() {
 
   }
 }
+  async function updateSongMetadata(songId, updatedData) {
+    const song = songs.value.find(s => s.id === songId);
+    if (!song) return false;
+
+    const db = await dbPromise;
+
+    // Normalizar datos
+    const title = updatedData.title?.trim() || song.name;
+    const artist = updatedData.artist?.trim() || "Unknown";
+    const albumName = updatedData.album?.trim() || "";
+    const albumArtist = updatedData.albumArtist?.trim() || null;
+    
+    let genre = [];
+    if (Array.isArray(updatedData.genre)) {
+      genre = updatedData.genre;
+    } else if (typeof updatedData.genre === "string" && updatedData.genre.trim()) {
+      genre = updatedData.genre.split(",").map(g => g.trim()).filter(Boolean);
+    }
+
+    const year = updatedData.year !== "" && updatedData.year !== null && updatedData.year !== undefined
+      ? parseInt(updatedData.year, 10) || null
+      : null;
+    const track = updatedData.track !== "" && updatedData.track !== null && updatedData.track !== undefined
+      ? parseInt(updatedData.track, 10) || null
+      : null;
+    const trackTotal = updatedData.trackTotal !== "" && updatedData.trackTotal !== null && updatedData.trackTotal !== undefined
+      ? parseInt(updatedData.trackTotal, 10) || null
+      : null;
+    const disk = updatedData.disk !== "" && updatedData.disk !== null && updatedData.disk !== undefined
+      ? parseInt(updatedData.disk, 10) || null
+      : null;
+    const diskTotal = updatedData.diskTotal !== "" && updatedData.diskTotal !== null && updatedData.diskTotal !== undefined
+      ? parseInt(updatedData.diskTotal, 10) || null
+      : null;
+
+    const hasAlbumMetadata = Boolean(albumName);
+    const finalAlbum = hasAlbumMetadata ? albumName : (title || song.name);
+    const albumId = hasAlbumMetadata
+      ? finalAlbum.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+      : `standalone-${song.id}`;
+
+    const hasMetadata = Boolean(updatedData.title?.trim()) ||
+      (Boolean(updatedData.artist?.trim()) && updatedData.artist.trim() !== "Unknown") ||
+      Boolean(updatedData.album?.trim());
+
+    const previousSongId = song.id;
+    const updatedFile = await writeAudioMetadata(song.fileHandle, {
+      ...updatedData,
+      title,
+      artist,
+      albumArtist,
+      album: finalAlbum,
+      genre,
+      year,
+      track,
+      trackTotal,
+      disk,
+      diskTotal,
+      cover: updatedData.cover || '',
+      directoryHandle: song.directoryHandle
+    });
+    const nextSongId = updatedFile.name;
+
+    // Manejo de portada
+    let cover = song.cover;
+    let coverBlob = null;
+    if (updatedData.cover !== undefined) {
+      cover = updatedData.cover;
+      if (updatedData.coverBlob) {
+        coverBlob = updatedData.coverBlob;
+      }
+    }
+
+    // Gestionar álbum en store y db
+    let albumData = albums.value.find(a => a.id === albumId);
+    if (!albumData && hasAlbumMetadata) {
+      const newAlbum = {
+        id: albumId,
+        name: finalAlbum,
+        artist: albumArtist || artist || "Unknown",
+        cover: coverBlob || (typeof cover === "string" && !cover.startsWith("blob:") ? cover : null)
+      };
+      await db.put("albums", newAlbum);
+      albumData = {
+        ...newAlbum,
+        cover: cover || null
+      };
+      albums.value.push(albumData);
+      sortAlbums();
+    } else if (albumData && cover) {
+      if (coverBlob) {
+        albumData.cover = cover;
+        await db.put("albums", {
+          id: albumData.id,
+          name: albumData.name,
+          artist: albumData.artist,
+          cover: coverBlob
+        });
+      }
+    }
+
+    // Actualizar metadatos en IndexedDB
+    const existingMetadata = await db.get("metadata", previousSongId);
+    const metadataToSave = {
+      ...(existingMetadata || {}),
+      id: nextSongId,
+      cacheVersion: metadataCacheVersion,
+      hasMetadata,
+      title,
+      artist,
+      album: finalAlbum,
+      albumArtist,
+      albumId,
+      genre,
+      year,
+      track,
+      trackTotal,
+      disk,
+      diskTotal,
+      cover: cover || null,
+      favorite: song.favorite ?? false,
+      duration: song.duration ?? 0,
+      bitrate: song.bitrate ?? 0,
+      sampleRate: song.sampleRate ?? 0,
+      channels: song.channels ?? 0,
+      codec: song.codec ?? "",
+      container: song.container ?? "",
+      lossless: song.lossless ?? false
+    };
+
+    await db.put("metadata", metadataToSave);
+    if (nextSongId !== previousSongId) {
+      await db.delete("metadata", previousSongId);
+      for (const playlist of playlists.value) {
+        if (!Array.isArray(playlist.songIds)) continue;
+        playlist.songIds = playlist.songIds.map(id =>
+          id === previousSongId ? nextSongId : id
+        );
+        await savePlaylist(playlist);
+      }
+    }
+
+    // Actualizar objeto reactivo de la canción
+    Object.assign(song, {
+      id: nextSongId,
+      file: updatedFile,
+      fileHandle: updatedFile.fileHandle || song.fileHandle,
+      title,
+      artist,
+      album: finalAlbum,
+      albumArtist,
+      albumId,
+      genre,
+      year,
+      track,
+      trackTotal,
+      disk,
+      diskTotal,
+      cover,
+      hasMetadata,
+      metadataLoaded: true
+    });
+
+    if (playingSong.value && playingSong.value.id === song.id) {
+      Object.assign(playingSong.value, {
+        title,
+        artist,
+        album: finalAlbum,
+        albumArtist,
+        cover
+      });
+    }
+
+    // =========================================================================
+    // TODO (Aplicación de escritorio / Native Tag Writer):
+    // Cuando se ejecute en entorno de escritorio (Tauri / Electron / Node),
+    // invocar aquí el servicio nativo para escribir las etiquetas ID3 reales
+    // en el archivo de audio físico (song.file).
+    // Ejemplo:
+    // await nativeAudioTagger.writeTags(song.file.path, {
+    //   title, artist, album: finalAlbum, albumArtist, genre, year, track, disk
+    // });
+    // =========================================================================
+
+    await pruneOrphanedAlbums(db);
+    return true;
+  }
+
   // =========================
   // RETURN
   // =========================
@@ -1030,6 +1255,9 @@ async function rebuildLibrary() {
     playSong,
     playFromPlaylist,
     togglePlay,
+    getAudioElement: () => audio,
+    getAudioAnalyser,
+    resumeAudioAnalyser,
     seek,
 // FOLDER ACTIONS
     selectFolder,
@@ -1039,6 +1267,7 @@ async function rebuildLibrary() {
     rebuildLibrary,
     sortSongs,
     sortMode,
+    updateSongMetadata,
 
 // PLAYLIST
     createPlaylist,

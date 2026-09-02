@@ -1,5 +1,8 @@
 <template>
   <div class="playlist-page">
+    <div class="playlist-atmosphere" aria-hidden="true">
+      <AudioVisualizer />
+    </div>
 
     <h1 class="playlist-title">
       {{ playlist?.name }}
@@ -15,32 +18,7 @@
     />
 
     <EditPlaylist ref="editPlaylistModal"/>
-    <!-- <div v-if="showEditModal" class="playlist-edit-modal">
-      <form class="modal-card" @submit.prevent="savePlaylist">
-        <h2>Edit playlist</h2>
 
-        <label for="playlist-name">Nombre de la playlist</label>
-        <input
-          id="playlist-name"
-          v-model="editedName"
-          required
-          maxlength="100"
-        />
-
-        <label for="playlist-cover-url">URL de la portada <span>(Opcional)</span></label>
-        <input
-          id="playlist-cover-url"
-          v-model="editedCover"
-          type="url"
-          placeholder="https://example.com/cover.jpg"
-        />
-
-        <div class="modal-actions">
-          <button type="button" class="cancel" @click="showEditModal = false">Cancel</button>
-          <button type="submit" class="save">Guardar cambios</button>
-        </div>
-      </form>
-    </div> -->
 
   </div>
 </template>
@@ -52,6 +30,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import PlayListSongs from "../components/library/PlayListSongs.vue";
 import EditPlaylist from "../components/modals/EditPlaylist.vue";
+import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 
 import { useLibraryStore } from "../stores/libraryStore.js";
 

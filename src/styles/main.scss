@@ -13,6 +13,7 @@
 @use "components/songlist";
 @use "components/sidebar";
 @use "components/addsongmodal";
+@use "components/metadatamodal";
 @use "components/allalbumlist";
 @use "components/allsonglist";
 @use "components/queuepanel";
@@ -31,6 +32,7 @@
 @use "pages/library";
 @use "pages/playlist";
 @use "pages/settings";
+@use "pages/metadatapage";
 @use "pages/song";
 @use "pages/songspage";
 @use "pages/albumspage";

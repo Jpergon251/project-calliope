@@ -111,16 +111,16 @@
         <div class="setting-action">
 
           <button
+            @click="router.push('/metadata')"
+            :disabled="!library.folderHandle"
             class="settings-button"
-            disabled
           >
-            Mejorar información de canciones
+            Gestionar metadatos
           </button>
 
 
           <p>
-            Completa automáticamente datos faltantes como artista, álbum o portada.
-            Próximamente.
+            Consulta, edita y analiza los metadatos de tus canciones para completar información faltante.
           </p>
 
         </div>
@@ -177,9 +177,11 @@
 <script setup>
 
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
 
 
+const router = useRouter();
 const library = useLibraryStore();
 
 

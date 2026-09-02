@@ -3,47 +3,49 @@
 
         <Logo/>
 
-        <ul class="pages-list">
-            <li class="page-item">
+        <div class="pages-list">
+            <section class="nav-section">
+                <h2 class="nav-section-title">Tu música</h2>
 
-                <!-- Inicio -->
                 <router-link to="/" class="page-link">
                     <House class="page-icon"/>
                     <span class="page-name">Inicio</span>
                 </router-link>
 
-                <!-- Biblioteca -->
                 <router-link to="/library" class="page-link">
                     <LibraryIcon class="page-icon"/>
                     <span class="page-name">Biblioteca</span>
                 </router-link>
 
-                <!-- Configuración -->
                 <router-link to="/settings" class="page-link">
                     <Settings class="page-icon"/>
                     <span class="page-name">Configuración</span>
                 </router-link>
 
-                <!-- Cómo usar -->
+            </section>
+
+            <section class="nav-section">
+                <h2 class="nav-section-title">Más información</h2>
+
                 <router-link to="/how-to-use" class="page-link">
                     <CircleHelp class="page-icon"/>
                     <span class="page-name">Cómo usar</span>
                 </router-link>
 
-                <!-- Ayúdame -->
-                <router-link to="/support" class="page-link">
-                    <Heart class="page-icon"/>
-                    <span class="page-name">Ayúdame</span>
-                </router-link>
 
-                <!-- Acerca de -->
                 <router-link to="/about" class="page-link">
                     <Info class="page-icon"/>
                     <span class="page-name">Acerca de</span>
                 </router-link>
 
-            </li>
-        </ul>
+
+                <router-link to="/metadata" class="page-link">
+                    <Tags class="page-icon"/>
+                    <span class="page-name">Metadatos</span>
+                </router-link>
+            </section>
+
+        </div>
 
         <button
             @click="library.selectFolder()"
@@ -60,11 +62,16 @@
             There is no songs on list, select a folder to see all your songs.
         </span>
 
+        <router-link to="/support" class="page-link support-link">
+            <Heart class="page-icon"/>
+            <span class="page-name">Ayúdame</span>
+        </router-link>
+
     </nav>
 
 </template>
 <script setup>
-import { CircleHelp, Heart, House, Info, LibraryIcon, Settings } from "lucide-vue-next"
+import { CircleHelp, Heart, House, Info, LibraryIcon, Settings, Tags } from "lucide-vue-next"
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import Logo from "../common/Logo.vue";
 

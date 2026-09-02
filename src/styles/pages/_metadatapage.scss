@@ -1,0 +1,488 @@
+.metadata-page {
+  min-height: 100%;
+  padding: clamp(20px, 4vw, 48px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  // Encabezado
+  .metadata-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+
+    .header-titles {
+      max-width: 650px;
+
+      .title-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 8px;
+
+        .title-icon {
+          width: 34px;
+          height: 34px;
+          color: var(--accent);
+          flex-shrink: 0;
+        }
+
+        h1 {
+          margin: 0;
+          font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+          font-weight: 700;
+          letter-spacing: -0.035em;
+          line-height: 1.15;
+          color: var(--text-primary);
+        }
+      }
+
+      p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+    }
+
+    // Barra de estadísticas (Total, Completos, Necesarios, Incompletos)
+    .metadata-stats-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        .stat-label {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+
+        .stat-value {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        &.stat-complete .stat-value {
+          color: var(--status-success);
+        }
+
+        &.stat-necessary .stat-value {
+          color: var(--accent-light);
+        }
+
+        &.stat-incomplete .stat-value {
+          color: var(--warning-caution);
+        }
+      }
+
+      .stat-divider {
+        width: 1px;
+        height: 28px;
+        background: var(--border-color);
+      }
+    }
+  }
+
+  // Controles: Buscador y Filtros
+  .metadata-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 260px;
+      max-width: 480px;
+
+      .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+
+      .metadata-search-input {
+        width: 100%;
+        padding: 11px 40px 11px 42px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        outline: none;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font: inherit;
+        font-size: 0.9rem;
+        box-shadow: inset 0 1px 0 var(--bg-hover);
+        transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+        box-sizing: border-box;
+
+        &::placeholder {
+          color: var(--text-muted);
+        }
+
+        &:hover {
+          border-color: var(--border-hover);
+        }
+
+        &:focus {
+          border-color: var(--accent);
+          background: var(--bg-primary);
+          box-shadow: 0 0 0 3px var(--accent-muted);
+        }
+      }
+
+      .clear-search-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+
+        &:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .icon-sm {
+          width: 14px;
+          height: 14px;
+        }
+      }
+    }
+
+    // Pestañas de filtro
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-secondary);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+
+      .filter-tab {
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background var(--transition-fast), color var(--transition-fast);
+
+        &:hover:not(.active) {
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-primary);
+        }
+
+        &.active {
+          background: var(--card-bg);
+          color: var(--text-primary);
+          font-weight: 600;
+          box-shadow: var(--shadow-sm);
+
+          &.tab-incomplete {
+            color: var(--warning-caution);
+          }
+
+          &.tab-necessary {
+            color: var(--accent-light);
+          }
+
+          &.tab-complete {
+            color: var(--status-success);
+          }
+        }
+      }
+    }
+  }
+
+  // Lista / Grid de Canciones
+  .metadata-content {
+    .metadata-songs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 16px;
+
+      .metadata-song-card {
+        display: flex;
+        align-items: stretch;
+        gap: 14px;
+        padding: 14px;
+        border-radius: var(--radius-md);
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+        outline: none;
+
+        &:hover, &:focus-visible {
+          background: var(--card-hover-bg);
+          border-color: var(--border-hover);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-sm);
+
+          .edit-hint {
+            opacity: 1;
+            color: var(--accent);
+          }
+        }
+
+        .card-cover {
+          width: 80px;
+          height: 80px;
+          border-radius: var(--radius-sm);
+          overflow: hidden;
+          background: var(--bg-secondary);
+          flex-shrink: 0;
+
+          .cover-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+
+            &.fallback {
+              padding: 16px;
+              box-sizing: border-box;
+              color: var(--text-muted);
+            }
+          }
+        }
+
+        .card-body {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-width: 0;
+          flex: 1;
+
+          .card-titles {
+            .song-title {
+              margin: 0 0 3px;
+              font-size: 0.95rem;
+              font-weight: 600;
+              color: var(--text-primary);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+
+            .song-artist {
+              margin: 0;
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+          }
+
+          .song-album {
+            margin: 4px 0 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            .inline-icon {
+              width: 13px;
+              height: 13px;
+              flex-shrink: 0;
+            }
+
+            span {
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+          }
+
+          .card-meta-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+
+            // Badges para las 3 posibilidades
+            .status-pill {
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              padding: 3px 8px;
+              border-radius: 6px;
+              font-size: 0.72rem;
+              font-weight: 600;
+
+              .pill-icon {
+                width: 12px;
+                height: 12px;
+              }
+
+              &.pill-complete {
+                background: rgba(74, 222, 128, 0.15);
+                color: var(--status-success);
+              }
+
+              &.pill-necessary {
+                background: rgba(20, 184, 20, 0.18);
+                color: var(--accent-light);
+              }
+
+              &.pill-incomplete {
+                background: rgba(255, 184, 77, 0.15);
+                color: var(--warning-caution);
+              }
+            }
+
+            .edit-hint {
+              font-size: 0.75rem;
+              color: var(--text-muted);
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              opacity: 0.7;
+              transition: opacity var(--transition-fast), color var(--transition-fast);
+
+              .hint-icon {
+                width: 12px;
+                height: 12px;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Estado vacío
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+
+      .empty-icon {
+        width: 54px;
+        height: 54px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        opacity: 0.6;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        color: var(--text-primary);
+      }
+
+      p {
+        margin: 0;
+        color: var(--text-secondary);
+        max-width: 460px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .btn-select-folder {
+        margin-top: 12px;
+        padding: 12px 24px;
+        border-radius: var(--radius-md);
+        border: none;
+        background: var(--accent);
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: background var(--transition-fast);
+
+        &:hover {
+          background: var(--accent-hover);
+        }
+      }
+
+      .btn-subtle {
+        margin-top: 12px;
+        padding: 8px 18px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        cursor: pointer;
+
+        &:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .metadata-page {
+    .metadata-header {
+      flex-direction: column;
+      align-items: flex-start;
+
+      .metadata-stats-bar {
+        width: 100%;
+        justify-content: space-around;
+        box-sizing: border-box;
+      }
+    }
+
+    .metadata-controls {
+      flex-direction: column;
+      align-items: stretch;
+
+      .search-wrapper {
+        max-width: 100%;
+      }
+
+      .filter-tabs {
+        justify-content: space-around;
+      }
+    }
+
+    .metadata-content .metadata-songs-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
