@@ -7,6 +7,7 @@
       v-model="query"
       type="search"
       placeholder="Buscar canciones..."
+      aria-label="Buscar canciones"
     />
 
     <SongList :songs="filteredSongs" v-if="filteredSongs.length > 0" />

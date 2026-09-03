@@ -1,8 +1,5 @@
 <template>
   <main v-if="song" class="song-page">
-    <div class="song-atmosphere" :class="{ active: library.isPlaying }" aria-hidden="true">
-      <AudioVisualizer />
-    </div>
     <section class="song-hero" aria-labelledby="song-title">
       <div class="cover-section">
         <div class="cover-frame">
@@ -46,6 +43,10 @@
         </dl>
       </div>
     </section>
+
+    <div class="song-atmosphere" :class="{ active: library.isPlaying }" aria-label="Visualizador de audio">
+      <AudioVisualizer />
+    </div>
   </main>
 </template>
 

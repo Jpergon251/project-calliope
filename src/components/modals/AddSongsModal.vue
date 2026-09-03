@@ -31,7 +31,7 @@
           </div>
           <div class="song-meta">
             <span>
-              {{ song.name }}
+              {{ song.title || song.name }}
             </span>
 
             <small>
@@ -109,7 +109,7 @@ computed(() => {
           .toLowerCase();
 
       return (
-        song.name
+        (song.title || song.name)
           .toLowerCase()
           .includes(query)
 

@@ -1,33 +1,53 @@
-// abstract styles
+/* ============================================================
+   ABSTRACTS
+   ============================================================ */
+
 @use "abstracts/mixins";
 @use "abstracts/variables";
 
-// Global styles
-@use "base/global";
+/* ============================================================
+   BASE / GLOBAL
+   ============================================================ */
+
 @use "base/reset";
 @use "base/typography";
+@use "base/global";
 
-// Component styles
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+@use "components/coverart";
+@use "components/controls";
 @use "components/pllist";
 @use "components/playerbar";
 @use "components/songlist";
 @use "components/sidebar";
+@use "components/layout/header";
+
 @use "components/addsongmodal";
 @use "components/metadatamodal";
 @use "components/allalbumlist";
 @use "components/allsonglist";
 @use "components/queuepanel";
 @use "components/albumlist";
+
 @use "components/screens/welcomescreen";
 @use "components/screens/loadingscreen";
 
-// Items
+/* ============================================================
+   CARDS / ITEMS
+   ============================================================ */
+
 @use "cards/mediacard";
 @use "cards/albumitem";
 @use "cards/songitem";
 @use "cards/playlistitem";
 
-// pages
+/* ============================================================
+   PAGES
+   ============================================================ */
+
 @use "pages/home";
 @use "pages/library";
 @use "pages/playlist";
@@ -39,3 +59,7 @@
 @use "pages/about";
 @use "pages/howtouse";
 @use "pages/support";
+@use "pages/artists";
+@use "pages/artistlist";
+@use "pages/history";
+@use "pages/profile";

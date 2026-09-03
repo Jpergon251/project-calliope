@@ -1,101 +1,111 @@
 :root {
+  // =============================================================
+  // CALLIOPE DESIGN SYSTEM — DARK OLED + NEON ACCENT
+  // =============================================================
+  // Base 100% negra (#000000 OLED) con superficies oscuras
+  // muy controladas (#050505, #0a0a0a, #121212) y acento neón reactivo.
+  // Cero fondos verdes o tintes residuales.
 
   // ==========
-  // BACKGROUNDS
+  // BACKGROUNDS (DARK OLED REAL)
   // ==========
-  --bg-primary: #090b09;
-  --bg-secondary: #171b17;
-  --bg-tertiary: #222722;
-  --bg-hover: #2b332b;
+  --bg-primary: #000000;
+  --bg-secondary: #050505;
+  --bg-tertiary: #0a0a0a;
+  --bg-hover: #121212;
 
   // ==========
-  // PLAYER
+  // SURFACES
   // ==========
-  --player-bg: #111311;
-  --sidebar-bg: #141714;
-  --card-bg: #1b201b;
-  --card-hover-bg: #262d26;
+  --surface: #070707;
+  --surface-hover: #111111;
+  --surface-active: #161616;
+  --card-bg: #070707;
+  --card-hover-bg: #111111;
+  --sidebar-bg: #000000;
+  --sidebar-surface: #000000;
+  --player-bg: #050505;
+  --player-surface: #050505;
+  --visualizer-surface: transparent;
 
   // ==========
   // TEXT
   // ==========
   --text-primary: #ffffff;
-  --text-secondary: #bdbdbd;
-  --text-muted: #7a7a7a;
+  --text-secondary: #a3a3a3;
+  --text-muted: #666666;
   --text-inverted: #000000;
 
   // ==========
-  // ACCENT
+  // ACCENT (NEON COMO ACENTO ELEGANTE)
   // ==========
-  --accent: #14B814;
-  --accent-hover: #2AC62A;
-  --accent-active: #109910;
-  --accent-muted: rgba(20,184,20,.18);
+  --accent-rgb: 37, 216, 102;
+  --accent: #25d866;
+  --accent-hover: #45e07b;
+  --accent-active: #1da651;
+  --accent-light: #6bf49e;
+  --accent-dark: #148a43;
+  --accent-darker: #0d542a;
+  --accent-contrast: #000000;
+  --accent-muted: rgba(var(--accent-rgb), 0.12);
+  --accent-surface: rgba(var(--accent-rgb), 0.04);
+  --accent-surface-strong: rgba(var(--accent-rgb), 0.10);
+  --accent-border: rgba(var(--accent-rgb), 0.28);
+  --accent-shadow: rgba(var(--accent-rgb), 0.12);
 
-  // Tonos del verde
-  --accent-light: #4ED44E;
-  --accent-dark: #298529;
-  --accent-darker: #2A522A;
+  // ==========
+  // GLOWS (SUTILES, SOLO INTERACTIVOS)
+  // ==========
+  --neon-glow: 0 0 12px rgba(var(--accent-rgb), 0.32);
+  --neon-glow-soft: 0 0 20px rgba(var(--accent-rgb), 0.14);
 
   // ==========
   // BORDERS
   // ==========
-  --border-color: #2D332D;
-  --border-hover: #3A433A;
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(var(--accent-rgb), 0.35);
 
   // ==========
-  // SHADOWS
+  // SHADOWS (OLED PROFUNDOS)
   // ==========
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.40);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.7);
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.85);
 
   // ==========
   // RADIUS
   // ==========
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 
   // ==========
   // TRANSITIONS
   // ==========
-  --transition-fast: .15s ease;
-  --transition-normal: .25s ease;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 
   // ==========
   // STATUS
   // ==========
-  --cancel-color: #D85A5A;
-  --check-color: #38C976;
+  --status-success: #25d866;
+  --status-info: #60a5fa;
+  --warning-caution: #ffb84d;
+  --warning-danger: #ff5b5b;
+  --cancel-color: #ff5b5b;
+  --check-color: #25d866;
 
-// =========
-// WARNINGS
-// =========
-
---status-success: #4ADE80; // Éxito, completado
---status-info: #60A5FA;    // Información neutra
-
---warning-caution: #FFB84D; // Aviso, cuidado
---warning-danger: #FF5B5B;  // Error, peligro
-// =========
-// ROADMAP
-// =========
-
---roadmap: #5B7CFF;
---roadmap-light: #8CA3FF;
---roadmap-muted: rgba(91, 124, 255, 0.459);
---roadmap-dark: #364EA8;
-
-// =========
-// ROADMAP STATUS
-// =========
-
---status-current: #3dad2e; // En desarrollo / Actual
---status-next: #f5a623; // Próximo
---status-planned: #4086d1; // Planeado
---status-completed: #2fa361; // Completado
---status-research: #a87a35; // Investigación
---status-warning: #ce5a5a; // Problemas / bloqueado
---status-future: #7f6abd; // Futuro / ideas
-
+  // ==========
+  // ROADMAP
+  // ==========
+  --roadmap: #5b7cff;
+  --roadmap-light: #8ca3ff;
+  --roadmap-muted: rgba(91, 124, 255, 0.4);
+  --roadmap-dark: #364ea8;
+  --status-current: #25d866;
+  --status-next: #f5a623;
+  --status-planned: #4086d1;
+  --status-completed: #25d866;
+  --status-research: #a87a35;
+  --status-warning: #ff5b5b;
+  --status-future: #7f6abd;
 }

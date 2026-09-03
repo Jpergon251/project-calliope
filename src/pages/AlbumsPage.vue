@@ -7,6 +7,7 @@
       v-model="query"
       type="search"
       placeholder="Busca álbumes..."
+      aria-label="Buscar álbumes"
     />
 
     <AlbumList :albums="filteredAlbums" v-if="filteredAlbums.length > 0" />

@@ -42,7 +42,7 @@
     .no-songs,.no-albums{
         margin-top: 40px;
         text-align: center;
-    
+
         p {
             max-width: 1200px;
             font-size: 36px;
@@ -57,17 +57,23 @@
     }
 }
 
+.songs-page, .albums-page { max-width: 1800px; margin: 0 auto; padding: clamp(24px, 4vw, 56px); > h1 { margin-bottom: 36px; font-size: clamp(2.15rem, 4vw, 3.45rem); } > input[type="search"] { min-height: 46px; border-radius: 12px; background: var(--bg-secondary); } }
+.songs-page > .song-list { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 18px; .media-card { width: 100%; } }
+@media (max-width: 760px) { .songs-page, .albums-page { padding: 20px 16px 28px; > h1 { margin-bottom: 26px; font-size: clamp(1.85rem, 9vw, 2.45rem); } > input[type="search"] { width: 100%; margin-bottom: 24px; } } .songs-page > .song-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+
 .songs-page > .song-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(145px, 185px));
+    grid-template-columns: repeat(auto-fill, minmax(140px, 180px));
     justify-content: start;
-    gap: 24px 20px;
-    width: auto;
+    gap: 20px 16px;
+    width: 100%;
     padding: 0;
     list-style: none;
+    box-sizing: border-box;
 
     .media-card {
-        width: 180px;
+        width: 100%;
+        max-width: 100%;
         padding: 0;
         background: transparent;
         transition: transform var(--transition-normal);
@@ -78,9 +84,49 @@
     }
 }
 
+@media (max-width: 600px) {
+    .songs-page > .song-list {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 16px 12px;
+    }
+}
+
 @media (max-width: 420px) {
     .songs-page > .song-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px 14px;
+        gap: 14px 10px;
+    }
+}
+
+
+// Larger collection cards on desktop and tablet.
+.songs-page > .song-list {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 232px));
+    gap: 24px 20px;
+    .media-card { width: 100%; }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+    .songs-page > .song-list { grid-template-columns: repeat(auto-fill, minmax(200px, 210px)); }
+}
+
+@media (max-width: 760px) {
+    .songs-page > .song-list {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(2, auto);
+        grid-template-columns: none;
+        grid-auto-columns: minmax(148px, 42vw);
+        align-content: start;
+        justify-content: start;
+        gap: 20px 12px;
+        max-height: calc((42vw * 2) + 54px);
+        padding: 4px 2px 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        &::-webkit-scrollbar { display: none; }
+        > li { width: 100%; min-width: 0; scroll-snap-align: start; }
     }
 }

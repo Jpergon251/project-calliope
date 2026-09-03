@@ -2,10 +2,12 @@
   min-height: 100%;
   padding: clamp(20px, 4vw, 48px);
   box-sizing: border-box;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 28px;
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
 
   // Encabezado
@@ -15,6 +17,8 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 24px;
+    width: 100%;
+    box-sizing: border-box;
 
     .header-titles {
       max-width: 650px;
@@ -107,6 +111,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    width: 100%;
+    box-sizing: border-box;
 
     .search-wrapper {
       position: relative;
@@ -190,6 +196,7 @@
       padding: 4px;
       border-radius: var(--radius-md);
       border: 1px solid var(--border-color);
+      box-sizing: border-box;
 
       .filter-tab {
         padding: 8px 12px;
@@ -231,10 +238,19 @@
 
   // Lista / Grid de Canciones
   .metadata-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+
     .metadata-songs-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
       gap: 16px;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
 
       .metadata-song-card {
         display: flex;
@@ -247,6 +263,11 @@
         cursor: pointer;
         transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
         outline: none;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
 
         &:hover, &:focus-visible {
           background: var(--card-hover-bg);
@@ -286,9 +307,16 @@
           flex-direction: column;
           justify-content: space-between;
           min-width: 0;
+          width: 100%;
           flex: 1;
+          overflow: hidden;
+          box-sizing: border-box;
 
           .card-titles {
+            min-width: 0;
+            width: 100%;
+            overflow: hidden;
+
             .song-title {
               margin: 0 0 3px;
               font-size: 0.95rem;
@@ -297,6 +325,8 @@
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
+              display: block;
+              max-width: 100%;
             }
 
             .song-artist {
@@ -306,6 +336,8 @@
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
+              display: block;
+              max-width: 100%;
             }
           }
 
@@ -319,6 +351,8 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            min-width: 0;
+            max-width: 100%;
 
             .inline-icon {
               width: 13px;
@@ -329,6 +363,7 @@
             span {
               overflow: hidden;
               text-overflow: ellipsis;
+              min-width: 0;
             }
           }
 
@@ -337,6 +372,10 @@
             align-items: center;
             justify-content: space-between;
             margin-top: 8px;
+            min-width: 0;
+            width: 100%;
+            overflow: hidden;
+            gap: 6px;
 
             // Badges para las 3 posibilidades
             .status-pill {
@@ -347,25 +386,15 @@
               border-radius: 6px;
               font-size: 0.72rem;
               font-weight: 600;
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
 
               .pill-icon {
                 width: 12px;
                 height: 12px;
-              }
-
-              &.pill-complete {
-                background: rgba(74, 222, 128, 0.15);
-                color: var(--status-success);
-              }
-
-              &.pill-necessary {
-                background: rgba(20, 184, 20, 0.18);
-                color: var(--accent-light);
-              }
-
-              &.pill-incomplete {
-                background: rgba(255, 184, 77, 0.15);
-                color: var(--warning-caution);
+                flex-shrink: 0;
               }
             }
 
@@ -377,6 +406,7 @@
               gap: 4px;
               opacity: 0.7;
               transition: opacity var(--transition-fast), color var(--transition-fast);
+              flex-shrink: 0;
 
               .hint-icon {
                 width: 12px;
@@ -457,9 +487,13 @@
 
 @media (max-width: 768px) {
   .metadata-page {
+    padding: 20px 14px;
+    gap: 20px;
+
     .metadata-header {
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
+      gap: 18px;
 
       .metadata-stats-bar {
         width: 100%;
@@ -471,18 +505,191 @@
     .metadata-controls {
       flex-direction: column;
       align-items: stretch;
+      gap: 12px;
 
       .search-wrapper {
         max-width: 100%;
+        min-width: 0;
+        width: 100%;
       }
 
       .filter-tabs {
-        justify-content: space-around;
+        width: 100%;
+        overflow-x: auto;
+        justify-content: flex-start;
+        scrollbar-width: none;
+        box-sizing: border-box;
+        -webkit-overflow-scrolling: touch;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+
+        .filter-tab {
+          flex-shrink: 0;
+          white-space: nowrap;
+        }
       }
     }
 
-    .metadata-content .metadata-songs-grid {
-      grid-template-columns: 1fr;
+    .metadata-content {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+
+      .metadata-songs-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+
+        .metadata-song-card {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .metadata-page {
+    padding: 14px 8px;
+    gap: 14px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+
+    .metadata-header {
+      .header-titles {
+        .title-with-icon {
+          gap: 10px;
+          h1 {
+            font-size: 1.35rem;
+          }
+          .title-icon {
+            width: 24px;
+            height: 24px;
+          }
+        }
+
+        p {
+          font-size: 0.82rem;
+        }
+      }
+
+      .metadata-stats-bar {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 10px 12px;
+        width: 100%;
+        box-sizing: border-box;
+
+        .stat-divider {
+          display: none;
+        }
+
+        .stat-item {
+          align-items: center;
+          text-align: center;
+
+          .stat-label {
+            font-size: 0.68rem;
+          }
+
+          .stat-value {
+            font-size: 1.1rem;
+          }
+        }
+      }
+    }
+
+    .metadata-controls {
+      gap: 10px;
+
+      .filter-tabs {
+        .filter-tab {
+          font-size: 0.78rem;
+          padding: 6px 9px;
+        }
+      }
+    }
+
+    .metadata-content {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+
+      .metadata-songs-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+
+        .metadata-song-card {
+          padding: 8px;
+          gap: 10px;
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+
+          .card-cover {
+            width: 54px;
+            height: 54px;
+            flex-shrink: 0;
+          }
+
+          .card-body {
+            min-width: 0;
+            width: 100%;
+            overflow: hidden;
+
+            .card-titles {
+              min-width: 0;
+              width: 100%;
+              overflow: hidden;
+
+              .song-title {
+                font-size: 0.88rem;
+                max-width: 100%;
+              }
+              .song-artist {
+                font-size: 0.78rem;
+                max-width: 100%;
+              }
+            }
+
+            .song-album {
+              font-size: 0.72rem;
+              min-width: 0;
+              max-width: 100%;
+            }
+
+            .card-meta-bottom {
+              flex-wrap: wrap;
+              gap: 4px;
+              margin-top: 4px;
+              min-width: 0;
+              max-width: 100%;
+
+              .status-pill {
+                font-size: 0.65rem;
+                padding: 2px 5px;
+                max-width: 100%;
+              }
+
+              .edit-hint {
+                font-size: 0.68rem;
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

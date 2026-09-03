@@ -4,58 +4,52 @@
     isolation: isolate;
     min-height: 100%;
     padding: clamp(10px, 4vw, 15px);
+    padding-bottom: 120px;
     box-sizing: border-box;
 
     .playlist-title {
+        position: relative;
+        z-index: 1;
         margin: auto 20px;
         font-size: clamp(2rem, 4vw, 3rem);
     }
 }
 
-.playlist-atmosphere {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    overflow: hidden;
-    opacity: .62;
+.playlist-atmosphere,
+.album-atmosphere {
+    position: fixed;
+    z-index: 0;
     pointer-events: none;
+    left: 272px;
+    right: 0;
+    bottom: 118px;
+    height: clamp(140px, 18vh, 180px);
+    background: transparent;
+    border: none;
+    overflow: hidden;
+
+    .audio-visualizer {
+        width: 100%;
+        height: 100%;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
 }
 
-.playlist-atmosphere::after {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(9, 11, 9, .45), transparent 30%, transparent 70%, rgba(9, 11, 9, .45));
-    content: '';
+.playlist-page > .song-list-container,
+.album-page > .song-list-container {
+    position: relative;
+    z-index: 1;
 }
-
-.playlist-atmosphere .audio-visualizer { position: absolute; inset: 0; }
-.playlist-atmosphere canvas { display: block; width: 100%; height: 100%; }
-.playlist-page > *:not(.playlist-atmosphere):not(.playlist-edit-modal) { position: relative; z-index: 2; }
 
 .playlist-page > .playlist-edit-modal {
     position: fixed;
     z-index: 2000;
 }
-
-.album-atmosphere {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    overflow: hidden;
-    opacity: .62;
-    pointer-events: none;
-}
-
-.album-atmosphere::after {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(9, 11, 9, .45), transparent 30%, transparent 70%, rgba(9, 11, 9, .45));
-    content: '';
-}
-
-.album-atmosphere .audio-visualizer { position: absolute; inset: 0; }
-.album-atmosphere canvas { display: block; width: 100%; height: 100%; }
-.album-page > *:not(.album-atmosphere) { position: relative; z-index: 2; }
 
 .playlist-edit-modal {
     position: fixed;
@@ -138,9 +132,16 @@
     }
 }
 
-@media (max-width: 720px) {
-    .playlist-page,
-    .album-page {
+@media (max-width: 760px) {
+  .playlist-atmosphere,
+  .album-atmosphere {
+    display: none !important;
+  }
+
+  .playlist-page,
+  .album-page {
+        padding: 20px 16px 28px;
+        padding-bottom: 160px;
         .song-list-container {
             height: auto;
             flex-direction: column;

@@ -1,80 +1,75 @@
 <template>
-    <nav class="navbar">
+  <nav class="navbar" aria-label="Navegación principal">
+    <Logo />
 
-        <Logo/>
+    <div class="pages-list">
+      <section class="nav-section primary-nav">
+        <h2 class="nav-section-title">Tu música</h2>
 
-        <div class="pages-list">
-            <section class="nav-section">
-                <h2 class="nav-section-title">Tu música</h2>
-
-                <router-link to="/" class="page-link">
-                    <House class="page-icon"/>
-                    <span class="page-name">Inicio</span>
-                </router-link>
-
-                <router-link to="/library" class="page-link">
-                    <LibraryIcon class="page-icon"/>
-                    <span class="page-name">Biblioteca</span>
-                </router-link>
-
-                <router-link to="/settings" class="page-link">
-                    <Settings class="page-icon"/>
-                    <span class="page-name">Configuración</span>
-                </router-link>
-
-            </section>
-
-            <section class="nav-section">
-                <h2 class="nav-section-title">Más información</h2>
-
-                <router-link to="/how-to-use" class="page-link">
-                    <CircleHelp class="page-icon"/>
-                    <span class="page-name">Cómo usar</span>
-                </router-link>
-
-
-                <router-link to="/about" class="page-link">
-                    <Info class="page-icon"/>
-                    <span class="page-name">Acerca de</span>
-                </router-link>
-
-
-                <router-link to="/metadata" class="page-link">
-                    <Tags class="page-icon"/>
-                    <span class="page-name">Metadatos</span>
-                </router-link>
-            </section>
-
-        </div>
-
-        <button
-            @click="library.selectFolder()"
-            v-if="library.initialized && !library.folderHandle"
-            class="folder-button"
-        >
-            Select Folder
-        </button>
-
-        <span
-            class="advertisment"
-            v-if="library.initialized && !library.folderHandle"
-        >
-            There is no songs on list, select a folder to see all your songs.
-        </span>
-
-        <router-link to="/support" class="page-link support-link">
-            <Heart class="page-icon"/>
-            <span class="page-name">Ayúdame</span>
+        <router-link to="/" class="page-link mobile-nav-visible">
+          <House class="page-icon" />
+          <span class="page-name">Inicio</span>
         </router-link>
 
-    </nav>
+        <router-link to="/library" class="page-link mobile-nav-visible">
+          <LibraryIcon class="page-icon" />
+          <span class="page-name">Biblioteca</span>
+        </router-link>
 
+        <router-link to="/profile" class="page-link">
+          <UserRound class="page-icon" />
+          <span class="page-name">Perfil</span>
+        </router-link>
+      </section>
+
+      <section class="nav-section secondary-nav">
+        <h2 class="nav-section-title">Más información</h2>
+
+        <router-link to="/how-to-use" class="page-link">
+          <CircleHelp class="page-icon" />
+          <span class="page-name">Cómo usar</span>
+        </router-link>
+
+        <router-link to="/about" class="page-link">
+          <Info class="page-icon" />
+          <span class="page-name">Acerca de</span>
+        </router-link>
+      </section>
+    </div>
+
+    <button
+      v-if="library.initialized && !library.folderHandle"
+      @click="library.selectFolder()"
+      class="folder-button"
+    >
+      Seleccionar carpeta
+    </button>
+
+    <span
+      v-if="library.initialized && !library.folderHandle"
+      class="advertisment"
+    >
+      Selecciona una carpeta para ver tu música.
+    </span>
+
+    <router-link to="/support" class="page-link support-link">
+      <Heart class="page-icon" />
+      <span class="page-name">Ayúdame</span>
+    </router-link>
+  </nav>
 </template>
+
 <script setup>
-import { CircleHelp, Heart, House, Info, LibraryIcon, Settings, Tags } from "lucide-vue-next"
+import {
+  CircleHelp,
+  Heart,
+  House,
+  Info,
+  LibraryIcon,
+  UserRound,
+} from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import Logo from "../common/Logo.vue";
 
 const library = useLibraryStore();
-
 </script>

@@ -2,6 +2,7 @@
     min-height: 100%;
     padding: clamp(32px, 7vw, 88px) clamp(20px, 5vw, 56px);
     box-sizing: border-box;
+    overflow-x: hidden;
 
 
     // ==========================================
@@ -68,11 +69,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),
@@ -85,7 +82,7 @@
 
             transform: translateY(-2px);
         }
-        
+
     }
 
 
@@ -298,11 +295,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),
@@ -383,11 +376,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),

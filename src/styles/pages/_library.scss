@@ -1,16 +1,534 @@
 .library-page {
-    min-height: 100%;
-    padding: clamp(20px, 4vw, 48px);
-    box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 100%;
+  padding: clamp(24px, 4vw, 56px);
+  padding-bottom: 140px;
+  box-sizing: border-box;
 
-    > h1 {
-        margin: 0 0 28px;
-        font-size: clamp(2rem, 4vw, 3rem);
-        letter-spacing: -.035em;
-        line-height: 1.1;
+  background:
+    radial-gradient(
+      ellipse 80% 30% at 50% 0%,
+      rgba(var(--accent-rgb), 0.022),
+      transparent 72%
+    ),
+    var(--bg-primary);
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  .library-header {
+    width: 100%;
+    margin-bottom: 32px;
+  }
+
+  .library-header-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    margin-bottom: 24px;
+  }
+
+  // ============================================================
+  // TITLE
+  // ============================================================
+
+  .library-title-block {
+    min-width: 0;
+  }
+
+  .library-kicker {
+    display: block;
+    margin-bottom: 6px;
+
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+
+    color: var(--accent-light);
+    opacity: 0.8;
+  }
+
+  .library-title-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+
+    h1 {
+      margin: 0;
+
+      font-size: clamp(2.15rem, 4vw, 3.45rem);
+      font-weight: 850;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+
+      color: var(--text-primary);
     }
 
-    > * + * {
-        margin-top: 36px;
+    .library-summary-stats {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.4;
     }
+  }
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  .library-search {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    flex: 0 1 380px;
+    min-width: 260px;
+    height: 46px;
+
+    padding: 0 13px;
+
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.035),
+        rgba(var(--accent-rgb), 0.012)
+      );
+
+    transition:
+      border-color var(--transition-normal),
+      background-color var(--transition-normal),
+      box-shadow var(--transition-normal);
+
+    &:focus-within {
+      border-color: var(--accent-border);
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.045),
+          rgba(var(--accent-rgb), 0.025)
+        );
+
+      box-shadow:
+        0 0 0 3px rgba(var(--accent-rgb), 0.045),
+        var(--neon-glow-soft);
+    }
+
+    .library-search-icon {
+      flex-shrink: 0;
+      color: var(--text-muted);
+
+      transition: color var(--transition-fast);
+    }
+
+    &:focus-within .library-search-icon {
+      color: var(--accent-light);
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 100%;
+
+      margin: 0;
+      padding: 0 10px;
+
+      border: 0;
+      outline: 0;
+
+      background: transparent;
+
+      color: var(--text-primary);
+
+      font: inherit;
+      font-size: 0.88rem;
+
+      appearance: none;
+      -webkit-appearance: none;
+
+      &::placeholder {
+        color: var(--text-muted);
+        opacity: 1;
+      }
+
+      &::-webkit-search-cancel-button {
+        display: none;
+        appearance: none;
+      }
+    }
+
+    .library-search-clear {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      width: 28px;
+      height: 28px;
+      padding: 0;
+
+      border: 0;
+      border-radius: 50%;
+
+      background: transparent;
+      color: var(--text-muted);
+
+      cursor: pointer;
+
+      transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast),
+        transform var(--transition-fast);
+
+      -webkit-tap-highlight-color: transparent;
+
+      &:active {
+        transform: scale(0.9);
+      }
+    }
+  }
+
+  // ============================================================
+  // CATEGORY PILLS
+  // ============================================================
+
+  .library-category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .category-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      padding: 9px 18px;
+
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.035),
+          rgba(var(--accent-rgb), 0.012)
+        );
+
+      color: var(--text-secondary);
+
+      font-size: 0.88rem;
+      font-weight: 600;
+      line-height: 1;
+
+      cursor: pointer;
+
+      transition:
+        background-color var(--transition-normal),
+        color var(--transition-normal),
+        border-color var(--transition-normal),
+        transform var(--transition-fast),
+        box-shadow var(--transition-normal);
+
+      -webkit-tap-highlight-color: transparent;
+
+      svg {
+        flex-shrink: 0;
+        color: var(--text-muted);
+
+        transition: color var(--transition-fast);
+      }
+
+      .pill-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-width: 20px;
+        height: 20px;
+        padding: 2px 7px;
+
+        border-radius: 999px;
+
+        background: rgba(255, 255, 255, 0.055);
+        color: var(--text-muted);
+
+        font-size: 0.74rem;
+        font-weight: 600;
+
+        transition:
+          background-color var(--transition-fast),
+          color var(--transition-fast);
+      }
+
+      &:active {
+        transform: scale(0.96);
+      }
+
+      &.active {
+        background:
+          linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent-active)
+          );
+
+        color: var(--accent-contrast);
+
+        border-color: var(--accent);
+
+        box-shadow:
+          var(--neon-glow),
+          0 6px 20px rgba(var(--accent-rgb), 0.08);
+
+        svg {
+          color: var(--accent-contrast);
+        }
+
+        .pill-count {
+          background: rgba(0, 0, 0, 0.18);
+          color: var(--accent-contrast);
+          font-weight: 700;
+        }
+      }
+    }
+  }
+
+  // ============================================================
+  // CONTENT
+  // ============================================================
+
+  .library-content-body {
+    width: 100%;
+  }
+
+  .library-all-grid {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    gap: 40px;
+  }
+
+  .library-full-view {
+    width: 100%;
+  }
+}
+
+// ================================================================
+// DESKTOP HOVER
+// Solo dispositivos que realmente soportan hover.
+// ================================================================
+
+@media (hover: hover) and (pointer: fine) {
+  .library-page {
+    .library-search {
+      .library-search-clear:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.07);
+      }
+    }
+
+    .library-category-pills {
+      .category-pill:not(.active):hover {
+        background:
+          linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(var(--accent-rgb), 0.025)
+          );
+
+        color: var(--text-primary);
+        border-color: var(--border-hover);
+
+        transform: translateY(-1px);
+
+        box-shadow:
+          0 5px 18px rgba(0, 0, 0, 0.3),
+          0 0 14px rgba(var(--accent-rgb), 0.025);
+
+        svg {
+          color: var(--accent-light);
+        }
+
+        .pill-count {
+          background: var(--accent-muted);
+          color: var(--accent-light);
+        }
+      }
+
+      .category-pill.active:hover {
+        background:
+          linear-gradient(
+            135deg,
+            var(--accent-hover),
+            var(--accent)
+          );
+
+        border-color: var(--accent-hover);
+      }
+    }
+  }
+}
+
+// ================================================================
+// MOBILE
+// ================================================================
+
+@media (max-width: 760px) {
+  .library-page {
+    padding: 20px 16px 140px;
+
+    background:
+      radial-gradient(
+        ellipse 100% 24% at 50% 0%,
+        rgba(var(--accent-rgb), 0.025),
+        transparent 76%
+      ),
+      var(--bg-primary);
+
+    .library-header {
+      margin-bottom: 22px;
+    }
+
+    // ----------------------------------------------------------
+    // MOBILE HEADER
+    // ----------------------------------------------------------
+
+    .library-header-top {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .library-kicker {
+      margin-bottom: 4px;
+      font-size: 0.66rem;
+    }
+
+    .library-title-row {
+      gap: 6px 10px;
+
+      h1 {
+        font-size: clamp(1.85rem, 9vw, 2.45rem);
+      }
+
+      .library-summary-stats {
+        width: 100%;
+        font-size: 0.76rem;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // MOBILE SEARCH
+    // ----------------------------------------------------------
+
+    .library-search {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+      height: 44px;
+
+      border-radius: 11px;
+
+      input {
+        font-size: 0.86rem;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // MOBILE PILLS
+    // ----------------------------------------------------------
+
+    .library-category-pills {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+
+      gap: 8px;
+
+      padding-bottom: 4px;
+
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      .category-pill {
+        flex-shrink: 0;
+
+        padding: 8px 14px;
+
+        font-size: 0.82rem;
+
+        .pill-count {
+          min-width: 18px;
+          height: 18px;
+
+          padding: 2px 6px;
+
+          font-size: 0.7rem;
+        }
+      }
+    }
+
+    // ----------------------------------------------------------
+    // CONTENT
+    // ----------------------------------------------------------
+
+    .library-content-body {
+      .library-all-grid {
+        gap: 32px;
+      }
+    }
+  }
+}
+
+// ================================================================
+// EXTRA SMALL DEVICES
+// ================================================================
+
+@media (max-width: 380px) {
+  .library-page {
+    padding-left: 12px;
+    padding-right: 12px;
+
+    .library-category-pills {
+      .category-pill {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+  }
+}
+
+// ================================================================
+// REDUCED MOTION
+// ================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  .library-page {
+    .library-search,
+    .library-category-pills .category-pill {
+      transition: none;
+    }
+
+    .library-search .library-search-clear {
+      transition: none;
+    }
+  }
 }

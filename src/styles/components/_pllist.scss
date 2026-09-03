@@ -1,360 +1,397 @@
+/* ============================================================
+   PLAYLISTS
+============================================================ */
+
 .all-playlist {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 20px 0;
-    .playlist-title {
-        display:flex;
-        align-items:center;
-        justify-content: space-between;
-
-        h2 {
-            margin: 0;
-        }
-
-        .create-playlist-button{
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 13px;
-            color: var(--accent);
-            background: linear-gradient(135deg, var(--accent-muted), rgba(255,255,255,0.04));
-            border: 1px solid var(--accent-dark);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font: inherit;
-            font-weight: 600;
-            transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
-
-            &:hover{
-                color: var(--text-primary);
-                background: var(--accent);
-                transform: translateY(-1px);
-            }
-        }
-    }
-    .playlist-list {
-        display: flex;
-        padding: 10px;
-        gap: 35px;
-        list-style: none;
-        overflow-x: auto;
-        overflow-y: hidden;
-
-        flex-wrap: nowrap;
-
-        scrollbar-width: none;
-
-        &::-webkit-scrollbar {
-            display: none;
-        }
-
-        scroll-snap-type: x proximity;
-
-    }
-
-    .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999;
-
-        .modal-card {
-            width: min(100%, 420px);
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            box-shadow: var(--shadow-md);
-            .modal-title{
-                margin: 0 0 22px;
-                font-size: 1.5rem;
-            }
-            .input-fields{
-                display: flex;
-                flex-direction: column;
-                gap: 7px;
-                label{
-                    color: var(--text-secondary);
-                    font-size: .9rem;
-                    font-weight: 500;
-                    span{
-                        color: var(--text-muted);
-                        font-size: inherit;
-                    }
-                }
-                input {
-                    margin-bottom: 11px;
-                    padding: 11px 12px;
-                    border: 1px solid var(--border-color);
-                    border-radius: var(--radius-sm);
-                    outline: none;
-                    background: var(--bg-primary);
-                    color: var(--text-primary);
-                    font: inherit;
-
-                    &:focus {
-                        border-color: var(--accent);
-                        box-shadow: 0 0 0 3px var(--accent-muted);
-                    }
-                }
-            }
-            .actions{
-                
-                display: flex;
-                margin-top: 8px;
-                gap: 10px;
-                justify-content: flex-end;
-
-                button{
-                    padding: 10px 15px;
-                    cursor: pointer;
-                    border: 1px solid var(--border-color);
-                    border-radius: var(--radius-sm);
-                    font: inherit;
-                }
-                .cancel-button{
-                    color: var(--text-primary);
-                    background: transparent;
-                }
-                .check-button{
-                    color: var(--text-primary);
-                    border-color: var(--accent);
-                    background: var(--accent);
-
-                    &:hover {
-                        background: var(--accent-hover);
-                    }
-                }
-            }
-
-        }
-    }
-
+  width: 100%;
+  min-width: 0;
 }
 
-.song-list-container {
-    .playlist-cover {
-        position: relative;
+.playlist-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
 
-        .playlist-actions {
-            display: flex;
-            align-items: center;
-            padding: 8px;
+.playlist-title-block {
+  min-width: 0;
+}
 
-            .action-btn {
-                display: grid;
-                width: 100%;
-                place-items: center;
-                border: 1px solid var(--border-color);
-                border-radius: var(--radius-sm);
-                background: var(--card-bg);
-                color: var(--text-primary);
-                cursor: pointer;
-                transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+.playlist-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
 
-                &:hover {
-                    background: var(--accent-muted);
-                    border-color: var(--accent);
-                    transform: translateY(-1px);
-                }
+.playlist-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
 
-                &.play {
-                    background: var(--accent);
-                    border-color: var(--accent);
+.playlist-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 
-                    &:hover {
-                        background: var(--accent-hover);
-                    }
-                }
-            }
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: clamp(20px, 2vw, 26px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+}
 
-            .action-menu-wrapper {
-                position: relative;
-                width: 100%;
-                .action-menu {
-                    position: absolute;
-                    bottom: calc(100% + 8px);
-                    left: 50%;
-                    transform: translateX(-50%);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                    padding: 8px;
-                    min-width: 190px;
-                    border-radius: var(--radius-md);
-                    background: var(--card-bg);
-                    border: 1px solid var(--border-color);
-                    box-shadow: var(--shadow-md);
-                    z-index: 20;
+.playlist-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-muted);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 
-                    button {
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        width: 100%;
-                        padding: 10px 12px;
-                        border: 1px solid transparent;
-                        border-radius: var(--radius-sm);
-                        background: transparent;
-                        color: var(--text-primary);
-                        cursor: pointer;
-                        text-align: left;
+.playlist-subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
 
-                        &:hover {
-                            background: var(--bg-hover);
-                            border-color: var(--border-hover);
-                        }
-                    }
-                }
-            }
-        }
-    }
+/* ============================================================
+   ACTIONS
+============================================================ */
 
-    .delete-confirm-modal {
-        position: fixed;
-        inset: 0;
-        z-index: 200;
-        display: grid;
-        place-items: center;
-        background: rgba(0, 0, 0, 0.55);
-        backdrop-filter: blur(6px);
+.playlist-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
 
-        .delete-confirm-card {
-            width: min(92vw, 360px);
-            padding: 24px;
-            border-radius: 18px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-md);
+.create-playlist-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-surface);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 
-            h3 {
-                margin: 0 0 8px;
-            }
+  &:hover {
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: var(--neon-glow);
+    transform: translateY(-1px);
+  }
 
-            p {
-                margin: 0 0 16px;
-                color: var(--text-secondary);
-            }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
 
-            .delete-confirm-actions {
-                display: flex;
-                justify-content: flex-end;
-                gap: 10px;
+.playlist-carousel-button {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
 
-                button {
-                    padding: 10px 14px;
-                    border-radius: 10px;
-                    border: none;
-                    cursor: pointer;
-                }
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
 
-                .cancel {
-                    background: transparent;
-                    color: var(--text-primary);
-                }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
 
-                .confirm {
-                    background: var(--accent);
-                    color: var(--text-primary);
-                }
-            }
-        }
-    }
+.playlist-view-all-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
 
-    .empty-playlist-state {
-        display: grid;
-        place-items: center;
-        font-size: 24px;
-        width: 100%;
-        min-height: 120px;
-        padding: 24px;
-        margin: 12px 20px 0;
-        border-radius: var(--radius-md);
-        color: var(--text-secondary);
-        text-align: center;
-        p{
-            strong{
-                text-transform: capitalize;
-                color: var(--accent);
-            }
-        }
-    }
+  &:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+  }
 
-    .song-list {
-        .song-item {
-            position: relative;
-            overflow: visible;
-            transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
 
-            &.dragging {
-                opacity: 0.7;
-                transform: scale(0.98);
-            }
+/* ============================================================
+   PLAYLIST CAROUSEL
+============================================================ */
 
-            &.drop-before::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2px;
-                background: var(--accent);
-                border-radius: 999px;
-                z-index: 2;
-            }
+.playlist-carousel {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 14px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) transparent;
+  -webkit-overflow-scrolling: touch;
+}
 
-            &.drop-after::after {
-                content: "";
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: 2px;
-                background: var(--accent);
-                border-radius: 999px;
-                z-index: 2;
-            }
+.playlist-carousel::-webkit-scrollbar {
+  height: 6px;
+}
 
-            .song-actions {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-left: auto;
-            }
+.playlist-carousel::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-            .drag-handle {
-                display: grid;
-                place-items: center;
-                color: var(--text-muted);
-                cursor: grab;
-                margin-right: 4px;
-            }
+.playlist-carousel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--border-color);
+}
 
-            .favorite-toggle {
-                display: grid;
-                place-items: center;
-                width: 32px;
-                height: 32px;
-                padding: 0;
-                border-radius: 5px;
-                border: none;
-                background: transparent;
-                color: var(--text-primary);
-                cursor: pointer;
+.playlist-carousel::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
 
-                &:hover {
-                    color: var(--accent);
-                }
+.playlist-carousel-item {
+  flex: 0 0 clamp(190px, 21vw, 250px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
 
-                &.active {
-                    color: var(--accent);
-                }
-            }
-        }
-    }
+.playlist-carousel-item > * {
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+ * The full library keeps the same horizontal interaction.
+ * This is important when a user has hundreds or thousands
+ * of playlists.
+ */
+.playlist-carousel-full {
+  padding-bottom: 18px;
+}
+
+/* ============================================================
+   PLAYLIST ITEM POLISH
+============================================================ */
+
+.playlist-carousel-item {
+  transition: transform var(--transition-normal);
+
+  &:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/*
+ * These selectors intentionally target the PlaylistItem
+ * from the outside, so PLList does not need to know how
+ * its internal component is implemented.
+ */
+.playlist-carousel-item img {
+  display: block;
+  max-width: 100%;
+}
+
+.playlist-carousel-item button {
+  cursor: pointer;
+}
+
+/* ============================================================
+   EMPTY STATE
+============================================================ */
+
+.playlist-empty-state {
+  flex: 1 1 100%;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      var(--accent-surface-strong),
+      transparent 34%
+    ),
+    var(--surface);
+}
+
+.playlist-empty-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.playlist-empty-state > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.playlist-empty-state strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.playlist-empty-state span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ============================================================
+   MOBILE
+============================================================ */
+
+@media (max-width: 760px) {
+  .playlist-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .playlist-title-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .playlist-subtitle {
+    display: none;
+  }
+
+  .playlist-section-actions {
+    width: 100%;
+  }
+
+  .create-playlist-button {
+    flex: 1 1 auto;
+  }
+
+  .playlist-carousel-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .playlist-view-all-button {
+    padding-inline: 9px;
+  }
+
+  .playlist-carousel {
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .playlist-carousel-item {
+    flex: 0 0 174px;
+  }
+}
+
+@media (max-width: 420px) {
+  .playlist-section-actions {
+    gap: 6px;
+  }
+
+  .create-playlist-button {
+    padding-inline: 11px;
+  }
+
+  .create-playlist-button span {
+    display: none;
+  }
+
+  .playlist-carousel-item {
+    flex-basis: 158px;
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION
+============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .playlist-carousel-item,
+  .create-playlist-button,
+  .playlist-carousel-button,
+  .playlist-view-all-button {
+    transition: none;
+  }
+
+  .playlist-carousel {
+    scroll-behavior: auto;
+  }
 }

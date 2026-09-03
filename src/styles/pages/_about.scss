@@ -2,6 +2,7 @@
     min-height: 100%;
     padding: clamp(32px, 7vw, 88px) clamp(20px, 5vw, 56px);
     box-sizing: border-box;
+    overflow-x: hidden;
 
     .about-hero {
         max-width: 700px;
@@ -14,10 +15,10 @@
         margin-bottom: 24px;
         place-items: center;
 
-        border: 1px solid var(--accent-dark);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
 
-        background: var(--accent-muted);
+        background: var(--accent-surface);
         color: var(--accent-light);
     }
 
@@ -69,11 +70,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),
@@ -122,11 +119,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),
@@ -206,11 +199,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),
@@ -335,11 +324,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             transform var(--transition-normal),

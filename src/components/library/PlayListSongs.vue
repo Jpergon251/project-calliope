@@ -53,9 +53,9 @@
         </div>
 
         <ul v-else class="song-list">
-            <li 
+            <li
             v-for="(song, index) in resolvedSongs" :key="song.id"
-            @click="library.playFromPlaylist(song, resolvedSongs)"
+            @click="handleSongClick(song)"
             class="song-item"
             :class="{ 'dragging': props.isSortable && draggedIndex === index, 'drop-before': props.isSortable && draggedIndex !== null && hoverIndex === index && dropPosition === 'before', 'drop-after': props.isSortable && draggedIndex !== null && hoverIndex === index && dropPosition === 'after' }"
             :draggable="props.isSortable"
@@ -64,13 +64,13 @@
             @drop="handleDrop(index)"
             @dragend="handleDragEnd"
             >
-                
+
                   <div class="song-cover">
 
                     <img
                       v-if="song.cover"
                       :src="song.cover"
-                      :alt="song.name"
+                      :alt="song.title || song.name"
                       class="cover-image"
                     />
 
@@ -80,15 +80,23 @@
                     />
 
                     <div class="song-info">
-                      <span class="song-name">{{ song.name }}</span>
+                      <span class="song-name">{{ song.title || song.name }}</span>
                       <span class="song-artist">{{ song.artist }}</span>
 
                     </div>
-                    
+
                   </div>
-                
+
                 <div class="song-actions">
-                  <div v-if="props.isSortable" class="drag-handle" aria-label="Arrastra para ordenar">
+                  <div
+                    v-if="props.isSortable"
+                    class="drag-handle"
+                    aria-label="Arrastra para ordenar"
+                    @click.stop
+                    @touchstart.stop="handleTouchDragStart($event, index)"
+                    @touchmove.prevent="handleTouchDragMove($event, index)"
+                    @touchend="handleTouchDragEnd"
+                  >
                     <GripVertical />
                   </div>
 
@@ -104,7 +112,7 @@
 
                   <span class="song-duration">{{ formatDuration(song.duration) }}</span>
                 </div>
-                
+
             </li>
         </ul>
 
@@ -153,6 +161,8 @@ const emit = defineEmits(["edit", "delete", "reorder"]);
 const draggedIndex = ref(null);
 const hoverIndex = ref(null);
 const dropPosition = ref(null);
+const isDragging = ref(false);
+const justDropped = ref(false);
 
 const isFavoritesPlaylist = computed(() => props.playlist?.id === library.FAVORITES_PLAYLIST_ID);
 
@@ -184,8 +194,17 @@ function startDrag(event, index) {
   event.dataTransfer.setData("text/plain", String(index));
 }
 
+function handleSongClick(song) {
+  if (isDragging.value || justDropped.value) return;
+  library.playFromPlaylist(song, resolvedSongs.value);
+  if (typeof window !== "undefined" && window.innerWidth <= 760) {
+    library.openNowPlaying();
+  }
+}
+
 function handleDragStart(event, index) {
   if (!props.isSortable) return;
+  isDragging.value = true;
   draggedIndex.value = index;
   hoverIndex.value = index;
   dropPosition.value = null;
@@ -213,6 +232,7 @@ function clearDrag() {
   draggedIndex.value = null;
   hoverIndex.value = null;
   dropPosition.value = null;
+  isDragging.value = false;
 }
 
 function handleDrop(targetIndex) {
@@ -224,21 +244,62 @@ function handleDrop(targetIndex) {
   }
 
   const reordered = [...resolvedSongs.value];
+  const targetSong = reordered[targetIndex];
   const [movedSong] = reordered.splice(draggedIndex.value, 1);
-
-  let insertIndex = targetIndex;
-
-  if (dropPosition.value === "before") {
-    insertIndex = draggedIndex.value < targetIndex ? targetIndex - 1 : targetIndex;
-  } else if (dropPosition.value === "after") {
-    insertIndex = draggedIndex.value < targetIndex ? targetIndex : targetIndex + 1;
-  }
+  const newTargetIndex = reordered.indexOf(targetSong);
+  const insertIndex = dropPosition.value === "after" ? newTargetIndex + 1 : newTargetIndex;
 
   reordered.splice(insertIndex, 0, movedSong);
 
-  emit("reorder", reordered.map((song) => song.id));
-  library.reorderPlaylistSongs(props.playlist.id, reordered.map((song) => song.id));
+  const newSongIds = reordered.map((song) => song.id);
+  emit("reorder", newSongIds);
+  if (props.playlist?.id) {
+    library.reorderPlaylistSongs(props.playlist.id, newSongIds);
+  }
+
   clearDrag();
+  justDropped.value = true;
+  setTimeout(() => {
+    justDropped.value = false;
+  }, 200);
+}
+
+// Touch drag support for mobile devices
+let touchStartY = 0;
+
+function handleTouchDragStart(event, index) {
+  if (!props.isSortable) return;
+  isDragging.value = true;
+  draggedIndex.value = index;
+  hoverIndex.value = index;
+  touchStartY = event.touches[0].clientY;
+}
+
+function handleTouchDragMove(event) {
+  if (!isDragging.value || draggedIndex.value === null) return;
+  const touch = event.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetLi = el?.closest(".song-item");
+
+  if (targetLi && targetLi.parentElement) {
+    const listItems = Array.from(targetLi.parentElement.children);
+    const targetIdx = listItems.indexOf(targetLi);
+
+    if (targetIdx !== -1) {
+      hoverIndex.value = targetIdx;
+      const rect = targetLi.getBoundingClientRect();
+      dropPosition.value = touch.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    }
+  }
+}
+
+function handleTouchDragEnd() {
+  if (!isDragging.value || draggedIndex.value === null) return;
+  if (hoverIndex.value !== null) {
+    handleDrop(hoverIndex.value);
+  } else {
+    clearDrag();
+  }
 }
 
 function dropSong(targetIndex) {

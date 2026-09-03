@@ -1,16 +1,15 @@
 <template>
     <main class="album-page">
 
-        <div class="album-atmosphere" aria-hidden="true">
-            <AudioVisualizer />
-        </div>
-
-        
         <PlayListSongs
             :songs="albumSongs"
             :cover="albumCover"
             :is-sortable="false"
         />
+
+        <div class="album-atmosphere" :class="{ active: libraryStore.isPlaying }" aria-label="Visualizador de audio">
+            <AudioVisualizer />
+        </div>
 
     </main>
 </template>

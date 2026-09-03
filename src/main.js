@@ -11,3 +11,7 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 app.mount('#app')
+
+if (typeof window !== 'undefined') {
+  window.__app__ = { app, pinia, router }
+}

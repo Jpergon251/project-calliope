@@ -1,7 +1,9 @@
 .settings-page {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: clamp(32px, 7vw, 88px) clamp(20px, 5vw, 56px);
+    max-width: 1100px;
+    margin: 0;
+    padding: clamp(24px, 4vw, 56px);
+    box-sizing: border-box;
+    overflow-x: hidden;
 
 
     .settings-header {
@@ -31,11 +33,7 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
 
-        background: linear-gradient(
-            135deg,
-            var(--card-bg),
-            var(--bg-tertiary)
-        );
+        background: var(--card-bg);
 
         transition:
             border-color var(--transition-normal),
@@ -157,18 +155,19 @@
 
             padding: 12px 18px;
 
-            border: 1px solid transparent;
+            border: none;
 
             border-radius: var(--radius-md);
 
             background: var(--accent);
 
-            color: var(--text-primary);
+            color: var(--text-inverted);
 
             cursor: pointer;
 
             font-size: .95rem;
             font-weight: 600;
+            box-shadow: var(--neon-glow-soft);
 
             transition:
                 background var(--transition-fast),

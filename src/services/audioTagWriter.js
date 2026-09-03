@@ -83,16 +83,47 @@ function artistsAsTagValue(artists) {
     : artists || '';
 }
 
+function getAudioExtension(fileName, isMisnamedMp4 = false) {
+  if (isMisnamedMp4) return '.m4a';
+  if (!fileName || typeof fileName !== 'string') return '.mp3';
+
+  // Strictly match valid audio extension, explicitly ignoring any trailing whitespace,
+  // question marks or query string artifacts (e.g. ".mp3 ?", ".mp3?version=1", ".m4a ?")
+  const match = fileName.match(/\.(mp3|m4a|flac|wav|ogg|opus|aac|wma|aiff|alac)(?:\s*\?.*|\s+.*)?$/i);
+  if (match) {
+    return '.' + match[1].toLowerCase();
+  }
+
+  // Fallback for standard 2-5 letter extension
+  const fallback = fileName.match(/\.([a-zA-Z0-9]{2,5})(?:[^\w].*)?$/);
+  if (fallback) {
+    return '.' + fallback[1].toLowerCase();
+  }
+
+  return '.mp3';
+}
+
 function safeFileName(value) {
-  return String(value || 'audio')
-    .replace(/[\\/:*?"<>|]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[. ]+$/, '') || 'audio';
+  let str = String(value || 'audio').trim();
+
+  // Strip trailing accidental " ?" (space followed by question mark) that can be inherited from corrupt filenames
+  str = str.replace(/\s+\?$/, '');
+
+  // Remove dangerous filesystem characters: path separators and control characters
+  str = str.replace(/[\\/:*?"<>|]/g, '');
+
+  // Collapse multiple whitespace
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // Remove trailing dots, spaces, or accidental trailing question mark artifacts
+  str = str.replace(/[. ]+$/, '').replace(/\s+\?$/, '').trim();
+
+  return str || 'audio';
 }
 
 async function renameFile(fileHandle, directoryHandle, currentName, title, extension) {
-  const nextName = `${safeFileName(title)}${extension}`;
+  const cleanExt = getAudioExtension(extension || currentName);
+  const nextName = `${safeFileName(title)}${cleanExt}`;
   if (nextName === currentName) return { fileHandle, name: currentName };
   if (!directoryHandle?.getFileHandle || !directoryHandle?.removeEntry) {
     throw new Error('No se puede renombrar el archivo en esta carpeta.');
@@ -322,9 +353,7 @@ export async function writeAudioMetadata(fileHandle, metadata) {
     await metadata.directoryHandle.removeEntry(originalFile.name);
   }
 
-  const extension = isMisnamedMp4
-    ? '.m4a'
-    : (originalFile.name.match(/\.[^.]+$/)?.[0] || '');
+  const extension = getAudioExtension(originalFile.name, isMisnamedMp4);
   const renamed = await renameFile(
     targetHandle,
     metadata.directoryHandle,

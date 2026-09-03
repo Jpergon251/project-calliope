@@ -1,0 +1,566 @@
+.library-artists-section {
+  width: 100%;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  // =========================================================
+  // HEADER
+  // =========================================================
+
+  .section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    min-height: 36px;
+  }
+
+  .section-title-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    min-width: 0;
+  }
+
+  .section-kicker {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 4px 8px;
+
+    border: 1px solid var(--accent-border);
+    border-radius: 6px;
+
+    background: var(--accent-surface-strong);
+    color: var(--accent);
+
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0;
+
+    color: var(--text-primary);
+
+    font-size: clamp(20px, 2vw, 24px);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+
+  .section-count {
+    flex-shrink: 0;
+
+    color: var(--text-muted);
+
+    font-size: 13px;
+    font-weight: 550;
+    white-space: nowrap;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    flex-shrink: 0;
+  }
+
+  // =========================================================
+  // CONTROLES
+  // =========================================================
+
+  .carousel-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .carousel-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 32px;
+    height: 32px;
+
+    padding: 0;
+
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+
+    background: var(--surface);
+    color: var(--text-secondary);
+
+    cursor: pointer;
+
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      transform var(--transition-fast);
+
+    &:active {
+      transform: scale(0.94);
+    }
+  }
+
+  .section-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 7px 10px;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: transparent;
+    color: var(--text-secondary);
+
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+
+    cursor: pointer;
+
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast);
+
+    svg {
+      transition: transform var(--transition-fast);
+    }
+  }
+
+  // =========================================================
+  // CARRUSEL DE ARTISTAS
+  // =========================================================
+
+  .artists-grid-preview {
+    display: flex;
+    align-items: flex-start;
+
+    width: 100%;
+    min-width: 0;
+
+    gap: 20px;
+
+    margin: 0;
+    padding: 4px 4px 12px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    .artist-card {
+      flex: 0 0 190px;
+
+      width: 190px;
+      min-width: 0;
+
+      scroll-snap-align: start;
+
+      cursor: pointer;
+    }
+  }
+
+  // =========================================================
+  // ARTISTA
+  // =========================================================
+
+  .artist-cover {
+    position: relative;
+
+    width: 100%;
+    aspect-ratio: 1;
+
+    overflow: hidden;
+
+    border-radius: 50%;
+
+    background: var(--surface);
+
+    box-shadow: var(--shadow-sm);
+
+    img {
+      display: block;
+
+      width: 100%;
+      height: 100%;
+
+      object-fit: cover;
+
+      transition:
+        transform var(--transition-normal),
+        filter var(--transition-normal);
+    }
+  }
+
+  .artist-cover-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    background:
+      radial-gradient(
+        circle at 50% 30%,
+        var(--accent-surface-strong),
+        transparent 65%
+      ),
+      var(--surface);
+
+    color: var(--text-muted);
+  }
+
+  .artist-cover-overlay {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+
+    padding: 12px;
+
+    border-radius: 50%;
+
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.65),
+      transparent 50%
+    );
+
+    opacity: 0;
+
+    transition: opacity var(--transition-normal);
+  }
+
+  .artist-open-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 38px;
+    height: 38px;
+
+    border-radius: 50%;
+
+    background: var(--accent);
+    color: var(--accent-contrast);
+
+    box-shadow: var(--neon-glow);
+  }
+
+  .artist-info {
+    min-width: 0;
+
+    padding: 10px 3px 0;
+
+    text-align: center;
+  }
+
+  .artist-name {
+    margin: 0;
+
+    overflow: hidden;
+
+    color: var(--text-primary);
+
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.35;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .artist-count {
+    display: block;
+
+    margin-top: 3px;
+
+    overflow: hidden;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    line-height: 1.35;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // =========================================================
+  // VISTA COMPLETA
+  // =========================================================
+
+  .artists-grid-full {
+    display: grid;
+
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(160px, 1fr)
+    );
+
+    gap: 28px 20px;
+
+    width: 100%;
+  }
+
+  // =========================================================
+  // EMPTY
+  // =========================================================
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 240px;
+
+    padding: 40px 24px;
+
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+
+    background:
+      radial-gradient(
+        ellipse 70% 50% at 50% 0%,
+        var(--accent-surface-strong),
+        transparent 70%
+      ),
+      var(--surface);
+
+    text-align: center;
+  }
+
+  .empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 52px;
+    height: 52px;
+
+    margin-bottom: 16px;
+
+    border: 1px solid var(--accent-border);
+    border-radius: 14px;
+
+    background: var(--accent-surface);
+    color: var(--accent);
+  }
+
+  .empty-state h3 {
+    margin: 0 0 7px;
+
+    color: var(--text-primary);
+
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .empty-state p {
+    max-width: 420px;
+
+    margin: 0;
+
+    color: var(--text-muted);
+
+    font-size: 13px;
+    line-height: 1.6;
+
+    strong {
+      color: var(--text-secondary);
+    }
+  }
+}
+
+// =========================================================
+// HOVER
+// =========================================================
+
+@media (hover: hover) and (pointer: fine) {
+  .library-artists-section {
+    .carousel-button:hover {
+      border-color: var(--accent-border);
+      background: var(--accent-muted);
+      color: var(--accent);
+
+      box-shadow: var(--neon-glow);
+    }
+
+    .section-link:hover {
+      background: var(--accent-muted);
+      color: var(--accent);
+
+      svg {
+        transform: translateX(2px);
+      }
+    }
+
+    .artists-grid-preview {
+      .artist-card:hover {
+        .artist-cover img {
+          transform: scale(1.04);
+        }
+
+        .artist-cover-overlay {
+          opacity: 1;
+        }
+
+        .artist-name {
+          color: var(--accent);
+        }
+      }
+    }
+  }
+}
+
+// =========================================================
+// TABLET
+// =========================================================
+
+@media (max-width: 1100px) {
+  .library-artists-section {
+    .artists-grid-preview {
+      gap: 16px;
+
+      .artist-card {
+        flex-basis: 175px;
+        width: 175px;
+      }
+    }
+  }
+}
+
+// =========================================================
+// MOBILE
+// =========================================================
+
+@media (max-width: 760px) {
+  .library-artists-section {
+    gap: 15px;
+
+    .section-title-row {
+      gap: 10px;
+    }
+
+    .section-title-content {
+      gap: 8px;
+    }
+
+    .section-kicker,
+    .section-count {
+      display: none;
+    }
+
+    h2 {
+      font-size: 20px;
+    }
+
+    .section-actions {
+      gap: 5px;
+    }
+
+    .carousel-button {
+      width: 30px;
+      height: 30px;
+    }
+
+    .section-link {
+      padding: 6px 7px;
+
+      font-size: 12px;
+    }
+
+    // -------------------------------------------------------
+    // CARRUSEL MOBILE
+    // -------------------------------------------------------
+
+    .artists-grid-preview {
+      gap: 12px;
+
+      padding: 3px 2px 10px;
+
+      .artist-card {
+        flex-basis: 145px;
+        width: 145px;
+      }
+    }
+
+    .artist-cover-overlay {
+      display: none;
+    }
+
+    .artist-info {
+      padding-top: 8px;
+    }
+
+    .artist-name {
+      font-size: 13px;
+    }
+
+    .artist-count {
+      font-size: 11px;
+    }
+
+    // -------------------------------------------------------
+    // GRID COMPLETO
+    // -------------------------------------------------------
+
+    .artists-grid-full {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+
+      gap: 24px 14px;
+    }
+  }
+}
+
+@media (max-width: 380px) {
+  .library-artists-section {
+    .artists-grid-preview {
+      .artist-card {
+        flex-basis: 138px;
+        width: 138px;
+      }
+    }
+  }
+}
+
+// =========================================================
+// REDUCED MOTION
+// =========================================================
+
+@media (prefers-reduced-motion: reduce) {
+  .library-artists-section {
+    .carousel-button,
+    .section-link,
+    .section-link svg,
+    .artist-cover img,
+    .artist-cover-overlay {
+      transition: none;
+    }
+  }
+}

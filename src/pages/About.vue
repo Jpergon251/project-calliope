@@ -1,6 +1,5 @@
 <template>
   <main class="about-page">
-
     <section class="about-hero">
       <div class="about-icon">
         <Music />
@@ -9,8 +8,8 @@
       <h1>Sobre Calliope</h1>
 
       <p>
-        Calliope es un reproductor de música local diseñado para organizar
-        y reproducir tu biblioteca musical directamente desde tu dispositivo.
+        Calliope es un reproductor de música local diseñado para organizar y
+        reproducir tu biblioteca musical directamente desde tu dispositivo.
       </p>
 
       <p>
@@ -19,15 +18,13 @@
       </p>
     </section>
 
-
     <section class="about-grid" aria-label="Características del proyecto">
-
       <article class="about-card">
         <FolderOpen />
         <h2>Tu biblioteca</h2>
         <p>
-          Selecciona una carpeta y explora tus canciones, álbumes y listas
-          de reproducción desde un único lugar.
+          Selecciona una carpeta y explora tus canciones, álbumes y listas de
+          reproducción desde un único lugar.
         </p>
       </article>
 
@@ -44,13 +41,11 @@
         <ShieldCheck />
         <h2>Diseñado en local</h2>
         <p>
-          Tu música permanece en tu dispositivo. Calliope no necesita cuentas
-          ni subir tus archivos a servidores externos.
+          Tu música permanece en tu dispositivo. Calliope no necesita cuentas ni
+          subir tus archivos a servidores externos.
         </p>
       </article>
-
     </section>
-
 
     <!-- <section class="about-notice">
 
@@ -71,16 +66,14 @@
 
     </section> -->
 
-
     <section class="about-development">
-
       <Construction />
 
       <h2 class="about-title">Proyecto en desarrollo</h2>
 
       <p class="about-description">
-        Calliope sigue evolucionando. El objetivo es crear un reproductor
-        de música moderno, rápido y completamente local.
+        Calliope sigue evolucionando. El objetivo es crear un reproductor de
+        música moderno, rápido y completamente local.
       </p>
 
       <a
@@ -96,12 +89,9 @@
       <span class="last-update">
         Última actualización: 3 de agosto de 2026
       </span>
-
     </section>
 
-
     <section class="about-roadmap" aria-label="Hoja de ruta">
-
       <div class="roadmap-header">
         <Map />
 
@@ -114,20 +104,17 @@
         </div>
       </div>
 
-
       <div class="roadmap-list">
-
         <article class="roadmap-item">
           <span class="status current">En progreso</span>
 
           <h3>Mejoras en la biblioteca</h3>
 
           <p>
-            Mejorar el sistema de metadatos y optimizar la organización
-            de la biblioteca.
+            Mejorar el sistema de metadatos y optimizar la organización de la
+            biblioteca.
           </p>
         </article>
-
 
         <article class="roadmap-item">
           <span class="status next">Próximo</span>
@@ -135,11 +122,10 @@
           <h3>Nueva página de inicio</h3>
 
           <p>
-            Historial de reproducción, canciones recientes, álbumes,
-            artistas y acceso rápido a tus playlists.
+            Historial de reproducción, canciones recientes, álbumes, artistas y
+            acceso rápido a tus playlists.
           </p>
         </article>
-
 
         <article class="roadmap-item">
           <span class="status next">Próximo</span>
@@ -147,11 +133,10 @@
           <h3>Mejoras del reproductor</h3>
 
           <p>
-            Reproducción aleatoria, repetición, mejoras en la cola
-            y nuevas opciones de control.
+            Reproducción aleatoria, repetición, mejoras en la cola y nuevas
+            opciones de control.
           </p>
         </article>
-
 
         <article class="roadmap-item">
           <span class="status future">Futuro</span>
@@ -163,14 +148,10 @@
             musicales a tu biblioteca local.
           </p>
         </article>
-
       </div>
-
     </section>
 
-
     <footer class="about-footer">
-
       <span>© 2026 Calliope</span>
 
       <span class="developer">
@@ -194,13 +175,27 @@
           class="vue-logo"
         />
       </span>
-
     </footer>
   </main>
 </template>
 
 <script setup>
-import {   Map, Tag,
-  Database, Home, Shuffle, User, Upload, Smartphone, Construction, FolderOpen, Github, ListMusic, Music2, ShieldCheck, 
-  FolderLock} from "lucide-vue-next";
+import {
+  Map,
+  Music,
+  Tag,
+  Database,
+  Home,
+  Shuffle,
+  User,
+  Upload,
+  Smartphone,
+  Construction,
+  FolderOpen,
+  Github,
+  ListMusic,
+  Music2,
+  ShieldCheck,
+  FolderLock,
+} from "lucide-vue-next";
 </script>

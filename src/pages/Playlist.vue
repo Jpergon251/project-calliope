@@ -1,9 +1,5 @@
 <template>
   <div class="playlist-page">
-    <div class="playlist-atmosphere" aria-hidden="true">
-      <AudioVisualizer />
-    </div>
-
     <h1 class="playlist-title">
       {{ playlist?.name }}
     </h1>
@@ -12,10 +8,15 @@
       :songs="playlistSongs || []"
       :playlist="playlist"
       :cover="playlist?.cover"
-      :is-sortable="true"
+      :is-sortable="isSortablePlaylist"
+      @reorder="handleReorder"
       @edit="openEditModal"
       @delete="deleteCurrentPlaylist"
     />
+
+    <div class="playlist-atmosphere" :class="{ active: library.isPlaying }" aria-label="Visualizador de audio">
+      <AudioVisualizer />
+    </div>
 
     <EditPlaylist ref="editPlaylistModal"/>
 
@@ -118,6 +119,14 @@ async function deleteCurrentPlaylist() {
 
   router.push("/library");
 
+}
+
+const isSortablePlaylist = computed(() => playlist.value && playlist.value.id !== "all");
+
+function handleReorder(songIds) {
+  if (playlist.value?.id) {
+    library.reorderPlaylistSongs(playlist.value.id, songIds);
+  }
 }
 
 </script>
