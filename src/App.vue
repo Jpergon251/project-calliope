@@ -1,37 +1,26 @@
 <template>
-  <LoadingScreen v-if="library.loading" />
+  <LoadingScreen v-if="library.loading || !user.loaded" />
 
-  <WelcomeScreen
-    v-else-if="
-      library.initialized &&
-      !library.folderHandle
-    "
-  />
+  <RouterView v-else-if="!user.hasSession || route.name === 'Welcome'" />
 
-  <div
-    v-else-if="
-      library.initialized &&
-      library.folderHandle
-    "
-    class="app-container"
-  >
+  <div v-else class="app-container">
     <MainLayout />
   </div>
 </template>
 
 <script setup>
 import { onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
-import { useLibraryStore } from "./stores/libraryStore";
-import { useUserStore } from "./stores/userStore";
+import { useLibraryStore } from "./stores/libraryStore.js";
+import { useUserStore } from "./stores/userStore.js";
 
 import MainLayout from "./components/screens/MainLayout.vue";
-import WelcomeScreen from "./components/screens/WelcomeScreen.vue";
 import LoadingScreen from "./components/screens/LoadingScreen.vue";
 
 const library = useLibraryStore();
 const user = useUserStore();
+const route = useRoute();
 const router = useRouter();
 
 if (typeof window !== "undefined") {
@@ -42,8 +31,6 @@ if (typeof window !== "undefined") {
 onMounted(async () => {
   await user.load();
   user.applyPreferences();
-
-
   await library.init();
 });
 </script>

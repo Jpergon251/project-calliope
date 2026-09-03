@@ -37,7 +37,7 @@
               {{
                 user.profile.displayName ||
                 user.profile.username ||
-                "Oyente de Calliope"
+                (user.isGuest ? "Invitado" : "Oyente de Calliope")
               }}
             </h1>
 
@@ -45,12 +45,31 @@
               @{{ user.profile.username }}
             </p>
 
+            <!-- INDICADOR DE TIPO DE PERFIL / SESIÓN -->
+            <div v-if="user.isGuest" class="profile-status-badge is-guest">
+              <User :size="13" />
+              <span>Sesión temporal de invitado</span>
+            </div>
+            <div
+              v-else-if="user.profile.private ?? user.profile.isPrivate"
+              class="profile-status-badge is-private"
+            >
+              🔒 Perfil privado
+            </div>
+            <div v-else class="profile-status-badge is-local">
+              Perfil público
+            </div>
+
             <p v-if="user.profile.bio" class="profile-bio">
               {{ user.profile.bio }}
             </p>
 
             <p v-else class="profile-bio profile-bio-empty">
-              Añade una descripción para personalizar tu perfil.
+              {{
+                user.isGuest
+                  ? "Esta sesión es temporal. Los datos y cambios no se conservarán al cerrar sesión."
+                  : "Añade una descripción para personalizar tu perfil."
+              }}
             </p>
           </template>
 
@@ -118,12 +137,22 @@
 
           <div v-if="!isEditing" class="profile-hero-actions">
             <button
+              v-if="!user.isGuest"
               type="button"
               class="btn btn-primary"
               @click="startEditing"
             >
               <Pencil :size="14" />
               Editar perfil
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-ghost"
+              @click="handleLogout"
+            >
+              <LogOut :size="14" />
+              Cerrar sesión
             </button>
 
             <span v-if="savedFlash" class="saved-flash">
@@ -573,6 +602,24 @@
       </h2>
 
       <div class="pref-card">
+        <div v-if="!user.isGuest" class="pref-row">
+          <div class="pref-text">
+            <strong>Perfil privado</strong>
+            <p>
+              {{
+                Boolean(user.profile.private ?? user.profile.isPrivate)
+                  ? "Este perfil está protegido con contraseña en este dispositivo."
+                  : "Este perfil es público en este dispositivo. No requiere contraseña para entrar."
+              }}
+            </p>
+          </div>
+
+          <ToggleSwitch
+            :model-value="Boolean(user.profile.private ?? user.profile.isPrivate)"
+            @update:model-value="handleTogglePrivacy"
+          />
+        </div>
+
         <div class="pref-row">
           <div class="pref-text">
             <strong>Guardar historial de escucha</strong>
@@ -629,10 +676,31 @@
 
         <div class="pref-row">
           <div class="pref-text">
+            <strong>Cerrar sesión</strong>
+            <p>
+              {{
+                user.isGuest
+                  ? "Finaliza la sesión de invitado. Los datos temporales se borrarán."
+                  : "Cierra la sesión activa y vuelve a la selección de perfil."
+              }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-ghost"
+            @click="handleLogout"
+          >
+            <LogOut :size="14" />
+            Cerrar sesión
+          </button>
+        </div>
+
+        <div v-if="!user.isGuest" class="pref-row">
+          <div class="pref-text">
             <strong>Eliminar perfil</strong>
             <p>
-              Borra identidad, imágenes y preferencias guardadas
-              en este dispositivo.
+              Borra este perfil local, identidad y preferencias de este dispositivo.
             </p>
           </div>
 
@@ -641,7 +709,7 @@
             class="btn btn-danger"
             @click="wipeProfile"
           >
-            Eliminar todo
+            Eliminar perfil
           </button>
         </div>
       </div>
@@ -730,21 +798,103 @@
         </div>
       </div>
     </div>
+
+    <!-- ============================================================
+         MODAL ESTABLECER CONTRASEÑA DE PERFIL PRIVADO
+         ============================================================ -->
+
+    <div
+      v-if="isSetPasswordModalOpen"
+      class="modal-backdrop"
+      @click.self="cancelSetPassword"
+    >
+      <div class="modal-card password-dialog-card">
+        <div class="modal-header-simple">
+          <h3>Proteger perfil con contraseña</h3>
+
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Cerrar"
+            @click="cancelSetPassword"
+          >
+            <X :size="16" />
+          </button>
+        </div>
+
+        <p class="dialog-desc">
+          Para hacer privado este perfil, establece una contraseña. Se te pedirá cada vez que inicies sesión en este dispositivo.
+        </p>
+
+        <form @submit.prevent="confirmSetPassword">
+          <label class="form-field">
+            <span>Nueva contraseña</span>
+            <input
+              v-model="passwordDraft.password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Mínimo 4 caracteres"
+              required
+              autofocus
+            />
+          </label>
+
+          <label class="form-field">
+            <span>Confirmar contraseña</span>
+            <input
+              v-model="passwordDraft.confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Repite la contraseña"
+              required
+            />
+          </label>
+
+          <p v-if="passwordError" class="dialog-error-msg">
+            <AlertCircle :size="14" />
+            {{ passwordError }}
+          </p>
+
+          <div class="dialog-actions-row">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              @click="cancelSetPassword"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isSettingPassword"
+            >
+              <span v-if="isSettingPassword">Guardando...</span>
+              <span v-else>Establecer y activar</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import {
+  AlertCircle,
   Camera,
   Check,
   HardDrive,
   LibraryIcon,
+  Lock,
+  LogOut,
   Palette,
   Pencil,
   Play,
   Settings as SettingsIcon,
   ShieldCheck,
+  User,
   X,
 } from "lucide-vue-next";
 import { useRouter } from "vue-router";
@@ -777,6 +927,13 @@ const isEditing = ref(false);
 const savedFlash = ref(false);
 const storageText = ref("");
 const isAvatarModalOpen = ref(false);
+const isSetPasswordModalOpen = ref(false);
+const isSettingPassword = ref(false);
+const passwordError = ref("");
+const passwordDraft = reactive({
+  password: "",
+  confirmPassword: "",
+});
 const avatarUrlDraft = ref("");
 
 const draft = reactive({
@@ -911,15 +1068,73 @@ async function resetPreferences() {
   flashSaved();
 }
 
+async function handleLogout() {
+  await user.logout();
+  router.push("/welcome");
+}
+
+async function handleTogglePrivacy(newValue) {
+  if (user.isGuest) return;
+
+  if (!newValue) {
+    await user.setProfilePrivacy(false);
+    flashSaved();
+    return;
+  }
+
+  if (user.hasPassword) {
+    await user.setProfilePrivacy(true);
+    flashSaved();
+  } else {
+    passwordDraft.password = "";
+    passwordDraft.confirmPassword = "";
+    passwordError.value = "";
+    isSetPasswordModalOpen.value = true;
+  }
+}
+
+async function confirmSetPassword() {
+  passwordError.value = "";
+  if (!passwordDraft.password || passwordDraft.password.length < 4) {
+    passwordError.value = "La contraseña debe tener al menos 4 caracteres.";
+    return;
+  }
+  if (passwordDraft.password !== passwordDraft.confirmPassword) {
+    passwordError.value = "Las contraseñas no coinciden.";
+    return;
+  }
+
+  isSettingPassword.value = true;
+  try {
+    const res = await user.setProfilePrivacy(true, passwordDraft.password);
+    if (res.success) {
+      isSetPasswordModalOpen.value = false;
+      flashSaved();
+    } else {
+      passwordError.value = res.error || "Error al establecer la contraseña.";
+    }
+  } catch (err) {
+    passwordError.value = "Error al guardar la contraseña.";
+  } finally {
+    isSettingPassword.value = false;
+  }
+}
+
+function cancelSetPassword() {
+  isSetPasswordModalOpen.value = false;
+  passwordError.value = "";
+}
+
 async function wipeProfile() {
   const confirmed = confirm(
-    "Se eliminará tu perfil completo (identidad, imágenes y preferencias)." +
+    "Se eliminará este perfil completo (identidad, imágenes y preferencias) de este dispositivo." +
       "\n\n¿Continuar?",
   );
 
   if (!confirmed) return;
 
   await user.wipeProfile();
+  router.push("/welcome");
 }
 
 onMounted(async () => {

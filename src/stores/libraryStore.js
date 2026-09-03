@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, watch, toRaw, computed } from "vue";
 import { parseBlob } from "music-metadata";
 
-import { dbPromise } from "../lib/db";
+import { dbPromise } from "../lib/db.js";
 import { writeAudioMetadata } from "../services/audioTagWriter.js";
 import { readFormat } from "taglib-wasm/simple";
 import { Capacitor } from "@capacitor/core";
@@ -552,7 +552,32 @@ export const useLibraryStore = defineStore("library", () => {
           }
         }
 
-        listeningHistory.value = (records || []).sort(
+        const user = useUserStore();
+        if (user.isGuest) {
+          listeningHistory.value = [];
+          return;
+        }
+
+        const currentProfileId = user.currentSession?.profileId;
+        if (!currentProfileId) {
+          listeningHistory.value = [];
+          return;
+        }
+
+        const profileRecords = [];
+        for (const record of (records || [])) {
+          if (record.profileId === currentProfileId) {
+            profileRecords.push(record);
+          } else if (!record.profileId) {
+            record.profileId = currentProfileId;
+            try {
+              await db.put("history", toRaw(record));
+            } catch {}
+            profileRecords.push(record);
+          }
+        }
+
+        listeningHistory.value = profileRecords.sort(
           (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
         );
       }
@@ -576,6 +601,9 @@ export const useLibraryStore = defineStore("library", () => {
 
     const last = listeningHistory.value[0];
 
+    const user = useUserStore();
+    const currentProfileId = user.currentSession?.profileId;
+
     if (
       last &&
       last.type === entry.type &&
@@ -584,13 +612,15 @@ export const useLibraryStore = defineStore("library", () => {
     ) {
       last.timestamp = now;
 
-      try {
-        const db = await dbPromise;
+      if (!user.isGuest && currentProfileId) {
+        try {
+          const db = await dbPromise;
 
-        if (db.objectStoreNames.contains("history")) {
-          await db.put("history", toRaw(last));
-        }
-      } catch (e) {}
+          if (db.objectStoreNames.contains("history")) {
+            await db.put("history", toRaw(last));
+          }
+        } catch (e) {}
+      }
 
       return;
     }
@@ -611,6 +641,8 @@ export const useLibraryStore = defineStore("library", () => {
       duration: entry.duration || null,
 
       timestamp: now,
+
+      profileId: user.isGuest ? null : currentProfileId,
     };
 
     listeningHistory.value.unshift(newRecord);
@@ -619,14 +651,16 @@ export const useLibraryStore = defineStore("library", () => {
       listeningHistory.value = listeningHistory.value.slice(0, 200);
     }
 
-    try {
-      const db = await dbPromise;
+    if (!user.isGuest && currentProfileId) {
+      try {
+        const db = await dbPromise;
 
-      if (db.objectStoreNames.contains("history")) {
-        await db.put("history", toRaw(newRecord));
+        if (db.objectStoreNames.contains("history")) {
+          await db.put("history", toRaw(newRecord));
+        }
+      } catch (e) {
+        console.warn("Could not save history to db:", e);
       }
-    } catch (e) {
-      console.warn("Could not save history to db:", e);
     }
   }
 
@@ -715,10 +749,15 @@ export const useLibraryStore = defineStore("library", () => {
 
   async function init() {
     try {
-      await loadAlbums();
       await loadPlaylists();
-      await ensureFavoritesPlaylist();
       await loadSavedFolder();
+      if (folderHandle.value) {
+        await loadAlbums();
+      } else {
+        albums.value = [];
+        artists.value = [];
+        songs.value = [];
+      }
       await loadHistory();
       await loadCustomArtistCovers();
       await loadArtistProfiles();
@@ -726,6 +765,44 @@ export const useLibraryStore = defineStore("library", () => {
       console.warn("⚠️ Error during init:", e);
     } finally {
       initialized.value = true;
+    }
+  }
+
+  async function switchProfile() {
+    audio.pause();
+    audio.currentTime = 0;
+    playingSong.value = null;
+    isPlaying.value = false;
+    playQueue.value = [];
+    historyQueue.value = [];
+
+    if (currentUrl) {
+      URL.revokeObjectURL(currentUrl);
+      currentUrl = null;
+    }
+
+    currentTime.value = 0;
+    duration.value = 0;
+
+    folderHandle.value = null;
+    songs.value = [];
+    albums.value = [];
+    artists.value = [];
+    playlists.value = [];
+    listeningHistory.value = [];
+    customArtistCovers.value = {};
+    artistProfiles.value = {};
+
+    const user = useUserStore();
+    if (user.hasSession) {
+      await loadPlaylists();
+      await loadHistory();
+      await loadCustomArtistCovers();
+      await loadArtistProfiles();
+      await loadSavedFolder();
+      if (folderHandle.value) {
+        await loadAlbums();
+      }
     }
   }
 
@@ -766,6 +843,25 @@ export const useLibraryStore = defineStore("library", () => {
   // =========================
 
   async function loadSavedFolder() {
+    const user = useUserStore();
+
+    if (user.isGuest) {
+      folderHandle.value = null;
+      songs.value = [];
+      albums.value = [];
+      artists.value = [];
+      return;
+    }
+
+    const currentProfileId = user.currentSession?.profileId;
+    if (!currentProfileId) {
+      folderHandle.value = null;
+      songs.value = [];
+      albums.value = [];
+      artists.value = [];
+      return;
+    }
+
     if (isNative) {
       try {
         const result = await FolderPicker.getSavedFolder();
@@ -786,34 +882,100 @@ export const useLibraryStore = defineStore("library", () => {
 
     const db = await dbPromise;
 
-    const savedHandle = await db.get("settings", "music-folder");
+    let savedHandle = await db.get("settings", `music-folder-${currentProfileId}`);
 
-    if (!savedHandle) return;
-
-    const permission = await savedHandle.queryPermission({
-      mode: "read",
-    });
-
-    if (permission !== "granted") {
-      const newPermission = await savedHandle.requestPermission({
-        mode: "read",
-      });
-
-      if (newPermission !== "granted") {
-        return;
+    // Migración segura de carpeta global antigua
+    if (!savedHandle) {
+      try {
+        const globalHandle = await db.get("settings", "music-folder");
+        if (globalHandle) {
+          savedHandle = globalHandle;
+          await db.put("settings", globalHandle, `music-folder-${currentProfileId}`);
+        }
+      } catch (e) {
+        console.warn("No se pudo migrar la carpeta previa al perfil:", e);
       }
     }
 
-    folderHandle.value = savedHandle;
+    if (!savedHandle) {
+      folderHandle.value = null;
+      songs.value = [];
+      albums.value = [];
+      artists.value = [];
+      return;
+    }
 
-    await scanFolder();
+    try {
+      const permission = await savedHandle.queryPermission({
+        mode: "read",
+      });
+
+      if (permission !== "granted") {
+        const newPermission = await savedHandle.requestPermission({
+          mode: "read",
+        });
+
+        if (newPermission !== "granted") {
+          folderHandle.value = null;
+          songs.value = [];
+          albums.value = [];
+          artists.value = [];
+          return;
+        }
+      }
+
+      folderHandle.value = savedHandle;
+
+      await scanFolder();
+    } catch (e) {
+      console.warn("No se pudo cargar la carpeta guardada del perfil:", e);
+      folderHandle.value = null;
+      songs.value = [];
+      albums.value = [];
+      artists.value = [];
+    }
   }
 
   async function loadPlaylists() {
+    const user = useUserStore();
+    const currentProfileId = user.currentSession?.profileId;
+
+    if (user.isGuest || !currentProfileId) {
+      playlists.value = [];
+      await ensureFavoritesPlaylist();
+      return;
+    }
+
     const db = await dbPromise;
+    const all = await db.getAll("playlists");
 
-    playlists.value = await db.getAll("playlists");
+    const userPlaylists = [];
+    for (const pl of all) {
+      if (pl.profileId === currentProfileId) {
+        userPlaylists.push({
+          ...pl,
+          id: pl.id === `favorites_${currentProfileId}` ? FAVORITES_PLAYLIST_ID : pl.id,
+        });
+      } else if (!pl.profileId) {
+        const migrated = {
+          ...pl,
+          profileId: currentProfileId,
+          id: pl.id === FAVORITES_PLAYLIST_ID ? `favorites_${currentProfileId}` : pl.id,
+        };
+        await db.put("playlists", migrated);
+        if (pl.id !== migrated.id) {
+          try {
+            await db.delete("playlists", pl.id);
+          } catch {}
+        }
+        userPlaylists.push({
+          ...migrated,
+          id: pl.id === FAVORITES_PLAYLIST_ID ? FAVORITES_PLAYLIST_ID : pl.id,
+        });
+      }
+    }
 
+    playlists.value = userPlaylists;
     await ensureFavoritesPlaylist();
   }
 
@@ -1005,9 +1167,20 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function savePlaylist(playlist) {
-    const db = await dbPromise;
+    const user = useUserStore();
+    if (user.isGuest) return;
 
-    await db.put("playlists", JSON.parse(JSON.stringify(toRaw(playlist))));
+    const currentProfileId = user.currentSession?.profileId;
+    if (!currentProfileId) return;
+
+    const db = await dbPromise;
+    const data = JSON.parse(JSON.stringify(toRaw(playlist)));
+    data.profileId = currentProfileId;
+    if (data.id === FAVORITES_PLAYLIST_ID) {
+      data.id = `favorites_${currentProfileId}`;
+    }
+
+    await db.put("playlists", data);
   }
 
   async function addSongToPlaylist(playlistId, songId) {
@@ -1052,6 +1225,10 @@ export const useLibraryStore = defineStore("library", () => {
     if (!playlist) return;
 
     playlists.value = playlists.value.filter((item) => item.id !== playlistId);
+
+    const user = useUserStore();
+    const currentProfileId = user.currentSession?.profileId;
+    if (user.isGuest || !currentProfileId) return;
 
     const db = await dbPromise;
 
@@ -1522,9 +1699,12 @@ export const useLibraryStore = defineStore("library", () => {
 
     folderHandle.value = handle;
 
-    const db = await dbPromise;
-
-    await db.put("settings", handle, "music-folder");
+    const user = useUserStore();
+    // Guardar en IndexedDB SOLO para perfiles registrados permanentes
+    if (user.isRegistered && user.currentSession?.profileId) {
+      const db = await dbPromise;
+      await db.put("settings", handle, `music-folder-${user.currentSession.profileId}`);
+    }
 
     await scanFolder();
   }
@@ -1538,13 +1718,19 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
-    const db = await dbPromise;
+    const user = useUserStore();
+    const currentProfileId = user.currentSession?.profileId;
 
-    await db.delete("settings", "music-folder");
+    if (user.isRegistered && currentProfileId) {
+      const db = await dbPromise;
+      await db.delete("settings", `music-folder-${currentProfileId}`);
+    }
 
     folderHandle.value = null;
 
     songs.value = [];
+    albums.value = [];
+    artists.value = [];
 
     playingSong.value = null;
 
@@ -1560,13 +1746,6 @@ export const useLibraryStore = defineStore("library", () => {
 
     currentTime.value = 0;
     duration.value = 0;
-
-    await db.clear("metadata");
-
-    await db.clear("albums");
-
-    songs.value = [];
-    albums.value = [];
   }
 
   async function selectFiles(files) {
@@ -2209,6 +2388,8 @@ export const useLibraryStore = defineStore("library", () => {
     // -------------------------
 
     init,
+
+    switchProfile,
 
     initialized,
 

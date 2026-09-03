@@ -152,6 +152,37 @@
   font-weight: 700;
 }
 
+.profile-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+
+  &.is-guest {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.07);
+    color: #fbbf24;
+  }
+
+  &.is-private {
+    border-color: rgba(var(--accent-rgb), 0.35);
+    background: rgba(var(--accent-rgb), 0.07);
+    color: var(--accent);
+  }
+
+  &.is-local {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-muted);
+  }
+}
+
 .profile-bio {
   max-width: 640px;
   margin: 8px 0 0;
@@ -856,4 +887,104 @@
 .reduced-motion .form-field input,
 .reduced-motion .form-field textarea {
   transition: none;
+}
+/* ============================================================
+   MODALES DE PERFIL (CONTRASEÑA Y AVATAR)
+   ============================================================ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.password-dialog-card,
+.avatar-dialog-card {
+  width: min(100%, 420px);
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--bg-secondary, #18181b);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header-simple {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 14px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .close-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted, #a3a3a3);
+    cursor: pointer;
+    transition: all 0.16s ease;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      color: inherit;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: var(--text-primary, #fff);
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+.dialog-desc {
+  margin: 0 0 18px;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.dialog-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning-danger, #ff5b5b);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 6px 0 14px;
+}
+
+.dialog-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
 }

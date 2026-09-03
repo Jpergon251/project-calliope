@@ -3,24 +3,28 @@
 
     <h1 class="page-title">Todos los álbumes</h1>
 
-    <input
-      v-model="query"
-      type="search"
-      placeholder="Busca álbumes..."
-      aria-label="Buscar álbumes"
-    />
+    <NoFolderState v-if="!library.folderHandle" />
 
-    <AlbumList :albums="filteredAlbums" v-if="filteredAlbums.length > 0" />
+    <template v-else>
+      <input
+        v-model="query"
+        type="search"
+        placeholder="Busca álbumes..."
+        aria-label="Buscar álbumes"
+      />
 
-    <section class="no-albums" v-else>
-      <p>
-        No se encontraron álbumes.
-      </p>
-      <p>
-        Añade canciones a <strong>tu carpeta</strong> para que aparezcan aquí.
-      </p>
-    </section>
-    
+      <AlbumList :albums="filteredAlbums" v-if="filteredAlbums.length > 0" />
+
+      <section class="no-albums" v-else>
+        <p>
+          No se encontraron álbumes.
+        </p>
+        <p>
+          Añade canciones a <strong>tu carpeta</strong> para que aparezcan aquí.
+        </p>
+      </section>
+    </template>
+
   </main>
 </template>
 
@@ -29,6 +33,7 @@ import { ref, computed } from "vue";
 
 import { useLibraryStore } from "../stores/libraryStore.js";
 import AlbumList from "../components/common/AlbumList.vue";
+import NoFolderState from "../components/common/NoFolderState.vue";
 
 const library = useLibraryStore();
 

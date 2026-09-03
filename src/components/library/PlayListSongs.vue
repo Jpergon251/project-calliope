@@ -22,19 +22,31 @@
             </button>
 
             <div class="action-menu-wrapper" v-if="!isFavoritesPlaylist">
-              <button class="action-btn menu" @click="toggleMenu" aria-label="Más opciones">
+              <button
+                class="action-btn menu"
+                :class="{ active: showActionMenu }"
+                @click.stop="toggleMenu"
+                aria-label="Más opciones"
+              >
                 <MoreHorizontal />
               </button>
 
-              <div v-if="showActionMenu" class="action-menu">
-                <button v-if="!isFavoritesPlaylist" @click="openAddSongs">
-                  <Plus /> Añadir canciones
+              <div v-if="showActionMenu" class="action-menu" @click.stop>
+                <button v-if="!isFavoritesPlaylist" class="action-menu-item" @click="openAddSongs">
+                  <Plus :size="15" />
+                  <span>Añadir canciones</span>
                 </button>
-                <button v-if="!isFavoritesPlaylist" @click="$emit('edit')">
-                  <Pencil /> Editar playlist
+                <button v-if="!isFavoritesPlaylist" class="action-menu-item" @click="$emit('edit')">
+                  <Pencil :size="15" />
+                  <span>Editar playlist</span>
                 </button>
-                <button v-if="!isFavoritesPlaylist" @click="requestDeleteConfirmation">
-                  <Trash2 /> Borrar playlist
+                <button
+                  v-if="!isFavoritesPlaylist"
+                  class="action-menu-item delete"
+                  @click="requestDeleteConfirmation"
+                >
+                  <Trash2 :size="15" />
+                  <span>Borrar playlist</span>
                 </button>
               </div>
             </div>
@@ -134,7 +146,7 @@ import { BookHeart, DiscAlbum, GripVertical, Heart, ListPlus, MoreHorizontal, Mu
 import { useLibraryStore }
 from "../../stores/libraryStore.js";
 import Library from "../../pages/Library.vue";
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import AddSongsModal from "../modals/AddSongsModal.vue"
 import IconCover from "../common/IconCover.vue";
 
@@ -329,6 +341,24 @@ function confirmDeletePlaylist() {
 function cancelDeletePlaylist() {
   showDeleteConfirmModal.value = false;
 }
+
+function handleOutsideClick() {
+  if (showActionMenu.value) {
+    showActionMenu.value = false;
+  }
+}
+
+onMounted(() => {
+  if (typeof window !== "undefined") {
+    window.addEventListener("click", handleOutsideClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("click", handleOutsideClick);
+  }
+});
 
 function playListNow() {
   if (!resolvedSongs.value.length) return;

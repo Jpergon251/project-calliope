@@ -118,7 +118,9 @@
     </header>
 
     <main class="library-content-body">
+      <NoFolderState v-if="!library.folderHandle" />
 
+      <template v-else>
       <!-- =================================================
            TODO
            ================================================= -->
@@ -207,6 +209,7 @@
           :preview="false"
         />
       </section>
+      </template>
 
     </main>
   </div>
@@ -220,6 +223,7 @@ import AllAlbumList from "../components/library/AllAlbumList.vue";
 import AllSongList from "../components/library/AllSongList.vue";
 import ArtistList from "../components/library/ArtistList.vue";
 import PLList from "../components/library/PLList.vue";
+import NoFolderState from "../components/common/NoFolderState.vue";
 
 import { useLibraryStore } from "../stores/libraryStore.js";
 

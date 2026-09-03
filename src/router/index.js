@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-import { useLibraryStore } from '../stores/libraryStore.js'
+import { useUserStore } from '../stores/userStore.js'
 
 import Home from '../pages/Home.vue'
 import Library from '../pages/Library.vue'
@@ -20,8 +20,10 @@ import ArtistPage from '../pages/ArtistPage.vue'
 import HistoryPage from '../pages/HistoryPage.vue'
 import PlaylistsPage from '../pages/PlaylistsPage.vue'
 import Profile from '../pages/Profile.vue'
+import WelcomeScreen from '../components/screens/WelcomeScreen.vue'
 
 const routes = [
+  { path: '/welcome', name: 'Welcome', component: WelcomeScreen },
   { path: '/', name: 'Home', component: Home },
   { path: '/library', name: 'Library', component: Library },
   { path: '/songs', name: 'Songs', component: SongsPage },
@@ -48,16 +50,27 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
-  const library = useLibraryStore()
+router.beforeEach(async (to) => {
+  const user = useUserStore()
 
-  if (
-    library.initialized &&
-    !library.folderHandle &&
-    !['Home', 'About'].includes(to.name)
-  ) {
+  if (!user.loaded) {
+    await user.load()
+  }
+
+  // 1. Si NO existe una sesión válida, el router debe llevar siempre a /welcome
+  if (!user.hasSession) {
+    if (to.name !== 'Welcome') {
+      return { name: 'Welcome' }
+    }
+    return true
+  }
+
+  // 2. Si existe sesión válida y el usuario intenta acceder a /welcome, llevar a Home
+  if (to.name === 'Welcome') {
     return { name: 'Home' }
   }
+
+  return true
 })
 
 export default router

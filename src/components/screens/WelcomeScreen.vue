@@ -33,139 +33,294 @@
           v-if="currentStep === 1"
           class="welcome-step"
         >
-          <div class="welcome-heading">
-            <span class="welcome-eyebrow">
-              {{ hasProfile ? "Bienvenido de nuevo" : "Bienvenido" }}
-            </span>
-
-            <h1>
-              {{
-                hasProfile
-                  ? `Hola${welcomeName ? `, ${welcomeName}` : ""}.`
-                  : "Haz que Calliope sea tuyo."
-              }}
-            </h1>
-
-            <p>
-              {{
-                hasProfile
-                  ? "Hemos encontrado tu perfil en este dispositivo."
-                  : "Personaliza tu experiencia antes de añadir tu biblioteca musical."
-              }}
-            </p>
-          </div>
-
-          <!-- PERFIL EXISTENTE -->
-          <div
-            v-if="hasProfile"
-            class="welcome-profile-card"
-          >
-            <div class="welcome-avatar">
-              <img
-                v-if="user.avatarUrl"
-                :src="user.avatarUrl"
-                alt=""
-              />
-
-              <span v-else>
-                {{ user.initials }}
+          <!-- MODO: LISTA DE PERFILES EXISTENTES -->
+          <template v-if="viewMode === 'list'">
+            <div class="welcome-heading">
+              <span class="welcome-eyebrow">
+                Perfiles locales
               </span>
+
+              <h1>
+                Elige tu perfil.
+              </h1>
+
+              <p>
+                Selecciona tu perfil para cargar tu música y preferencias en este dispositivo.
+              </p>
             </div>
 
-            <div class="welcome-profile-info">
-              <strong>
-                {{
-                  user.profile.displayName ||
-                  user.profile.username
-                }}
-              </strong>
+            <div class="welcome-profiles-list">
+              <div
+                v-for="p in user.profilesList"
+                :key="p.id"
+                class="welcome-profile-card welcome-profile-selectable"
+                :class="{
+                  'is-active': selectedProfileId === p.id,
+                  'is-private': Boolean(p.private ?? p.isPrivate),
+                }"
+                role="button"
+                tabindex="0"
+                @click="onSelectProfile(p)"
+                @keydown.enter="onSelectProfile(p)"
+              >
+                <div class="welcome-avatar">
+                  <img
+                    v-if="p.avatarUrl"
+                    :src="p.avatarUrl"
+                    alt=""
+                  />
+                  <span v-else>
+                    {{ getProfileInitials(p) }}
+                  </span>
+                </div>
 
-              <span v-if="user.profile.username">
-                @{{ user.profile.username }}
-              </span>
+                <div class="welcome-profile-info">
+                  <strong>
+                    {{ p.displayName || p.name }}
+                  </strong>
 
-              <small>
-                Perfil guardado en este dispositivo
-              </small>
+                  <span v-if="p.username">
+                    @{{ p.username }}
+                  </span>
+
+                  <small v-if="p.private ?? p.isPrivate" class="welcome-private-badge">
+                    🔒 Perfil privado
+                  </small>
+                  <small v-else>
+                    Perfil público
+                  </small>
+                </div>
+
+                <div class="welcome-profile-action-icon">
+                  <Lock v-if="p.private ?? p.isPrivate" :size="16" />
+                  <ArrowRight v-else :size="16" />
+                </div>
+              </div>
             </div>
 
-            <Check
-              class="welcome-profile-check"
-              :size="18"
-            />
-          </div>
-
-          <!-- CREAR PERFIL -->
-          <form
-            v-else
-            class="welcome-form"
-            @submit.prevent="continueFromProfile"
-          >
-            <div class="welcome-form-avatar">
-              {{ draftInitials }}
-            </div>
-
-            <label>
-              <span>Nombre</span>
-
-              <input
-                v-model="draft.displayName"
-                type="text"
-                maxlength="40"
-                autocomplete="name"
-                placeholder="Tu nombre"
-              />
-            </label>
-
-            <label>
-              <span>
-                Usuario
-                <em>opcional</em>
-              </span>
-
-              <input
-                v-model="draft.username"
-                type="text"
-                maxlength="30"
-                autocomplete="username"
-                placeholder="tu_usuario"
-              />
-            </label>
-
-            <label>
-              <span>
-                Descripción
-                <em>opcional</em>
-              </span>
-
-              <textarea
-                v-model="draft.bio"
-                rows="3"
-                maxlength="240"
-                placeholder="Cuéntanos algo sobre tus gustos musicales..."
-              ></textarea>
-            </label>
-          </form>
-
-          <div class="welcome-actions">
-            <button
-              type="button"
-              class="welcome-button welcome-button-primary"
-              @click="continueFromProfile"
+            <!-- DESBLOQUEO DE PERFIL PRIVADO -->
+            <div
+              v-if="unlockingProfile"
+              class="welcome-unlock-box"
             >
-              {{ hasProfile ? "Continuar" : "Crear perfil" }}
+              <div class="welcome-unlock-header">
+                <Lock :size="16" />
+                <span>Perfil protegido: <strong>{{ unlockingProfile.displayName || unlockingProfile.name }}</strong></span>
+              </div>
 
-              <ArrowRight :size="18" />
+              <div class="welcome-unlock-input-row">
+                <input
+                  v-model="unlockPassword"
+                  type="password"
+                  placeholder="Introduce tu contraseña"
+                  autocomplete="current-password"
+                  @keyup.enter="confirmUnlock"
+                />
+
+                <button
+                  type="button"
+                  class="welcome-button welcome-button-primary"
+                  :disabled="!unlockPassword || isUnlocking"
+                  @click="confirmUnlock"
+                >
+                  <LoaderCircle
+                    v-if="isUnlocking"
+                    :size="16"
+                    class="welcome-spinner"
+                  />
+                  <span v-else>Entrar</span>
+                </button>
+              </div>
+
+              <p v-if="unlockError" class="welcome-error-msg">
+                <AlertCircle :size="14" />
+                {{ unlockError }}
+              </p>
+            </div>
+
+            <div class="welcome-actions welcome-actions-column">
+              <div class="welcome-actions-row">
+                <button
+                  type="button"
+                  class="welcome-button welcome-button-primary"
+                  @click="startCreatingProfile"
+                >
+                  <UserPlus :size="17" />
+                  Crear perfil
+                </button>
+
+                <button
+                  type="button"
+                  class="welcome-button welcome-button-ghost"
+                  @click="continueAsGuest"
+                >
+                  <User :size="17" />
+                  Continuar como invitado
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- MODO: CREAR PERFIL LOCAL -->
+          <template v-else>
+            <button
+              v-if="user.profilesList.length > 0"
+              type="button"
+              class="welcome-back"
+              @click="cancelCreate"
+            >
+              <ArrowLeft :size="17" />
+              Volver a perfiles
             </button>
 
-            <button
-              type="button"
-              class="welcome-button welcome-button-secondary"
-              @click="skipProfile"
+            <div class="welcome-heading">
+              <span class="welcome-eyebrow">
+                Nuevo perfil
+              </span>
+
+              <h1>
+                Haz que Calliope sea tuyo.
+              </h1>
+
+              <p>
+                Crea tu perfil local. Todo se almacena 100% de forma privada en tu dispositivo.
+              </p>
+            </div>
+
+            <form
+              class="welcome-form"
+              @submit.prevent="submitNewProfile"
             >
-              {{ hasProfile ? "Continuar sin cambios" : "Ahora no" }}
-            </button>
-          </div>
+              <div class="welcome-form-avatar">
+                {{ draftInitials }}
+              </div>
+
+              <label>
+                <span>Nombre *</span>
+                <input
+                  v-model="draft.displayName"
+                  type="text"
+                  maxlength="40"
+                  autocomplete="name"
+                  placeholder="Tu nombre"
+                  required
+                />
+              </label>
+
+              <label>
+                <span>
+                  Usuario
+                  <em>opcional</em>
+                </span>
+                <input
+                  v-model="draft.username"
+                  type="text"
+                  maxlength="30"
+                  autocomplete="username"
+                  placeholder="tu_usuario"
+                />
+              </label>
+
+              <label>
+                <span>
+                  Descripción
+                  <em>opcional</em>
+                </span>
+                <textarea
+                  v-model="draft.bio"
+                  rows="3"
+                  maxlength="240"
+                  placeholder="Cuéntanos algo sobre tus gustos musicales..."
+                ></textarea>
+              </label>
+
+              <!-- TOGGLE PERFIL PRIVADO -->
+              <div class="welcome-checkbox-wrap">
+                <label class="welcome-checkbox-label">
+                  <input
+                    v-model="draft.isPrivate"
+                    type="checkbox"
+                  />
+                  <div class="welcome-checkbox-content">
+                    <div class="welcome-checkbox-title">
+                      <Lock :size="15" />
+                      <strong>Hacer este perfil privado</strong>
+                    </div>
+                    <span>
+                      Protegido con contraseña mediante PBKDF2 local. Se te pedirá al iniciar sesión.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <!-- CAMPOS DE CONTRASEÑA SI ES PRIVADO -->
+              <div
+                v-if="draft.isPrivate"
+                class="welcome-password-fields"
+              >
+                <label>
+                  <span>Contraseña *</span>
+                  <input
+                    v-model="draft.password"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Mínimo 4 caracteres"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Confirmar contraseña *</span>
+                  <input
+                    v-model="draft.confirmPassword"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Repite la contraseña"
+                    required
+                  />
+                </label>
+
+                <p v-if="createPasswordError" class="welcome-error-msg">
+                  <AlertCircle :size="14" />
+                  {{ createPasswordError }}
+                </p>
+              </div>
+
+              <div class="welcome-actions">
+                <button
+                  type="submit"
+                  class="welcome-button welcome-button-primary"
+                  :disabled="isCreatingProfile"
+                >
+                  <LoaderCircle
+                    v-if="isCreatingProfile"
+                    :size="18"
+                    class="welcome-spinner"
+                  />
+                  <span v-else>Crear perfil</span>
+                  <ArrowRight v-if="!isCreatingProfile" :size="18" />
+                </button>
+
+                <button
+                  v-if="user.profilesList.length > 0"
+                  type="button"
+                  class="welcome-button welcome-button-secondary"
+                  @click="cancelCreate"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  class="welcome-button welcome-button-ghost"
+                  @click="continueAsGuest"
+                >
+                  <User :size="17" />
+                  Continuar como invitado
+                </button>
+              </div>
+            </form>
+          </template>
         </section>
 
         <!-- ==================================================
@@ -359,6 +514,17 @@
                 <strong>Perfil → Ajustes</strong>.
               </span>
             </div>
+
+            <div class="welcome-actions">
+              <button
+                type="button"
+                class="welcome-button welcome-button-secondary"
+                @click="enterApp"
+              >
+                {{ library.folderHandle ? "Continuar a Calliope" : "Entrar sin carpeta" }}
+                <ArrowRight :size="18" />
+              </button>
+            </div>
           </template>
 
           <!-- NAVEGADOR NO COMPATIBLE -->
@@ -419,16 +585,21 @@ import {
   reactive,
   ref,
 } from "vue";
+import { useRouter } from "vue-router";
 
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
   Database,
   FolderOpen,
   LoaderCircle,
+  Lock,
   MonitorOff,
   ShieldCheck,
+  User,
+  UserPlus,
 } from "lucide-vue-next";
 
 import { Capacitor } from "@capacitor/core";
@@ -439,9 +610,19 @@ import { useUserStore } from "../../stores/userStore";
 
 const library = useLibraryStore();
 const user = useUserStore();
+const router = useRouter();
 
 const currentStep = ref(1);
 const selectingFolder = ref(false);
+
+const viewMode = ref("list"); // 'list' | 'create'
+const selectedProfileId = ref(null);
+const unlockingProfile = ref(null);
+const unlockPassword = ref("");
+const unlockError = ref("");
+const isUnlocking = ref(false);
+const isCreatingProfile = ref(false);
+const createPasswordError = ref("");
 
 const steps = [
   {
@@ -485,7 +666,35 @@ const draft = reactive({
   username: "",
   displayName: "",
   bio: "",
+  isPrivate: false,
+  password: "",
+  confirmPassword: "",
 });
+
+function getProfileInitials(p) {
+  const source = p.displayName || p.name || p.username || "C";
+  const parts = source.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "C";
+}
+
+function startCreatingProfile() {
+  draft.displayName = "";
+  draft.username = "";
+  draft.bio = "";
+  draft.isPrivate = false;
+  draft.password = "";
+  draft.confirmPassword = "";
+  createPasswordError.value = "";
+  unlockingProfile.value = null;
+  viewMode.value = "create";
+}
+
+function cancelCreate() {
+  if (user.profilesList.length > 0) {
+    viewMode.value = "list";
+    createPasswordError.value = "";
+  }
+}
 
 const isNativeApp = computed(() => {
   return Capacitor.isNativePlatform();
@@ -586,37 +795,92 @@ function goToPreviousStep() {
   }
 }
 
-async function continueFromProfile() {
-  if (!hasProfile.value) {
-    const username =
-      draft.username.trim();
+async function onSelectProfile(p) {
+  const isPrivate = Boolean(p.private !== undefined ? p.private : p.isPrivate);
+  if (isPrivate) {
+    unlockingProfile.value = p;
+    selectedProfileId.value = p.id;
+    unlockPassword.value = "";
+    unlockError.value = "";
+    return;
+  }
 
-    const displayName =
-      draft.displayName.trim();
+  selectedProfileId.value = p.id;
+  const res = await user.loginProfile(p.id);
+  if (res.success) {
+    router.push("/");
+  }
+}
 
-    const bio =
-      draft.bio.trim();
+async function confirmUnlock() {
+  if (!unlockingProfile.value || !unlockPassword.value) return;
+  isUnlocking.value = true;
+  unlockError.value = "";
+  try {
+    const res = await user.loginProfile(
+      unlockingProfile.value.id,
+      unlockPassword.value
+    );
+    if (res.success) {
+      router.push("/");
+    } else {
+      unlockError.value = res.error || "Contraseña incorrecta";
+    }
+  } catch (err) {
+    unlockError.value = "Error al verificar la contraseña";
+  } finally {
+    isUnlocking.value = false;
+  }
+}
 
-    if (username || displayName) {
-      await user.updateProfile({
-        username,
-        displayName,
-        bio,
-      });
+async function continueAsGuest() {
+  await user.startGuestSession();
+  router.push("/");
+}
+
+async function submitNewProfile() {
+  createPasswordError.value = "";
+  const displayName = draft.displayName.trim();
+  if (!displayName) {
+    createPasswordError.value = "El nombre es obligatorio";
+    return;
+  }
+
+  if (draft.isPrivate) {
+    if (!draft.password || draft.password.length < 4) {
+      createPasswordError.value =
+        "La contraseña debe tener al menos 4 caracteres";
+      return;
+    }
+    if (draft.password !== draft.confirmPassword) {
+      createPasswordError.value = "Las contraseñas no coinciden";
+      return;
     }
   }
 
-  goToNextStep();
-}
+  isCreatingProfile.value = true;
+  try {
+    await user.createProfile({
+      displayName,
+      name: displayName,
+      username: draft.username.trim(),
+      bio: draft.bio.trim(),
+      isPrivate: draft.isPrivate,
+      password: draft.password,
+    });
 
-function skipProfile() {
-  goToNextStep();
+    if (!library.folderHandle) {
+      goToNextStep();
+    }
+  } catch (err) {
+    createPasswordError.value = "No se pudo crear el perfil local";
+  } finally {
+    isCreatingProfile.value = false;
+  }
 }
 
 async function selectAccent(value) {
-  if (
-    user.profile.accentColor === value
-  ) {
+  if (user.profile.accentColor === value) {
     return;
   }
 
@@ -634,6 +898,7 @@ async function selectFolder() {
 
   try {
     await library.selectFolder();
+    router.push("/");
   } catch (error) {
     console.error(
       "[WelcomeScreen] No se pudo seleccionar la carpeta:",
@@ -644,21 +909,27 @@ async function selectFolder() {
   }
 }
 
+function enterApp() {
+  router.push("/");
+}
+
 onMounted(async () => {
   try {
     await user.load();
 
-    draft.username =
-      user.profile.username || "";
+    if (user.hasSession) {
+      router.push("/");
+      return;
+    }
 
-    draft.displayName =
-      user.profile.displayName || "";
-
-    draft.bio =
-      user.profile.bio || "";
+    if (user.profilesList.length === 0) {
+      viewMode.value = "create";
+    } else {
+      viewMode.value = "list";
+    }
   } catch (error) {
     console.error(
-      "[WelcomeScreen] No se pudo cargar el perfil:",
+      "[WelcomeScreen] No se pudieron cargar los perfiles:",
       error
     );
   }

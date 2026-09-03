@@ -201,7 +201,8 @@
     </section>
 
     <!-- Estado si aún no hay canciones escaneadas -->
-    <section v-if="library.songs.length === 0" class="home-empty-library">
+    <NoFolderState v-if="!library.folderHandle" />
+    <section v-else-if="library.songs.length === 0" class="home-empty-library">
       <Music2 class="empty-hero-icon" />
       <h2>Empieza a escuchar tu música</h2>
       <p>Selecciona tu carpeta local de canciones para desbloquear tus selecciones personalizadas, historial y álbumes.</p>
@@ -219,6 +220,7 @@ import { useLibraryStore } from '../stores/libraryStore.js';
 import { resolveHistoryCover, resolveSongCover } from '../lib/covers.js';
 import { useUserStore } from '../stores/userStore.js';
 import CoverArt from '../components/common/CoverArt.vue';
+import NoFolderState from '../components/common/NoFolderState.vue';
 import { Music2, Play } from 'lucide-vue-next';
 
 const library = useLibraryStore();

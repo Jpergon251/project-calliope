@@ -38,8 +38,9 @@
       <RouterLink
         to="/profile"
         class="header-action profile-action"
-        aria-label="Tu perfil"
-        title="Tu perfil"
+        :class="{ 'is-guest': user.isGuest }"
+        :aria-label="user.isGuest ? 'Perfil (Invitado)' : 'Tu perfil'"
+        :title="user.isGuest ? 'Perfil (Invitado temporal)' : 'Tu perfil'"
       >
         <img
           v-if="user.avatarUrl"
