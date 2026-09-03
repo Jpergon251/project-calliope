@@ -5,8 +5,8 @@
     <template #cover>
 
       <img
-        v-if="song.cover"
-        :src="song.cover"
+        v-if="songCover"
+        :src="songCover"
         :alt="`Portada de ${song.title || song.name}`"
         class="song-image"
       />
@@ -52,13 +52,13 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import MediaCard from "../common/MediaCard.vue";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { useRouter } from "vue-router";
 import { Play } from "lucide-vue-next";
 import SongIconCover from "../common/SongIconCover.vue";
-
+import { resolveSongCover } from "../../lib/covers.js";
 const library = useLibraryStore();
 const router = useRouter();
 
@@ -70,7 +70,7 @@ const props = defineProps({
 });
 
 const isMobile = ref(false);
-
+const songCover = computed(() => resolveSongCover(library, props.song));
 function updateIsMobile() {
   isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;
 }
