@@ -15,16 +15,7 @@
         <ChevronDown />
       </button>
       <span>REPRODUCIENDO</span>
-      <button
-        v-if="song"
-        type="button"
-        class="header-queue-btn"
-        aria-label="Ver cola de reproducción"
-        @click="showQueue = true"
-      >
-        <ListMusic />
-      </button>
-      <div v-else aria-hidden="true"></div>
+      <div class="header-spacer" aria-hidden="true"></div>
     </header>
 
     <template v-if="song">
@@ -43,9 +34,6 @@
           <p>{{ song.artist || 'Artista desconocido' }}</p>
         </div>
         <div class="player-page-actions">
-          <button type="button" class="queue-toggle" aria-label="Abrir cola de reproducción" @click="showQueue = true">
-            <ListMusic />
-          </button>
           <button
             type="button"
             class="favorite-button"
@@ -114,21 +102,16 @@
       <h1>No hay ninguna canción sonando</h1>
       <button type="button" @click="handleMinimize">Volver a la biblioteca</button>
     </section>
-
-    <Transition name="queue-sheet">
-      <QueuePanel v-if="showQueue" @close="showQueue = false" />
-    </Transition>
   </main>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ChevronDown, Heart, ListMusic, Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-vue-next';
+import { ChevronDown, Heart, Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-vue-next';
 import { useLibraryStore } from '../stores/libraryStore.js';
 import AudioVisualizer from '../components/common/AudioVisualizer.vue';
 import SongIconCover from '../components/common/SongIconCover.vue';
-import QueuePanel from '../components/player/QueuePanel.vue';
 
 defineProps({
   isOverlay: {
@@ -140,7 +123,6 @@ const emit = defineEmits(['close']);
 
 const router = useRouter();
 const route = useRoute();
-const showQueue = ref(false);
 const library = useLibraryStore();
 const song = computed(() => library.playingSong);
 

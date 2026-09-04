@@ -54,9 +54,10 @@ export const useLibraryStore = defineStore("library", () => {
   const metadataCacheVersion = 4;
 
   const isNowPlayingOpen = ref(false);
+  const isQueueOpen = ref(false);
 
   // =========================
-  // NOW PLAYING
+  // NOW PLAYING & QUEUE OVERLAYS
   // =========================
 
   function openNowPlaying() {
@@ -69,6 +70,18 @@ export const useLibraryStore = defineStore("library", () => {
 
   function toggleNowPlaying() {
     isNowPlayingOpen.value = !isNowPlayingOpen.value;
+  }
+
+  function openQueue() {
+    isQueueOpen.value = true;
+  }
+
+  function closeQueue() {
+    isQueueOpen.value = false;
+  }
+
+  function toggleQueue() {
+    isQueueOpen.value = !isQueueOpen.value;
   }
 
   // =========================
@@ -729,15 +742,236 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
+  function removeSongFromQueue(songId) {
+    if (!songId) return;
+    playQueue.value = playQueue.value.filter((song) => song.id !== songId);
+  }
+
   function clearQueue() {
     playQueue.value = [];
   }
 
+  function clearHistoryQueue() {
+    historyQueue.value = [];
+  }
+
   function addToQueue(song) {
-    if (song) {
-      playQueue.value.push(song);
+    if (!song || !song.id) return;
+    if (playQueue.value.some((item) => item.id === song.id)) {
+      return;
+    }
+    playQueue.value.push(song);
+  }
+
+  function playNext(song) {
+    if (!song || !song.id) return;
+    playQueue.value = [
+      song,
+      ...playQueue.value.filter((item) => item.id !== song.id),
+    ];
+  }
+
+  function addSongsToQueue(songsList) {
+    if (!Array.isArray(songsList) || !songsList.length) return;
+    const existingIds = new Set(playQueue.value.map((s) => s.id));
+    const toAdd = [];
+    for (const song of songsList) {
+      if (song && song.id && !existingIds.has(song.id)) {
+        existingIds.add(song.id);
+        toAdd.push(song);
+      }
+    }
+    if (toAdd.length > 0) {
+      playQueue.value.push(...toAdd);
     }
   }
+
+  function addAlbumToQueue(album) {
+    if (!album) return;
+    const albumSongs = songs.value.filter(
+      (song) =>
+        song.albumId === album.id || (song.album && song.album === album.name)
+    );
+    addSongsToQueue(albumSongs);
+  }
+
+  function addPlaylistToQueue(playlist) {
+    if (!playlist || !Array.isArray(playlist.songIds)) return;
+    const playlistSongs = playlist.songIds
+      .map((id) => songs.value.find((s) => s.id === id))
+      .filter(Boolean);
+    addSongsToQueue(playlistSongs);
+  }
+
+  function setPlayQueue(songsList) {
+    if (!Array.isArray(songsList)) return;
+    playQueue.value = dedupeById(songsList);
+  }
+
+  function moveQueueItem(fromIndex, toIndex) {
+    if (
+      fromIndex < 0 ||
+      fromIndex >= playQueue.value.length ||
+      toIndex < 0 ||
+      toIndex >= playQueue.value.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+    const [movedSong] = playQueue.value.splice(fromIndex, 1);
+    playQueue.value.splice(toIndex, 0, movedSong);
+  }
+
+  function playQueueSong(index) {
+    if (index < 0 || index >= playQueue.value.length) return;
+
+    if (playingSong.value) {
+      historyQueue.value = dedupeById([
+        ...historyQueue.value.filter((s) => s.id !== playingSong.value.id),
+        playingSong.value,
+      ]);
+    }
+
+    const skipped = playQueue.value.slice(0, index);
+    for (const song of skipped) {
+      historyQueue.value = dedupeById([
+        ...historyQueue.value.filter((s) => s.id !== song.id),
+        song,
+      ]);
+    }
+
+    const targetSong = playQueue.value[index];
+    playQueue.value = playQueue.value.slice(index + 1);
+    playSong(targetSong, false);
+  }
+
+  function playHistorySong(song) {
+    if (!song) return;
+
+    if (playingSong.value) {
+      playQueue.value = dedupeById([
+        playingSong.value,
+        ...playQueue.value.filter((item) => item.id !== playingSong.value.id),
+      ]);
+    }
+
+    historyQueue.value = historyQueue.value.filter((s) => s.id !== song.id);
+    playSong(song, false);
+  }
+
+  // =========================
+  // QUEUE PERSISTENCE
+  // =========================
+
+  const QUEUE_STORAGE_KEY_PREFIX = "calliope:queue_state:";
+
+  function getQueueStorageKey() {
+    try {
+      const user = useUserStore();
+      const profileId = user.currentSession?.profileId || "guest";
+      return `${QUEUE_STORAGE_KEY_PREFIX}${profileId}`;
+    } catch {
+      return `${QUEUE_STORAGE_KEY_PREFIX}default`;
+    }
+  }
+
+  function saveQueueState() {
+    try {
+      const user = useUserStore();
+      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {
+        return;
+      }
+
+      const key = getQueueStorageKey();
+      const state = {
+        playingSongId: playingSong.value?.id || null,
+        queueIds: (playQueue.value || []).map((s) => s.id).filter(Boolean),
+        historyIds: (historyQueue.value || []).map((s) => s.id).filter(Boolean),
+        savedPlayingSong: playingSong.value
+          ? {
+              id: playingSong.value.id,
+              name: playingSong.value.name,
+              title: playingSong.value.title || playingSong.value.name,
+              artist: playingSong.value.artist,
+              album: playingSong.value.album,
+              cover: sanitizeCoverForStorage(playingSong.value.cover),
+              duration: playingSong.value.duration,
+            }
+          : null,
+      };
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch (e) {
+      console.warn("Could not save queue state to localStorage:", e);
+    }
+  }
+
+  function restoreQueueState() {
+    try {
+      const user = useUserStore();
+      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {
+        return;
+      }
+
+      const key = getQueueStorageKey();
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+
+      const state = JSON.parse(raw);
+      if (!state || typeof state !== "object") return;
+
+      if (!songs.value.length) {
+        if (state.savedPlayingSong && !playingSong.value) {
+          playingSong.value = state.savedPlayingSong;
+        }
+        return;
+      }
+
+      if (!playingSong.value && state.playingSongId) {
+        const found = songs.value.find((s) => s.id === state.playingSongId);
+        if (found) {
+          playingSong.value = found;
+        } else if (state.savedPlayingSong) {
+          playingSong.value = state.savedPlayingSong;
+        }
+      }
+
+      if (
+        Array.isArray(state.queueIds) &&
+        state.queueIds.length &&
+        (!playQueue.value || playQueue.value.length === 0)
+      ) {
+        const restoredQueue = state.queueIds
+          .map((id) => songs.value.find((s) => s.id === id))
+          .filter(Boolean);
+        if (restoredQueue.length) {
+          playQueue.value = dedupeById(restoredQueue);
+        }
+      }
+
+      if (
+        Array.isArray(state.historyIds) &&
+        state.historyIds.length &&
+        (!historyQueue.value || historyQueue.value.length === 0)
+      ) {
+        const restoredHistory = state.historyIds
+          .map((id) => songs.value.find((s) => s.id === id))
+          .filter(Boolean);
+        if (restoredHistory.length) {
+          historyQueue.value = dedupeById(restoredHistory);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not restore queue state:", e);
+    }
+  }
+
+  watch(
+    [playingSong, playQueue, historyQueue],
+    () => {
+      saveQueueState();
+    },
+    { deep: true }
+  );
 
   // =========================
   // INITIALIZATION
@@ -771,6 +1005,7 @@ export const useLibraryStore = defineStore("library", () => {
       await loadHistory();
       await loadCustomArtistCovers();
       await loadArtistProfiles();
+      restoreQueueState();
     } catch (e) {
       console.warn("⚠️ Error during init:", e);
     } finally {
@@ -815,6 +1050,7 @@ export const useLibraryStore = defineStore("library", () => {
         await loadAlbums();
         await scanFolder();
       }
+      restoreQueueState();
     }
   }
 
@@ -1458,9 +1694,17 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function playPreviousSong() {
+    if (currentTime.value > 3) {
+      seek(0);
+      return;
+    }
+
     const previousSong = historyQueue.value.pop();
 
-    if (!previousSong) return;
+    if (!previousSong) {
+      seek(0);
+      return;
+    }
 
     if (playingSong.value) {
       playQueue.value = dedupeById([
@@ -1484,7 +1728,12 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function togglePlay() {
-    if (!audio.src) return;
+    if (!audio.src) {
+      if (playingSong.value) {
+        playSong(playingSong.value, false);
+      }
+      return;
+    }
 
     if (audio.paused) {
       audio.play().catch((err) => {
@@ -1617,6 +1866,7 @@ export const useLibraryStore = defineStore("library", () => {
       sortSongs();
 
       await loadMetadataForSongs(forceMetadata);
+      restoreQueueState();
     } finally {
       loading.value = false;
     }
@@ -1665,6 +1915,7 @@ export const useLibraryStore = defineStore("library", () => {
       sortSongs();
 
       await loadMetadataForSongs();
+      restoreQueueState();
     } catch (e) {
       console.error("Error scanning native folder:", e);
     } finally {
@@ -2497,11 +2748,39 @@ export const useLibraryStore = defineStore("library", () => {
     // QUEUE
     // -------------------------
 
+    isQueueOpen,
+
+    openQueue,
+
+    closeQueue,
+
+    toggleQueue,
+
     removeFromQueue,
+
+    removeSongFromQueue,
 
     clearQueue,
 
+    clearHistoryQueue,
+
     addToQueue,
+
+    playNext,
+
+    addSongsToQueue,
+
+    addAlbumToQueue,
+
+    addPlaylistToQueue,
+
+    setPlayQueue,
+
+    moveQueueItem,
+
+    playQueueSong,
+
+    playHistorySong,
 
     // -------------------------
     // PLAYER ACTIONS

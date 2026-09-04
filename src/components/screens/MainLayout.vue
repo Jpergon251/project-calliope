@@ -29,6 +29,14 @@
       @close="handleCloseNowPlaying"
     />
   </Transition>
+
+  <!-- YouTube Music / Spotify style Queue overlay -->
+  <Transition name="queue-overlay-sheet">
+    <QueueOverlay
+      v-if="library.isQueueOpen"
+      @close="library.closeQueue"
+    />
+  </Transition>
 </template>
 
 <script setup>
@@ -39,6 +47,7 @@ import PlayerBar from '../layout/PlayerBar.vue';
 import Sidebar from '../layout/Sidebar.vue';
 import AppHeader from '../layout/AppHeader.vue';
 import PlayerPage from '../../pages/PlayerPage.vue';
+import QueueOverlay from '../player/QueueOverlay.vue';
 
 const route = useRoute();
 const router = useRouter();

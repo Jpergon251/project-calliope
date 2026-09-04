@@ -57,7 +57,14 @@
           <SkipForward class="control-icon" fill="white" />
         </button>
 
-        <button class="queue-button" type="button" @click.stop="showQueue = !showQueue" aria-label="Abrir cola de reproducción" title="Cola de reproducción">
+        <button
+          class="queue-button"
+          :class="{ active: library.isQueueOpen }"
+          type="button"
+          @click.stop="library.toggleQueue()"
+          aria-label="Abrir cola de reproducción"
+          title="Cola de reproducción"
+        >
           <ListMusic class="control-icon" fill="white" />
         </button>
       </section>
@@ -66,12 +73,6 @@
       <VolumeModal :library="library"/>
     </section>
   </section>
-
-  <QueuePanel
-    v-if="showQueue"
-    class="queue-panel"
-    @close="showQueue = false"
-  />
 </template>
 
 <script setup>
@@ -79,13 +80,11 @@ import { Play, Pause, SkipBack, SkipForward, ListMusic } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { useRouter } from "vue-router";
 import SongCover from "../library/SongCover.vue";
-import QueuePanel from "../player/QueuePanel.vue"
+import VolumeModal from "../player/VolumeModal.vue";
+import { computed } from "vue";
+
 const library = useLibraryStore();
 const router = useRouter();
-import { ref, computed } from "vue";
-import VolumeModal from "../player/VolumeModal.vue";
-
-const showQueue = ref(false);
 
 const progressPercent = computed(() => {
   const d = library.duration;

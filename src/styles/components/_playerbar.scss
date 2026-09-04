@@ -196,6 +196,14 @@
           transform: scale(0.94);
         }
       }
+
+      &.queue-button.active,
+      &.queue-button.is-active {
+        color: var(--accent-light);
+        border-color: var(--accent-border);
+        background: var(--accent-surface);
+        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+      }
     }
   }
 
