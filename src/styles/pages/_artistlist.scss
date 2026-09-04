@@ -292,6 +292,8 @@
 
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    transition: color var(--transition-fast);
   }
 
   .artist-count {
@@ -420,14 +422,14 @@
       }
     }
 
-    .artists-grid-preview {
-      .artist-card:hover {
-        .artist-cover img {
-          transform: scale(1.04);
-        }
+    .artist-card {
+      transition: transform var(--transition-normal);
 
-        .artist-cover-overlay {
-          opacity: 1;
+      &:hover {
+        transform: translateY(-4px);
+
+        .artist-cover img {
+          transform: scale(1.05);
         }
 
         .artist-name {

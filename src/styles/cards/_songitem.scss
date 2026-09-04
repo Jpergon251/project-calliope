@@ -59,14 +59,17 @@
         }
 
         &.active {
-            background: var(--accent-muted);
-            border-color: var(--accent);
-            color: var(--accent);
+            background: rgba(255, 91, 91, 0.12);
+            border-color: rgba(255, 91, 91, 0.45);
+            color: #ff5b5b;
+            box-shadow: 0 0 10px rgba(255, 91, 91, 0.25);
         }
 
         &:hover {
             transform: translateY(-1px);
-            border-color: var(--accent);
+            border-color: rgba(255, 91, 91, 0.4);
+            background: rgba(255, 91, 91, 0.08);
+            color: #ff5b5b;
         }
     }
 

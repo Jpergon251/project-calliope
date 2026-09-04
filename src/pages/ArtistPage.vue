@@ -40,17 +40,6 @@
           <span>Artistas</span>
         </button>
 
-        <!-- Edit -->
-        <button
-          type="button"
-          class="banner-edit-btn"
-          aria-label="Editar artista"
-          @click="openArtistModal"
-        >
-          <Pencil :size="17" />
-          <span>Editar artista</span>
-        </button>
-
         <!-- Hero content -->
         <div class="banner-content">
           <!-- Artist image -->
@@ -69,20 +58,6 @@
             >
               <UserRound :size="68" stroke-width="1.5" />
             </div>
-
-            <button
-              type="button"
-              class="avatar-change-overlay"
-              :title="
-                hasCustomCover
-                  ? 'Cambiar imagen del artista'
-                  : 'Elegir imagen del artista'
-              "
-              @click="openArtistModal"
-            >
-              <Camera :size="20" />
-              <span>Cambiar</span>
-            </button>
           </div>
 
           <!-- Artist info -->

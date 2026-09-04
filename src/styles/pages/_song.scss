@@ -168,10 +168,25 @@
   width: 46px;
   padding: 0;
   background: transparent;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+
+  &:hover {
+    border-color: rgba(255, 91, 91, 0.4);
+    background: rgba(255, 91, 91, 0.08);
+    color: #ff5b5b;
+  }
 }
+.actions .secondary.active,
 .actions .active {
-  background: var(--accent-surface);
-  border-color: var(--accent);
+  background: rgba(255, 91, 91, 0.12);
+  border-color: rgba(255, 91, 91, 0.45);
+  color: #ff5b5b;
+  box-shadow: 0 0 12px rgba(255, 91, 91, 0.25);
 }
 
 .metadata {

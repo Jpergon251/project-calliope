@@ -338,9 +338,13 @@
       cursor: pointer;
 
       @media (hover: hover) and (pointer: fine) {
-        &:hover { color: #ff7373; background: rgba(255,91,91,.1); }
+        &:hover { color: #ff5b5b; background: rgba(255,91,91,.12); }
       }
-      &.active { color: #ff7373; background: rgba(255,91,91,.1); }
+      &.active {
+        color: #ff5b5b;
+        background: rgba(255,91,91,.12);
+        box-shadow: 0 0 10px rgba(255, 91, 91, 0.2);
+      }
       &:active { transform: scale(0.9); }
     }
 }

@@ -26,6 +26,7 @@ const routes = [
   { path: '/welcome', name: 'Welcome', component: WelcomeScreen },
   { path: '/', name: 'Home', component: Home },
   { path: '/library', name: 'Library', component: Library },
+  { path: '/library-alias', redirect: (to) => ({ path: '/library', query: to.query }), name: 'library' },
   { path: '/songs', name: 'Songs', component: SongsPage },
   { path: '/albums', name: 'Albums', component: AlbumsPage },
   { path: '/artists', name: 'Artists', component: ArtistsPage },

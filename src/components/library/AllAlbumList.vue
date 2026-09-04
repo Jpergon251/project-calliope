@@ -324,7 +324,7 @@ function openAlbum(album) {
 
 function openAllAlbums() {
   router.push({
-    name: "library",
+    path: "/library",
     query: {
       category: "albums",
     },

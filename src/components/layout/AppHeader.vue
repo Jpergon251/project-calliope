@@ -13,29 +13,6 @@
 
     <div class="header-actions">
       <RouterLink
-        v-if="route.name !== 'Songs'"
-        to="/songs"
-        class="search-button"
-        aria-label="Buscar música"
-        title="Buscar música"
-      >
-        <Search
-          :size="17"
-          class="search-icon"
-          stroke-width="2.2"
-        />
-
-        <span class="search-button-text">
-          Buscar
-        </span>
-
-        <span
-          class="search-button-glow"
-          aria-hidden="true"
-        ></span>
-      </RouterLink>
-
-      <RouterLink
         to="/profile"
         class="header-action profile-action"
         :class="{ 'is-guest': user.isGuest }"
@@ -60,7 +37,6 @@
 <script setup>
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { Search } from "lucide-vue-next";
 import { useUserStore } from "../../stores/userStore.js";
 import BackButton from "../common/BackButton.vue";
 

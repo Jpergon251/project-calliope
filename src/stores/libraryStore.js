@@ -578,7 +578,7 @@ export const useLibraryStore = defineStore("library", () => {
         }
 
         const profileRecords = [];
-        for (const record of (records || [])) {
+        for (const record of records || []) {
           if (record.profileId === currentProfileId) {
             profileRecords.push(record);
           } else if (!record.profileId) {
@@ -790,7 +790,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (!album) return;
     const albumSongs = songs.value.filter(
       (song) =>
-        song.albumId === album.id || (song.album && song.album === album.name)
+        song.albumId === album.id || (song.album && song.album === album.name),
     );
     addSongsToQueue(albumSongs);
   }
@@ -970,7 +970,7 @@ export const useLibraryStore = defineStore("library", () => {
     () => {
       saveQueueState();
     },
-    { deep: true }
+    { deep: true },
   );
 
   // =========================
@@ -1132,7 +1132,10 @@ export const useLibraryStore = defineStore("library", () => {
 
     const db = await dbPromise;
 
-    let savedHandle = await db.get("settings", `music-folder-${currentProfileId}`);
+    let savedHandle = await db.get(
+      "settings",
+      `music-folder-${currentProfileId}`,
+    );
 
     // Migración segura de carpeta global antigua
     if (!savedHandle) {
@@ -1140,7 +1143,11 @@ export const useLibraryStore = defineStore("library", () => {
         const globalHandle = await db.get("settings", "music-folder");
         if (globalHandle) {
           savedHandle = globalHandle;
-          await db.put("settings", globalHandle, `music-folder-${currentProfileId}`);
+          await db.put(
+            "settings",
+            globalHandle,
+            `music-folder-${currentProfileId}`,
+          );
         }
       } catch (e) {
         console.warn("No se pudo migrar la carpeta previa al perfil:", e);
@@ -1206,13 +1213,19 @@ export const useLibraryStore = defineStore("library", () => {
       if (pl.profileId === currentProfileId) {
         userPlaylists.push({
           ...pl,
-          id: pl.id === `favorites_${currentProfileId}` ? FAVORITES_PLAYLIST_ID : pl.id,
+          id:
+            pl.id === `favorites_${currentProfileId}`
+              ? FAVORITES_PLAYLIST_ID
+              : pl.id,
         });
       } else if (!pl.profileId) {
         const migrated = {
           ...pl,
           profileId: currentProfileId,
-          id: pl.id === FAVORITES_PLAYLIST_ID ? `favorites_${currentProfileId}` : pl.id,
+          id:
+            pl.id === FAVORITES_PLAYLIST_ID
+              ? `favorites_${currentProfileId}`
+              : pl.id,
         };
         await db.put("playlists", migrated);
         if (pl.id !== migrated.id) {
@@ -1970,7 +1983,11 @@ export const useLibraryStore = defineStore("library", () => {
     // Guardar en IndexedDB SOLO para perfiles registrados permanentes
     if (user.isRegistered && user.currentSession?.profileId) {
       const db = await dbPromise;
-      await db.put("settings", handle, `music-folder-${user.currentSession.profileId}`);
+      await db.put(
+        "settings",
+        handle,
+        `music-folder-${user.currentSession.profileId}`,
+      );
     }
 
     await scanFolder();

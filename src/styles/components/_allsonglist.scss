@@ -187,7 +187,7 @@
   }
 
   // =========================================================
-  // VISTA COMPLETA
+  // VISTA COMPLETA (GRID IDÉNTICA A ÁLBUMES)
   // =========================================================
 
   .song-list-full {
@@ -195,22 +195,50 @@
     min-width: 0;
 
     .song-list {
-      display: flex;
-      flex-direction: column;
-
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 24px 20px;
       width: 100%;
       min-width: 0;
-
-      gap: 3px;
-
       margin: 0;
       padding: 0;
-
       list-style: none;
+      overflow: visible;
+      box-sizing: border-box;
 
-      > li {
+      > li,
+      .song-item {
+        flex: initial;
         width: 100%;
         min-width: 0;
+        padding: 0;
+
+        .media-card {
+          width: 100%;
+          max-width: 100%;
+          padding: 0;
+          background: transparent;
+          transition: transform var(--transition-normal);
+
+          &:hover {
+            transform: translateY(-3px);
+          }
+        }
+      }
+
+      @media (min-width: 761px) and (max-width: 1100px) {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px 16px;
+      }
+
+      @media (max-width: 760px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 12px;
+      }
+
+      @media (max-width: 420px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 10px;
       }
     }
   }

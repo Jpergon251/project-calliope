@@ -82,27 +82,21 @@
         @keyup.enter="openArtist(artist)"
         @keyup.space.prevent="openArtist(artist)"
       >
-      <div class="artist-cover">
-        <img
-          v-if="artist.customCover"
-          :src="artist.customCover"
-          :alt="`Foto de ${artist.name}`"
-          loading="lazy"
-        />
-        <div
-          v-else
-          class="artist-cover-fallback"
-          aria-hidden="true"
-        >
-          <User :size="42" />
+        <div class="artist-cover">
+          <img
+            v-if="artist.customCover"
+            :src="artist.customCover"
+            :alt="`Foto de ${artist.name}`"
+            loading="lazy"
+          />
+          <div
+            v-else
+            class="artist-cover-fallback"
+            aria-hidden="true"
+          >
+            <User :size="42" />
+          </div>
         </div>
-
-        <div class="artist-cover-overlay">
-          <span class="artist-open-icon">
-            <ChevronRight :size="19" />
-          </span>
-        </div>
-      </div>
 
         <div class="artist-info">
           <h3
@@ -166,12 +160,6 @@
             aria-hidden="true"
           >
             <User :size="42" />
-          </div>
-
-          <div class="artist-cover-overlay">
-            <span class="artist-open-icon">
-              <ChevronRight :size="19" />
-            </span>
           </div>
         </div>
 
@@ -407,7 +395,7 @@ function openArtist(artist) {
 
 function openAllArtists() {
   router.push({
-    name: "library",
+    path: "/library",
     query: {
       category: "artists",
     },

@@ -442,15 +442,16 @@
               transition: all 0.18s ease;
 
               &:hover {
-                border-color: var(--accent-border);
-                background: var(--accent-surface);
-                color: var(--accent-light);
+                border-color: rgba(255, 91, 91, 0.4);
+                background: rgba(255, 91, 91, 0.08);
+                color: #ff5b5b;
               }
 
               &.active {
-                color: #ff6b6b;
-                border-color: rgba(255, 107, 107, 0.35);
-                background: rgba(255, 107, 107, 0.08);
+                color: #ff5b5b;
+                border-color: rgba(255, 91, 91, 0.45);
+                background: rgba(255, 91, 91, 0.12);
+                box-shadow: 0 0 12px rgba(255, 91, 91, 0.25);
               }
 
               &:active {
@@ -640,22 +641,30 @@
             }
 
             .track-drag-handle {
-              width: 20px;
-              height: 28px;
+              width: 32px;
+              height: 36px;
               display: grid;
               place-items: center;
-              color: rgba(255, 255, 255, 0.2);
+              color: rgba(255, 255, 255, 0.25);
               cursor: grab;
               flex-shrink: 0;
+              touch-action: none;
+              padding: 0 4px;
+              margin-left: -4px;
               transition: color 0.18s ease;
 
               .handle-icon {
-                width: 16px;
-                height: 16px;
+                width: 17px;
+                height: 17px;
+              }
+
+              &:hover {
+                color: var(--accent-light);
               }
 
               &:active {
                 cursor: grabbing;
+                color: var(--accent);
               }
             }
 
@@ -792,35 +801,45 @@
 
             // Drag states
             &.is-dragging {
-              opacity: 0.45;
+              opacity: 0.35;
               transform: scale(0.98);
-              border-color: var(--accent);
+              border-color: rgba(var(--accent-rgb), 0.3);
             }
 
-            &.drop-indicator-top::before {
-              content: "";
-              position: absolute;
-              top: -4px;
-              left: 4px;
-              right: 4px;
-              height: 3px;
-              background: var(--accent-light);
-              border-radius: 999px;
-              box-shadow: 0 0 10px var(--accent);
-              z-index: 10;
+            &.drop-indicator-top {
+              background: rgba(var(--accent-rgb), 0.07);
+              border-top-color: var(--accent-border);
+
+              &::before {
+                content: "";
+                position: absolute;
+                top: -3px;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: var(--accent);
+                border-radius: 999px;
+                box-shadow: 0 0 14px var(--accent), 0 0 4px #ffffff;
+                z-index: 10;
+              }
             }
 
-            &.drop-indicator-bottom::after {
-              content: "";
-              position: absolute;
-              bottom: -4px;
-              left: 4px;
-              right: 4px;
-              height: 3px;
-              background: var(--accent-light);
-              border-radius: 999px;
-              box-shadow: 0 0 10px var(--accent);
-              z-index: 10;
+            &.drop-indicator-bottom {
+              background: rgba(var(--accent-rgb), 0.07);
+              border-bottom-color: var(--accent-border);
+
+              &::after {
+                content: "";
+                position: absolute;
+                bottom: -3px;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: var(--accent);
+                border-radius: 999px;
+                box-shadow: 0 0 14px var(--accent), 0 0 4px #ffffff;
+                z-index: 10;
+              }
             }
           }
         }

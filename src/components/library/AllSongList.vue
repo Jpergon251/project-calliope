@@ -274,7 +274,7 @@ async function scrollCarousel(direction) {
 
 function openAllSongs() {
   router.push({
-    name: "library",
+    path: "/library",
     query: {
       category: "songs",
     },

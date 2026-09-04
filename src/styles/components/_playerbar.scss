@@ -722,9 +722,9 @@
 
     @media (hover: hover) and (pointer: fine) {
       &:hover {
-        border-color: var(--accent-border);
-        background: var(--accent-surface);
-        color: var(--accent-light);
+        border-color: rgba(255, 91, 91, 0.4);
+        background: rgba(255, 91, 91, 0.08);
+        color: #ff5b5b;
       }
     }
 
@@ -738,9 +738,10 @@
     }
 
     &.active {
-      border-color: rgba(255, 115, 115, 0.4);
-      color: #ff7373;
-      background: rgba(255, 115, 115, 0.04);
+      border-color: rgba(255, 91, 91, 0.45);
+      color: #ff5b5b;
+      background: rgba(255, 91, 91, 0.12);
+      box-shadow: 0 0 12px rgba(255, 91, 91, 0.25);
     }
   }
 }

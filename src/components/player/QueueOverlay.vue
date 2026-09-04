@@ -31,8 +31,13 @@
             <h2 class="queue-title">Cola de reproducción</h2>
             <p class="queue-subtitle">
               <span>{{ upcomingSubtitle }}</span>
-              <span v-if="totalQueueDurationFormatted" class="dot-separator">•</span>
-              <span v-if="totalQueueDurationFormatted" class="duration-highlight">
+              <span v-if="totalQueueDurationFormatted" class="dot-separator"
+                >•</span
+              >
+              <span
+                v-if="totalQueueDurationFormatted"
+                class="duration-highlight"
+              >
                 {{ totalQueueDurationFormatted }}
               </span>
             </p>
@@ -92,7 +97,9 @@
           @click="activeTab = 'history'"
         >
           <span>Ya reproducidas</span>
-          <span class="tab-badge muted" v-if="historyQueue.length">{{ historyQueue.length }}</span>
+          <span class="tab-badge muted" v-if="historyQueue.length">{{
+            historyQueue.length
+          }}</span>
         </button>
       </nav>
 
@@ -111,7 +118,11 @@
             </div>
 
             <!-- Animated Soundwave Equalizer -->
-            <div v-if="library.isPlaying" class="mini-equalizer" aria-hidden="true">
+            <div
+              v-if="library.isPlaying"
+              class="mini-equalizer"
+              aria-hidden="true"
+            >
               <span class="eq-bar bar-1"></span>
               <span class="eq-bar bar-2"></span>
               <span class="eq-bar bar-3"></span>
@@ -128,13 +139,23 @@
             </div>
 
             <div class="hero-info" @click="handleOpenNowPlaying">
-              <h3 class="hero-title" :title="currentSong.title || currentSong.name">
+              <h3
+                class="hero-title"
+                :title="currentSong.title || currentSong.name"
+              >
                 {{ currentSong.title || currentSong.name }}
               </h3>
-              <p class="hero-artist" :title="currentSong.artist || 'Artista desconocido'">
-                {{ currentSong.artist || 'Artista desconocido' }}
+              <p
+                class="hero-artist"
+                :title="currentSong.artist || 'Artista desconocido'"
+              >
+                {{ currentSong.artist || "Artista desconocido" }}
               </p>
-              <span v-if="currentSong.album" class="hero-album" :title="currentSong.album">
+              <span
+                v-if="currentSong.album"
+                class="hero-album"
+                :title="currentSong.album"
+              >
                 {{ currentSong.album }}
               </span>
             </div>
@@ -144,10 +165,17 @@
                 type="button"
                 class="hero-action-btn fav-btn"
                 :class="{ active: currentSong.favorite }"
-                :aria-label="currentSong.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'"
+                :aria-label="
+                  currentSong.favorite
+                    ? 'Quitar de favoritos'
+                    : 'Añadir a favoritos'
+                "
                 @click.stop="library.toggleFavorite(currentSong)"
               >
-                <Heart :size="19" :fill="currentSong.favorite ? 'currentColor' : 'none'" />
+                <Heart
+                  :size="19"
+                  :fill="currentSong.favorite ? 'currentColor' : 'none'"
+                />
               </button>
 
               <button
@@ -157,7 +185,11 @@
                 :aria-label="library.isPlaying ? 'Pausar' : 'Reproducir'"
                 @click.stop="library.togglePlay()"
               >
-                <Pause v-if="library.isPlaying" :size="20" fill="currentColor" />
+                <Pause
+                  v-if="library.isPlaying"
+                  :size="20"
+                  fill="currentColor"
+                />
                 <Play v-else :size="20" fill="currentColor" />
               </button>
             </div>
@@ -166,8 +198,13 @@
           <div v-else class="hero-empty-state">
             <Music2 class="empty-hero-icon" />
             <div class="empty-hero-text">
-              <p class="hero-empty-msg">No hay ninguna canción reproduciéndose</p>
-              <span>Elige una pista de tu biblioteca o añade elementos a la cola</span>
+              <p class="hero-empty-msg">
+                No hay ninguna canción reproduciéndose
+              </p>
+              <span
+                >Elige una pista de tu biblioteca o añade elementos a la
+                cola</span
+              >
             </div>
           </div>
         </section>
@@ -192,15 +229,22 @@
           </div>
 
           <!-- Queue Track Items List -->
-          <ul v-if="queue.length > 0" class="queue-track-list">
+          <ul
+            v-if="queue.length > 0"
+            class="queue-track-list"
+            @dragover.prevent="handleListDragOver"
+            @drop="handleListDrop"
+          >
             <li
               v-for="(song, index) in queue"
               :key="song.id"
               class="queue-track-row"
               :class="{
                 'is-dragging': draggedIndex === index,
-                'drop-indicator-top': hoverIndex === index && dropPosition === 'before',
-                'drop-indicator-bottom': hoverIndex === index && dropPosition === 'after',
+                'drop-indicator-top':
+                  hoverIndex === index && dropPosition === 'before',
+                'drop-indicator-bottom':
+                  hoverIndex === index && dropPosition === 'after',
               }"
               draggable="true"
               @click="handleTrackClick(index)"
@@ -243,13 +287,18 @@
                 <span class="track-title" :title="song.title || song.name">
                   {{ song.title || song.name }}
                 </span>
-                <span class="track-artist" :title="song.artist || 'Artista desconocido'">
-                  {{ song.artist || 'Artista desconocido' }}
+                <span
+                  class="track-artist"
+                  :title="song.artist || 'Artista desconocido'"
+                >
+                  {{ song.artist || "Artista desconocido" }}
                 </span>
               </div>
 
               <!-- Duration -->
-              <span class="track-duration">{{ formatTime(song.duration) }}</span>
+              <span class="track-duration">{{
+                formatTime(song.duration)
+              }}</span>
 
               <!-- Action: Remove -->
               <button
@@ -271,14 +320,18 @@
             </div>
             <h4 class="empty-heading">Tu cola de reproducción está vacía</h4>
             <p class="empty-desc">
-              Añade canciones desde cualquier playlist, álbum o canción para que sigan sonando automáticamente.
+              Añade canciones desde cualquier playlist, álbum o canción para que
+              sigan sonando automáticamente.
             </p>
           </div>
         </section>
 
         <!-- 3. PREVIOUSLY PLAYED / HISTORY QUEUE SECTION -->
         <section
-          v-if="(activeTab === 'all' || activeTab === 'history') && (historyQueue.length > 0 || activeTab === 'history')"
+          v-if="
+            (activeTab === 'all' || activeTab === 'history') &&
+            (historyQueue.length > 0 || activeTab === 'history')
+          "
           class="queue-section history-section"
           aria-label="Canciones reproducidas recientemente"
         >
@@ -300,7 +353,10 @@
             </button>
           </div>
 
-          <ul v-if="historyQueue.length > 0" class="queue-track-list history-list">
+          <ul
+            v-if="historyQueue.length > 0"
+            class="queue-track-list history-list"
+          >
             <li
               v-for="song in reversedHistory"
               :key="`hist-${song.id}`"
@@ -319,12 +375,17 @@
                 <span class="track-title" :title="song.title || song.name">
                   {{ song.title || song.name }}
                 </span>
-                <span class="track-artist" :title="song.artist || 'Artista desconocido'">
-                  {{ song.artist || 'Artista desconocido' }}
+                <span
+                  class="track-artist"
+                  :title="song.artist || 'Artista desconocido'"
+                >
+                  {{ song.artist || "Artista desconocido" }}
                 </span>
               </div>
 
-              <span class="track-duration">{{ formatTime(song.duration) }}</span>
+              <span class="track-duration">{{
+                formatTime(song.duration)
+              }}</span>
 
               <div class="history-actions" @click.stop>
                 <button
@@ -352,7 +413,9 @@
 
           <div v-else class="queue-empty-box compact">
             <History class="empty-svg-sm" />
-            <p class="empty-desc">No hay canciones reproducidas aún en esta sesión.</p>
+            <p class="empty-desc">
+              No hay canciones reproducidas aún en esta sesión.
+            </p>
           </div>
         </section>
       </div>
@@ -399,7 +462,10 @@ const reversedHistory = computed(() => {
 });
 
 const totalQueueSeconds = computed(() => {
-  return queue.value.reduce((acc, song) => acc + (Number(song?.duration) || 0), 0);
+  return queue.value.reduce(
+    (acc, song) => acc + (Number(song?.duration) || 0),
+    0,
+  );
 });
 
 const totalQueueDurationFormatted = computed(() => {
@@ -472,7 +538,10 @@ let isSwipeActive = false;
 function handleTouchStart(e) {
   const touch = e.touches[0];
   // If user touches near the top header or drag pill, activate swipe to close
-  if (touch.clientY < window.innerHeight * 0.35 || scrollBodyRef.value?.scrollTop === 0) {
+  if (
+    touch.clientY < window.innerHeight * 0.35 ||
+    scrollBodyRef.value?.scrollTop === 0
+  ) {
     touchStartY = touch.clientY;
     isSwipeActive = true;
   }
@@ -524,6 +593,21 @@ const draggedIndex = ref(null);
 const hoverIndex = ref(null);
 const dropPosition = ref(null); // 'before' | 'after'
 
+function calculateDropPosition(cursorY, rect, index) {
+  const relY = cursorY - rect.top;
+  const ratio = Math.max(0, Math.min(1, relY / rect.height));
+
+  // Generous margin based on drag direction:
+  // Moving downwards: prefer 'after' unless pointer is in top 20%
+  // Moving upwards: prefer 'before' unless pointer is in bottom 20%
+  if (draggedIndex.value !== null && draggedIndex.value < index) {
+    return ratio < 0.2 ? "before" : "after";
+  } else if (draggedIndex.value !== null && draggedIndex.value > index) {
+    return ratio > 0.8 ? "after" : "before";
+  }
+  return ratio < 0.5 ? "before" : "after";
+}
+
 function handleDragStart(event, index) {
   isInteractingWithItem.value = true;
   draggedIndex.value = index;
@@ -539,28 +623,61 @@ function handleDragStart(event, index) {
 function handleDragOver(event, index) {
   hoverIndex.value = index;
   const rect = event.currentTarget.getBoundingClientRect();
-  dropPosition.value = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+  dropPosition.value = calculateDropPosition(event.clientY, rect, index);
+}
+
+function handleListDragOver(event) {
+  if (draggedIndex.value === null) return;
+  const listItems = event.currentTarget.querySelectorAll(".queue-track-row");
+  if (!listItems.length) return;
+  const lastItem = listItems[listItems.length - 1];
+  const lastRect = lastItem.getBoundingClientRect();
+  if (event.clientY > lastRect.bottom) {
+    hoverIndex.value = queue.value.length - 1;
+    dropPosition.value = "after";
+  }
+}
+
+function handleListDrop() {
+  if (draggedIndex.value === null) return;
+  if (hoverIndex.value !== null) {
+    handleDrop(hoverIndex.value);
+  }
 }
 
 function handleDrop(targetIndex) {
-  if (draggedIndex.value === null || draggedIndex.value === targetIndex) {
+  if (
+    draggedIndex.value === null ||
+    targetIndex === null ||
+    targetIndex === undefined
+  ) {
     handleDragEnd();
     return;
   }
 
   const fromIndex = draggedIndex.value;
-  let toIndex = dropPosition.value === "after" ? targetIndex : targetIndex;
+  const position = dropPosition.value || "after";
 
-  // Calculate actual destination index
-  if (dropPosition.value === "after" && fromIndex < targetIndex) {
-    toIndex = targetIndex;
-  } else if (dropPosition.value === "after" && fromIndex > targetIndex) {
-    toIndex = targetIndex + 1;
-  } else if (dropPosition.value === "before" && fromIndex < targetIndex) {
-    toIndex = targetIndex - 1;
+  const targetSong = queue.value[targetIndex];
+  if (!targetSong) {
+    handleDragEnd();
+    return;
   }
 
-  library.moveQueueItem(fromIndex, Math.max(0, Math.min(queue.value.length - 1, toIndex)));
+  const queueCopy = [...queue.value];
+  const [movedSong] = queueCopy.splice(fromIndex, 1);
+
+  let targetPos = queueCopy.findIndex((s) => s.id === targetSong.id);
+  if (targetPos === -1) {
+    targetPos = targetIndex;
+  }
+
+  const insertIndex = position === "after" ? targetPos + 1 : targetPos;
+  const clampedIndex = Math.max(0, Math.min(queueCopy.length, insertIndex));
+
+  queueCopy.splice(clampedIndex, 0, movedSong);
+  library.playQueue = queueCopy;
+
   handleDragEnd();
 
   setTimeout(() => {
@@ -582,6 +699,7 @@ function handleTouchItemStart(event, index) {
   isInteractingWithItem.value = true;
   draggedIndex.value = index;
   hoverIndex.value = index;
+  dropPosition.value = null;
 }
 
 function handleTouchItemMove(event) {
@@ -597,7 +715,11 @@ function handleTouchItemMove(event) {
     if (targetIdx !== -1) {
       hoverIndex.value = targetIdx;
       const rect = targetRow.getBoundingClientRect();
-      dropPosition.value = touch.clientY < rect.top + rect.height / 2 ? "before" : "after";
+      dropPosition.value = calculateDropPosition(
+        touch.clientY,
+        rect,
+        targetIdx,
+      );
     }
   }
 }
