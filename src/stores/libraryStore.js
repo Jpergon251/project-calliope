@@ -750,14 +750,24 @@ export const useLibraryStore = defineStore("library", () => {
   async function init() {
     try {
       await loadPlaylists();
-      await loadSavedFolder();
+
+      // Primero recuperamos la carpeta, pero todavía NO escaneamos.
+      await loadSavedFolder(false);
+
       if (folderHandle.value) {
+        // Primero cargamos los álbumes y sus portadas.
         await loadAlbums();
+
+        // Después escaneamos las canciones.
+        // Así, cuando una canción busque la portada de su álbum,
+        // albums.value ya está disponible.
+        await scanFolder();
       } else {
         albums.value = [];
         artists.value = [];
         songs.value = [];
       }
+
       await loadHistory();
       await loadCustomArtistCovers();
       await loadArtistProfiles();
@@ -799,9 +809,11 @@ export const useLibraryStore = defineStore("library", () => {
       await loadHistory();
       await loadCustomArtistCovers();
       await loadArtistProfiles();
-      await loadSavedFolder();
+      await loadSavedFolder(false);
+
       if (folderHandle.value) {
         await loadAlbums();
+        await scanFolder();
       }
     }
   }
@@ -842,7 +854,7 @@ export const useLibraryStore = defineStore("library", () => {
   // FOLDER
   // =========================
 
-  async function loadSavedFolder() {
+  async function loadSavedFolder(shouldScan = true) {
     const user = useUserStore();
 
     if (user.isGuest) {
@@ -871,7 +883,9 @@ export const useLibraryStore = defineStore("library", () => {
             nativeUri: result.uri,
           };
 
-          await scanFolderNative(result.uri);
+          if (shouldScan) {
+            await scanFolderNative(result.uri);
+          }
         }
       } catch (e) {
         console.warn("⚠️ Could not load saved native folder:", e);
@@ -926,7 +940,9 @@ export const useLibraryStore = defineStore("library", () => {
 
       folderHandle.value = savedHandle;
 
-      await scanFolder();
+      if (shouldScan) {
+        await scanFolder();
+      }
     } catch (e) {
       console.warn("No se pudo cargar la carpeta guardada del perfil:", e);
       folderHandle.value = null;
