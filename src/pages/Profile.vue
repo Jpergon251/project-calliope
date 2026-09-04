@@ -73,11 +73,7 @@
             </p>
           </template>
 
-          <form
-            v-else
-            class="profile-edit-form"
-            @submit.prevent="saveIdentity"
-          >
+          <form v-else class="profile-edit-form" @submit.prevent="saveIdentity">
             <div class="form-row">
               <label class="form-field">
                 <span>Nombre de usuario</span>
@@ -121,9 +117,7 @@
             </label>
 
             <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                Guardar
-              </button>
+              <button type="submit" class="btn btn-primary">Guardar</button>
 
               <button
                 type="button"
@@ -146,11 +140,7 @@
               Editar perfil
             </button>
 
-            <button
-              type="button"
-              class="btn btn-ghost"
-              @click="handleLogout"
-            >
+            <button type="button" class="btn btn-ghost" @click="handleLogout">
               <LogOut :size="14" />
               Cerrar sesión
             </button>
@@ -197,19 +187,24 @@
             Tus estadísticas de escucha
           </h2>
           <p class="stats-subtitle">
-            Métricas, hábitos y descubrimientos musicales registrados en este perfil.
+            Métricas, hábitos y descubrimientos musicales registrados en este
+            perfil.
           </p>
         </div>
 
         <!-- Period selector pills -->
-        <div class="stats-period-selector" role="group" aria-label="Periodo de estadísticas">
+        <div
+          class="stats-period-selector"
+          role="group"
+          aria-label="Periodo de estadísticas"
+        >
           <button
             v-for="p in periodOptions"
             :key="p.id"
             type="button"
             class="period-pill"
             :class="{ active: selectedPeriod === p.id }"
-            @click="selectedPeriod = p.id"
+            @click="selectPeriod(p.id)"
           >
             {{ p.label }}
           </button>
@@ -224,7 +219,9 @@
           </div>
           <div class="kpi-info">
             <span class="kpi-label">Tiempo escuchado</span>
-            <strong class="kpi-value">{{ currentStats.totalListenTimeFormatted }}</strong>
+            <strong class="kpi-value">{{
+              currentStats.totalListenTimeFormatted
+            }}</strong>
             <span class="kpi-subtext">{{ selectedPeriodLabel }}</span>
           </div>
         </div>
@@ -236,7 +233,11 @@
           <div class="kpi-info">
             <span class="kpi-label">Reproducciones</span>
             <strong class="kpi-value">{{ currentStats.totalPlays }}</strong>
-            <span class="kpi-subtext">{{ currentStats.totalPlays === 1 ? 'canción reproducida' : 'reproducciones' }}</span>
+            <span class="kpi-subtext">{{
+              currentStats.totalPlays === 1
+                ? "canción reproducida"
+                : "reproducciones"
+            }}</span>
           </div>
         </div>
 
@@ -246,7 +247,9 @@
           </div>
           <div class="kpi-info">
             <span class="kpi-label">Canciones distintas</span>
-            <strong class="kpi-value">{{ currentStats.uniqueSongsCount }}</strong>
+            <strong class="kpi-value">{{
+              currentStats.uniqueSongsCount
+            }}</strong>
             <span class="kpi-subtext">canciones únicas</span>
           </div>
         </div>
@@ -257,7 +260,9 @@
           </div>
           <div class="kpi-info">
             <span class="kpi-label">Artistas distintos</span>
-            <strong class="kpi-value">{{ currentStats.uniqueArtistsCount }}</strong>
+            <strong class="kpi-value">{{
+              currentStats.uniqueArtistsCount
+            }}</strong>
             <span class="kpi-subtext">artistas explorados</span>
           </div>
         </div>
@@ -268,7 +273,9 @@
           </div>
           <div class="kpi-info">
             <span class="kpi-label">Álbumes distintos</span>
-            <strong class="kpi-value">{{ currentStats.uniqueAlbumsCount }}</strong>
+            <strong class="kpi-value">{{
+              currentStats.uniqueAlbumsCount
+            }}</strong>
             <span class="kpi-subtext">álbumes escuchados</span>
           </div>
         </div>
@@ -279,33 +286,61 @@
           </div>
           <div class="kpi-info">
             <span class="kpi-label">Canciones con Like</span>
-            <strong class="kpi-value">{{ currentStats.likedSongsCount }}</strong>
+            <strong class="kpi-value">{{
+              currentStats.likedSongsCount
+            }}</strong>
             <span class="kpi-subtext">favoritas en este perfil</span>
           </div>
         </div>
       </div>
 
       <!-- Spotlight Highlights -->
-      <div v-if="currentStats.topSong || currentStats.topArtist || currentStats.topAlbum" class="stats-spotlight-row">
+      <div
+        v-if="
+          currentStats.topSong ||
+          currentStats.topArtist ||
+          currentStats.topAlbum
+        "
+        class="stats-spotlight-row"
+      >
         <!-- Top Song Card -->
-        <div v-if="currentStats.topSong" class="spotlight-card song-spotlight" @click="playSpotlightSong(currentStats.topSong)">
+        <div
+          v-if="currentStats.topSong"
+          class="spotlight-card song-spotlight"
+          @click="playSpotlightSong(currentStats.topSong)"
+        >
           <div class="spotlight-badge">
             <Flame :size="13" />
             <span>CANCIÓN MÁS ESCUCHADA</span>
           </div>
           <div class="spotlight-body">
             <div class="spotlight-cover">
-              <img v-if="currentStats.topSong.cover" :src="currentStats.topSong.cover" :alt="currentStats.topSong.title" />
+              <img
+                v-if="currentStats.topSong.cover"
+                :src="currentStats.topSong.cover"
+                :alt="currentStats.topSong.title"
+              />
               <SongIconCover v-else class="spotlight-cover-fallback" />
               <div class="spotlight-play-overlay">
                 <Play :size="18" fill="currentColor" />
               </div>
             </div>
             <div class="spotlight-details">
-              <h4 class="spotlight-title" :title="currentStats.topSong.title">{{ currentStats.topSong.title }}</h4>
-              <p class="spotlight-subtitle">{{ currentStats.topSong.artist }}</p>
+              <h4 class="spotlight-title" :title="currentStats.topSong.title">
+                {{ currentStats.topSong.title }}
+              </h4>
+              <p class="spotlight-subtitle">
+                {{ currentStats.topSong.artist }}
+              </p>
               <div class="spotlight-metrics">
-                <span><strong>{{ currentStats.topSong.plays }}</strong> {{ currentStats.topSong.plays === 1 ? 'reproducción' : 'reproducciones' }}</span>
+                <span
+                  ><strong>{{ currentStats.topSong.plays }}</strong>
+                  {{
+                    currentStats.topSong.plays === 1
+                      ? "reproducción"
+                      : "reproducciones"
+                  }}</span
+                >
                 <span class="sep">•</span>
                 <span>{{ currentStats.topSong.listenTimeFormatted }}</span>
               </div>
@@ -314,7 +349,11 @@
         </div>
 
         <!-- Top Artist Card -->
-        <div v-if="currentStats.topArtist" class="spotlight-card artist-spotlight" @click="goToArtist(currentStats.topArtist.name)">
+        <div
+          v-if="currentStats.topArtist"
+          class="spotlight-card artist-spotlight"
+          @click="goToArtist(currentStats.topArtist.name)"
+        >
           <div class="spotlight-badge">
             <Sparkles :size="13" />
             <span>ARTISTA MÁS ESCUCHADO</span>
@@ -332,7 +371,10 @@
               <h4 class="spotlight-title">{{ currentStats.topArtist.name }}</h4>
               <p class="spotlight-subtitle">Artista destacado</p>
               <div class="spotlight-metrics">
-                <span><strong>{{ currentStats.topArtist.plays }}</strong> reps.</span>
+                <span
+                  ><strong>{{ currentStats.topArtist.plays }}</strong>
+                  reps.</span
+                >
                 <span class="sep">•</span>
                 <span>{{ currentStats.topArtist.listenTimeFormatted }}</span>
               </div>
@@ -341,21 +383,36 @@
         </div>
 
         <!-- Top Album Card -->
-        <div v-if="currentStats.topAlbum" class="spotlight-card album-spotlight" @click="goToAlbum(currentStats.topAlbum.id)">
+        <div
+          v-if="currentStats.topAlbum"
+          class="spotlight-card album-spotlight"
+          @click="goToAlbum(currentStats.topAlbum.id)"
+        >
           <div class="spotlight-badge">
             <DiscAlbum :size="13" />
             <span>ÁLBUM MÁS ESCUCHADO</span>
           </div>
           <div class="spotlight-body">
             <div class="spotlight-cover">
-              <img v-if="currentStats.topAlbum.cover" :src="currentStats.topAlbum.cover" :alt="currentStats.topAlbum.name" />
+              <img
+                v-if="currentStats.topAlbum.cover"
+                :src="currentStats.topAlbum.cover"
+                :alt="currentStats.topAlbum.name"
+              />
               <DiscAlbum v-else :size="28" class="spotlight-cover-fallback" />
             </div>
             <div class="spotlight-details">
-              <h4 class="spotlight-title" :title="currentStats.topAlbum.name">{{ currentStats.topAlbum.name }}</h4>
-              <p class="spotlight-subtitle">{{ currentStats.topAlbum.artist || 'Varios artistas' }}</p>
+              <h4 class="spotlight-title" :title="currentStats.topAlbum.name">
+                {{ currentStats.topAlbum.name }}
+              </h4>
+              <p class="spotlight-subtitle">
+                {{ currentStats.topAlbum.artist || "Varios artistas" }}
+              </p>
               <div class="spotlight-metrics">
-                <span><strong>{{ currentStats.topAlbum.plays }}</strong> reps.</span>
+                <span
+                  ><strong>{{ currentStats.topAlbum.plays }}</strong>
+                  reps.</span
+                >
                 <span class="sep">•</span>
                 <span>{{ currentStats.topAlbum.listenTimeFormatted }}</span>
               </div>
@@ -369,31 +426,147 @@
         <div class="chart-header">
           <div class="chart-title-wrap">
             <h3>Actividad de escucha</h3>
-            <p>Distribución de tiempo reproducido en este periodo</p>
+            <p>Distribución de la métrica seleccionada en este periodo</p>
           </div>
           <div class="chart-legend">
             <span class="legend-dot"></span>
-            <span>Minutos escuchados</span>
+            <span>{{ selectedMetricLabel }}</span>
           </div>
         </div>
-
-        <div class="activity-bars-container" :class="`period-${selectedPeriod}`">
+        <div class="chart-controls">
           <div
-            v-for="(bucket, bIdx) in currentStats.chartData"
-            :key="bIdx"
-            class="activity-bar-col"
-            :class="{ 'is-current': bucket.isCurrent }"
+            class="metric-selector"
+            role="group"
+            aria-label="Métrica del gráfico"
           >
-            <div class="bar-track">
-              <div
-                class="bar-fill"
-                :style="{ height: `${getBarHeightPercent(bucket.minutes)}%` }"
-                :title="`${bucket.label}: ${bucket.minutes} min (${bucket.plays} rep.)`"
-              ></div>
+            <button
+              v-for="m in metricOptions"
+              :key="m.id"
+              type="button"
+              class="metric-pill"
+              :class="{ active: selectedMetric === m.id }"
+              @click="selectedMetric = m.id"
+            >
+              {{ m.label }}
+            </button>
+          </div>
+        </div>
+        <div class="period-nav">
+          <button
+            type="button"
+            class="period-nav-btn"
+            aria-label="Periodo anterior"
+            title="Periodo anterior"
+            @click="goPrevPeriod"
+          >
+            <ChevronLeft :size="16" />
+          </button>
+          <div class="period-nav-title">
+            <span class="period-nav-label">
+              {{ isCurrentPeriod ? "Actual" : "Periodo anterior" }}
+            </span>
+            <strong>{{ periodTitle }}</strong>
+            <button
+              v-if="!isCurrentPeriod"
+              type="button"
+              class="period-now-btn"
+              @click="goToCurrentPeriod"
+            >
+              Volver al actual
+            </button>
+          </div>
+          <button
+            type="button"
+            class="period-nav-btn"
+            aria-label="Periodo siguiente"
+            title="Periodo siguiente"
+            :disabled="!canGoNext"
+            @click="goNextPeriod"
+          >
+            <ChevronRight :size="16" />
+          </button>
+        </div>
+        <div class="compare-row">
+          <button
+            type="button"
+            class="compare-toggle"
+            :class="{ active: compareEnabled }"
+            @click="compareEnabled = !compareEnabled"
+          >
+            <TrendingUp v-if="!compareEnabled" :size="14" />
+            <TrendingDown v-else :size="14" />
+            Comparar con el periodo anterior
+          </button>
+          <div
+            v-if="compareDelta"
+            class="compare-delta"
+            :class="compareDelta.positive ? 'is-positive' : 'is-negative'"
+          >
+            <span
+              >{{ compareDelta.positive ? "+" : "-"
+              }}{{ compareDelta.diffTimeFormatted }}</span
+            >
+            <span class="sep">·</span>
+            <span
+              >{{ compareDelta.positive ? "+" : "-"
+              }}{{ compareDelta.pct }}%</span
+            >
+          </div>
+        </div>
+        <div class="activity-chart-wrap">
+          <div
+            class="activity-bars-container"
+            :class="`period-${selectedPeriod}`"
+          >
+            <div
+              v-for="(bucket, bIdx) in chartBuckets"
+              :key="bIdx"
+              class="activity-bar-col"
+              :class="{ 'is-current': bucket.isCurrent }"
+              @mouseenter="setHoveredBucket({ bucket, index: bIdx })"
+              @mouseleave="clearHoveredBucket"
+              @click="toggleHoveredBucket({ bucket, index: bIdx })"
+            >
+              <div class="bar-track">
+                <div
+                  class="bar-fill"
+                  :style="{ height: `${getBarHeightPercent(bucket)}%` }"
+                ></div>
+              </div>
+              <span class="bar-label">{{ bucket.label }}</span>
+              <span class="bar-val">{{ formatBarValue(bucket) }}</span>
+              <span
+                v-if="bucket.isCurrent"
+                class="current-indicator-dot"
+                title="Momento actual"
+              ></span>
             </div>
-            <span class="bar-label">{{ bucket.label }}</span>
-            <span class="bar-val">{{ bucket.minutes > 0 ? `${bucket.minutes}m` : '' }}</span>
-            <span v-if="bucket.isCurrent" class="current-indicator-dot" title="Momento actual"></span>
+          </div>
+          <div v-if="hoveredBucket" class="chart-tooltip" :style="tooltipStyle">
+            <div class="chart-tooltip-title">
+              {{ bucketFullTooltipLabel(hoveredBucket.bucket) }}
+            </div>
+            <div class="chart-tooltip-row">
+              <strong>{{ formatMetricValue(hoveredBucket.bucket) }}</strong>
+            </div>
+            <div class="chart-tooltip-row">
+              <span
+                >{{ Math.round(hoveredBucket.bucket.minutes || 0) }} min
+                escuchados</span
+              >
+            </div>
+            <div class="chart-tooltip-row">
+              <span>{{ hoveredBucket.bucket.plays || 0 }} reproducciones</span>
+            </div>
+            <div class="chart-tooltip-row is-muted">
+              <span
+                >{{
+                  tooltipPercentOfTotal(
+                    bucketMetricValue(hoveredBucket.bucket),
+                  )
+                }}% del periodo</span
+              >
+            </div>
           </div>
         </div>
       </div>
@@ -407,7 +580,9 @@
               <Flame :size="15" />
               Top Canciones
             </h4>
-            <span class="ranking-count" v-if="currentStats.topSongs.length">{{ currentStats.topSongs.length }} canciones</span>
+            <span class="ranking-count" v-if="currentStats.topSongs.length"
+              >{{ currentStats.topSongs.length }} canciones</span
+            >
           </div>
 
           <div v-if="currentStats.topSongs.length" class="ranking-list">
@@ -417,23 +592,33 @@
               class="ranking-item"
               @click="playRankingSong(s.id)"
             >
-              <span class="rank-badge" :class="`rank-${s.rank}`">{{ s.rank }}</span>
+              <span class="rank-badge" :class="`rank-${s.rank}`">{{
+                s.rank
+              }}</span>
               <div class="ranking-cover">
                 <img v-if="s.cover" :src="s.cover" :alt="s.title" />
                 <SongIconCover v-else class="cover-icon" />
-                <div class="play-overlay"><Play :size="12" fill="currentColor" /></div>
+                <div class="play-overlay">
+                  <Play :size="12" fill="currentColor" />
+                </div>
               </div>
               <div class="ranking-meta">
                 <span class="ranking-name" :title="s.title">{{ s.title }}</span>
-                <span class="ranking-sub" @click.stop="goToArtist(s.artist)">{{ s.artist }}</span>
+                <span class="ranking-sub" @click.stop="goToArtist(s.artist)">{{
+                  s.artist
+                }}</span>
               </div>
               <div class="ranking-stats">
-                <span class="rank-plays">{{ s.plays }} {{ s.plays === 1 ? 'rep.' : 'reps.' }}</span>
+                <span class="rank-plays"
+                  >{{ s.plays }} {{ s.plays === 1 ? "rep." : "reps." }}</span
+                >
                 <span class="rank-duration">{{ s.listenTimeFormatted }}</span>
               </div>
             </div>
           </div>
-          <p v-else class="ranking-empty">No hay reproducciones registradas en este periodo.</p>
+          <p v-else class="ranking-empty">
+            No hay reproducciones registradas en este periodo.
+          </p>
         </div>
 
         <!-- Top Artistas -->
@@ -443,7 +628,9 @@
               <UserRound :size="15" />
               Top Artistas
             </h4>
-            <span class="ranking-count" v-if="currentStats.topArtists.length">{{ currentStats.topArtists.length }} artistas</span>
+            <span class="ranking-count" v-if="currentStats.topArtists.length"
+              >{{ currentStats.topArtists.length }} artistas</span
+            >
           </div>
 
           <div v-if="currentStats.topArtists.length" class="ranking-list">
@@ -453,13 +640,11 @@
               class="ranking-item clickable-row"
               @click="goToArtist(a.name)"
             >
-              <span class="rank-badge" :class="`rank-${a.rank}`">{{ a.rank }}</span>
+              <span class="rank-badge" :class="`rank-${a.rank}`">{{
+                a.rank
+              }}</span>
               <div class="ranking-avatar">
-                <img
-                  v-if="a.cover"
-                  :src="a.cover"
-                  :alt="a.name"
-                />
+                <img v-if="a.cover" :src="a.cover" :alt="a.name" />
                 <UserRound v-else :size="16" />
               </div>
               <div class="ranking-meta">
@@ -472,7 +657,9 @@
               </div>
             </div>
           </div>
-          <p v-else class="ranking-empty">No hay artistas registrados en este periodo.</p>
+          <p v-else class="ranking-empty">
+            No hay artistas registrados en este periodo.
+          </p>
         </div>
 
         <!-- Top Álbumes -->
@@ -482,7 +669,9 @@
               <DiscAlbum :size="15" />
               Top Álbumes
             </h4>
-            <span class="ranking-count" v-if="currentStats.topAlbums.length">{{ currentStats.topAlbums.length }} álbumes</span>
+            <span class="ranking-count" v-if="currentStats.topAlbums.length"
+              >{{ currentStats.topAlbums.length }} álbumes</span
+            >
           </div>
 
           <div v-if="currentStats.topAlbums.length" class="ranking-list">
@@ -492,14 +681,20 @@
               class="ranking-item clickable-row"
               @click="goToAlbum(alb.id)"
             >
-              <span class="rank-badge" :class="`rank-${alb.rank}`">{{ alb.rank }}</span>
+              <span class="rank-badge" :class="`rank-${alb.rank}`">{{
+                alb.rank
+              }}</span>
               <div class="ranking-cover">
                 <img v-if="alb.cover" :src="alb.cover" :alt="alb.name" />
                 <DiscAlbum v-else :size="16" class="cover-icon" />
               </div>
               <div class="ranking-meta">
-                <span class="ranking-name" :title="alb.name">{{ alb.name }}</span>
-                <span class="ranking-sub">{{ alb.artist || 'Varios artistas' }}</span>
+                <span class="ranking-name" :title="alb.name">{{
+                  alb.name
+                }}</span>
+                <span class="ranking-sub">{{
+                  alb.artist || "Varios artistas"
+                }}</span>
               </div>
               <div class="ranking-stats">
                 <span class="rank-plays">{{ alb.plays }} reps.</span>
@@ -507,12 +702,17 @@
               </div>
             </div>
           </div>
-          <p v-else class="ranking-empty">No hay álbumes registrados en este periodo.</p>
+          <p v-else class="ranking-empty">
+            No hay álbumes registrados en este periodo.
+          </p>
         </div>
       </div>
 
       <!-- Recent Playback Activity -->
-      <div v-if="currentStats.recentActivity.length" class="recent-activity-panel">
+      <div
+        v-if="currentStats.recentActivity.length"
+        class="recent-activity-panel"
+      >
         <div class="panel-header">
           <h3>
             <Clock :size="16" />
@@ -533,14 +733,20 @@
             <div class="activity-cover">
               <img v-if="act.cover" :src="act.cover" :alt="act.title" />
               <SongIconCover v-else class="cover-icon" />
-              <div class="play-overlay"><Play :size="11" fill="currentColor" /></div>
+              <div class="play-overlay">
+                <Play :size="11" fill="currentColor" />
+              </div>
             </div>
             <div class="activity-info">
               <span class="act-title">{{ act.title }}</span>
-              <span class="act-artist" @click.stop="goToArtist(act.artist)">{{ act.artist }}</span>
+              <span class="act-artist" @click.stop="goToArtist(act.artist)">{{
+                act.artist
+              }}</span>
             </div>
             <span class="act-time-listened">{{ act.listenTimeFormatted }}</span>
-            <span class="act-timestamp">{{ formatRelativeTime(act.timestamp) }}</span>
+            <span class="act-timestamp">{{
+              formatRelativeTime(act.timestamp)
+            }}</span>
           </div>
         </div>
       </div>
@@ -550,10 +756,7 @@
          APARIENCIA
          ============================================================ -->
 
-    <section
-      v-show="activeCategory === 'appearance'"
-      class="profile-section"
-    >
+    <section v-show="activeCategory === 'appearance'" class="profile-section">
       <h2>
         <Palette :size="17" />
         Apariencia
@@ -563,9 +766,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Color de acento</strong>
-            <p>
-              Elige el tono neón que tiñe botones, progreso y detalles.
-            </p>
+            <p>Elige el tono neón que tiñe botones, progreso y detalles.</p>
           </div>
 
           <div class="accent-swatches">
@@ -582,10 +783,7 @@
               :title="opt.label"
               @click="user.updateProfile({ accentColor: opt.value })"
             >
-              <Check
-                v-if="user.profile.accentColor === opt.value"
-                :size="13"
-              />
+              <Check v-if="user.profile.accentColor === opt.value" :size="13" />
             </button>
           </div>
         </div>
@@ -593,9 +791,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Menos animaciones</strong>
-            <p>
-              Reduce movimientos y transiciones en toda la aplicación.
-            </p>
+            <p>Reduce movimientos y transiciones en toda la aplicación.</p>
           </div>
 
           <ToggleSwitch
@@ -607,9 +803,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Visualizador de audio</strong>
-            <p>
-              Muestra el visualizador durante la reproducción.
-            </p>
+            <p>Muestra el visualizador durante la reproducción.</p>
           </div>
 
           <ToggleSwitch
@@ -624,10 +818,7 @@
          REPRODUCCIÓN
          ============================================================ -->
 
-    <section
-      v-show="activeCategory === 'playback'"
-      class="profile-section"
-    >
+    <section v-show="activeCategory === 'playback'" class="profile-section">
       <h2>
         <Play :size="17" />
         Reproducción
@@ -670,10 +861,7 @@
          BIBLIOTECA
          ============================================================ -->
 
-    <section
-      v-show="activeCategory === 'library'"
-      class="profile-section"
-    >
+    <section v-show="activeCategory === 'library'" class="profile-section">
       <h2>
         <LibraryIcon :size="17" />
         Biblioteca e Inicio
@@ -683,9 +871,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Orden de la biblioteca</strong>
-            <p>
-              Cómo se ordenan tus canciones por defecto.
-            </p>
+            <p>Cómo se ordenan tus canciones por defecto.</p>
           </div>
 
           <select
@@ -702,9 +888,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Mostrar "Vuelve a escucharlo"</strong>
-            <p>
-              Sección de contenido reciente en Inicio.
-            </p>
+            <p>Sección de contenido reciente en Inicio.</p>
           </div>
 
           <ToggleSwitch
@@ -716,9 +900,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Mostrar álbumes más escuchados</strong>
-            <p>
-              Ranking según tu actividad real de escucha.
-            </p>
+            <p>Ranking según tu actividad real de escucha.</p>
           </div>
 
           <ToggleSwitch
@@ -730,9 +912,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Mostrar playlists más escuchadas</strong>
-            <p>
-              Tus listas favoritas según el historial.
-            </p>
+            <p>Tus listas favoritas según el historial.</p>
           </div>
 
           <ToggleSwitch
@@ -748,9 +928,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Biblioteca de música</strong>
-            <p>
-              Administra la carpeta donde Calliope busca tus canciones.
-            </p>
+            <p>Administra la carpeta donde Calliope busca tus canciones.</p>
           </div>
         </div>
 
@@ -768,8 +946,8 @@
           <div class="pref-text">
             <strong>Cambiar carpeta de música</strong>
             <p>
-              Selecciona una nueva carpeta donde se encuentran tus
-              archivos de música.
+              Selecciona una nueva carpeta donde se encuentran tus archivos de
+              música.
             </p>
           </div>
 
@@ -786,8 +964,8 @@
           <div class="pref-text">
             <strong>Eliminar carpeta de música</strong>
             <p>
-              Desvincula la carpeta actual. Tus archivos originales
-              no serán eliminados.
+              Desvincula la carpeta actual. Tus archivos originales no serán
+              eliminados.
             </p>
           </div>
 
@@ -807,10 +985,7 @@
          AJUSTES
          ============================================================ -->
 
-    <section
-      v-show="activeCategory === 'settings'"
-      class="profile-section"
-    >
+    <section v-show="activeCategory === 'settings'" class="profile-section">
       <h2>
         <SettingsIcon :size="17" />
         Ajustes
@@ -820,9 +995,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Biblioteca de Música</strong>
-            <p>
-              Administra la carpeta donde Calliope busca tus canciones.
-            </p>
+            <p>Administra la carpeta donde Calliope busca tus canciones.</p>
           </div>
         </div>
 
@@ -840,8 +1013,8 @@
           <div class="pref-text">
             <strong>Cambiar carpeta de música</strong>
             <p>
-              Selecciona una nueva carpeta donde se encuentran tus
-              archivos de música.
+              Selecciona una nueva carpeta donde se encuentran tus archivos de
+              música.
             </p>
           </div>
 
@@ -858,8 +1031,8 @@
           <div class="pref-text">
             <strong>Eliminar carpeta de música</strong>
             <p>
-              Desvincula la carpeta actual. Tus archivos originales
-              no serán eliminados.
+              Desvincula la carpeta actual. Tus archivos originales no serán
+              eliminados.
             </p>
           </div>
 
@@ -879,8 +1052,7 @@
           <div class="pref-text">
             <strong>Estado de la Biblioteca</strong>
             <p>
-              Comprueba y mantiene organizada la información de tus
-              canciones.
+              Comprueba y mantiene organizada la información de tus canciones.
             </p>
           </div>
         </div>
@@ -898,9 +1070,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Gestionar metadatos</strong>
-            <p>
-              Consulta, edita y analiza los metadatos de tus canciones.
-            </p>
+            <p>Consulta, edita y analiza los metadatos de tus canciones.</p>
           </div>
 
           <button
@@ -916,9 +1086,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Escanear de nuevo</strong>
-            <p>
-              Busca nuevos archivos añadidos a la carpeta seleccionada.
-            </p>
+            <p>Busca nuevos archivos añadidos a la carpeta seleccionada.</p>
           </div>
 
           <button
@@ -935,8 +1103,8 @@
           <div class="pref-text">
             <strong>Reconstruir biblioteca</strong>
             <p>
-              Elimina la información guardada y vuelve a analizar
-              todos los archivos.
+              Elimina la información guardada y vuelve a analizar todos los
+              archivos.
             </p>
           </div>
 
@@ -956,10 +1124,7 @@
          PRIVACIDAD Y DATOS
          ============================================================ -->
 
-    <section
-      v-show="activeCategory === 'privacy'"
-      class="profile-section"
-    >
+    <section v-show="activeCategory === 'privacy'" class="profile-section">
       <h2>
         <ShieldCheck :size="17" />
         Privacidad y datos
@@ -979,7 +1144,9 @@
           </div>
 
           <ToggleSwitch
-            :model-value="Boolean(user.profile.private ?? user.profile.isPrivate)"
+            :model-value="
+              Boolean(user.profile.private ?? user.profile.isPrivate)
+            "
             @update:model-value="handleTogglePrivacy"
           />
         </div>
@@ -988,8 +1155,7 @@
           <div class="pref-text">
             <strong>Guardar historial de escucha</strong>
             <p>
-              Registra lo que reproduces para potenciar las secciones
-              de Inicio.
+              Registra lo que reproduces para potenciar las secciones de Inicio.
             </p>
           </div>
 
@@ -1007,9 +1173,7 @@
               {{ storageText }}
             </p>
 
-            <p v-else>
-              Calliope es 100% local: nada sale de este dispositivo.
-            </p>
+            <p v-else>Calliope es 100% local: nada sale de este dispositivo.</p>
           </div>
 
           <span class="local-badge">
@@ -1024,16 +1188,12 @@
           <div class="pref-text">
             <strong>Restablecer preferencias</strong>
             <p>
-              Vuelve a los valores originales de apariencia,
-              reproducción y biblioteca.
+              Vuelve a los valores originales de apariencia, reproducción y
+              biblioteca.
             </p>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-ghost"
-            @click="resetPreferences"
-          >
+          <button type="button" class="btn btn-ghost" @click="resetPreferences">
             Restablecer
           </button>
         </div>
@@ -1050,11 +1210,7 @@
             </p>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-ghost"
-            @click="handleLogout"
-          >
+          <button type="button" class="btn btn-ghost" @click="handleLogout">
             <LogOut :size="14" />
             Cerrar sesión
           </button>
@@ -1064,15 +1220,12 @@
           <div class="pref-text">
             <strong>Eliminar perfil</strong>
             <p>
-              Borra este perfil local, identidad y preferencias de este dispositivo.
+              Borra este perfil local, identidad y preferencias de este
+              dispositivo.
             </p>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-danger"
-            @click="wipeProfile"
-          >
+          <button type="button" class="btn btn-danger" @click="wipeProfile">
             Eliminar perfil
           </button>
         </div>
@@ -1187,7 +1340,8 @@
         </div>
 
         <p class="dialog-desc">
-          Para hacer privado este perfil, establece una contraseña. Se te pedirá cada vez que inicies sesión en este dispositivo.
+          Para hacer privado este perfil, establece una contraseña. Se te pedirá
+          cada vez que inicies sesión en este dispositivo.
         </p>
 
         <form @submit.prevent="confirmSetPassword">
@@ -1250,6 +1404,8 @@ import {
   BarChart3,
   Camera,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   DiscAlbum,
   Flame,
@@ -1266,6 +1422,8 @@ import {
   ShieldCheck,
   Sparkles,
   ThumbsUp,
+  TrendingDown,
+  TrendingUp,
   User,
   UserRound,
   X,
@@ -1309,85 +1467,389 @@ const periodOptions = [
   { id: "month", label: "Mes" },
   { id: "all", label: "Año" },
 ];
-
+const metricOptions = [
+  { id: "minutes", label: "Tiempo escuchado", unit: "min" },
+  { id: "plays", label: "Reproducciones", unit: "" },
+  { id: "songs", label: "Canciones distintas", unit: "" },
+  { id: "artists", label: "Artistas distintos", unit: "" },
+  { id: "albums", label: "Álbumes distintos", unit: "" },
+];
 const selectedPeriod = ref("all");
-
-const selectedPeriodLabel = computed(() => {
-  switch (selectedPeriod.value) {
-    case "day":
-      return "en las últimas 24h";
-    case "week":
-      return "en los últimos 7 días";
-    case "month":
-      return "en los últimos 30 días";
-    default:
-      return "en el año actual";
+// Fecha ancla del periodo actualmente visualizado. null = periodo actual.
+const periodAnchor = ref(null);
+function selectPeriod(id) {
+  selectedPeriod.value = id;
+  periodAnchor.value = null;
+  compareEnabled.value = false;
+}
+const selectedMetric = ref("minutes");
+const compareEnabled = ref(false);
+const periodTitle = computed(() => {
+  const p = selectedPeriod.value;
+  const anchor = periodAnchor.value ? new Date(periodAnchor.value) : new Date();
+  const range = library.getPeriodRange(p, anchor);
+  if (p === "day") {
+    return range.start.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   }
+  if (p === "week") {
+    const end = new Date(range.start);
+    end.setDate(end.getDate() + 6);
+    return `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`;
+  }
+  if (p === "month") {
+    return range.start.toLocaleDateString("es-ES", {
+      month: "long",
+      year: "numeric",
+    });
+  }
+  return String(range.start.getFullYear());
 });
-
+const isCurrentPeriod = computed(() => {
+  if (!periodAnchor.value) return true;
+  const anchor = new Date(periodAnchor.value);
+  const currentRange = library.getPeriodRange(selectedPeriod.value, new Date());
+  const range = library.getPeriodRange(selectedPeriod.value, anchor);
+  // El periodo es "actual" si su inicio coincide con el del periodo real, o
+  // si el ancla cae DENTRO del periodo actual (evita quedar atrapado).
+  return (
+    range.start.getTime() === currentRange.start.getTime() ||
+    (range.start.getTime() <= currentRange.anchor.getTime() &&
+      currentRange.anchor.getTime() < range.end.getTime())
+  );
+});
+const canGoNext = computed(() => {
+  if (!isCurrentPeriod.value) {
+    // Solo se puede avanzar si aún hay un periodo FUTURO, es decir, si el
+    // periodo visualizado está ESTRICTAMENTE en el pasado respecto al actual.
+    const anchor = periodAnchor.value
+      ? new Date(periodAnchor.value)
+      : new Date();
+    const range = library.getPeriodRange(selectedPeriod.value, anchor);
+    const currentAnchor = library.getPeriodRange(
+      selectedPeriod.value,
+      new Date(),
+    ).anchor;
+    return range.start.getTime() < currentAnchor.getTime();
+  }
+  return false;
+});
+const selectedPeriodLabel = computed(() => {
+  const base =
+    selectedPeriod.value === "day"
+      ? "día"
+      : selectedPeriod.value === "week"
+        ? "semana"
+        : selectedPeriod.value === "month"
+          ? "mes"
+          : "año";
+  if (isCurrentPeriod.value) return `en este ${base}`;
+  return periodTitle.value;
+});
 const currentStats = computed(() => {
-  return library.getProfileStats(selectedPeriod.value);
+  const anchor = periodAnchor.value ? new Date(periodAnchor.value) : null;
+  return library.getProfileStats(selectedPeriod.value, anchor);
 });
-
-function getBarHeightPercent(minutes) {
-  const chartData = currentStats.value?.chartData || [];
-  const maxMin = Math.max(1, ...chartData.map((b) => b.minutes || 0));
-  if (!minutes || minutes <= 0) return 4;
-  return Math.min(100, Math.max(10, Math.round((minutes / maxMin) * 100)));
+const compareStats = computed(() => {
+  if (!compareEnabled.value) return null;
+  const anchor = periodAnchor.value ? new Date(periodAnchor.value) : new Date();
+  const prevAnchor = library.shiftPeriod(selectedPeriod.value, anchor, -1);
+  return library.getProfileStats(selectedPeriod.value, prevAnchor);
+});
+// ============================================================
+//   MÉTRICAS DEL GRÁFICO
+// ============================================================
+// Alterna entre métricas y devuelve el valor correspondiente de un bucket.
+function bucketMetricValue(bucket) {
+  const m = selectedMetric.value;
+  if (m === "plays") return bucket.plays || 0;
+  if (m === "songs") return bucket.uniqueSongs || 0;
+  if (m === "artists") return bucket.uniqueArtists || 0;
+  if (m === "albums") return bucket.uniqueAlbums || 0;
+  return bucket.minutes || 0;
 }
-/* ============================================================
-   TOOLTIP DE ACTIVIDAD DE ESCUCHA
-   ============================================================ */
+function bucketMatchesEvent(bucket, ev) {
+  const p = selectedPeriod.value;
+  const evDate = new Date(ev.timestamp || 0);
+  if (p === "day") return evDate.getHours() === bucket.hour;
+  if (p === "week" || p === "month")
+    return bucket.date === toLocalDateStr(evDate);
+  return (
+    evDate.getMonth() === bucket.monthIndex &&
+    evDate.getFullYear() === bucket.year
+  );
+}
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// Buckets del gráfico con la métrica seleccionada. Para métricas "distintas"
+// se recalculan a partir de los eventos del periodo consultado.
+const chartBuckets = computed(() => {
+  const stats = currentStats.value;
+  const buckets = (stats?.chartData || []).map((b) => ({ ...b }));
+  const metric = selectedMetric.value;
+  if (metric === "minutes" || metric === "plays") return buckets;
+  const start = stats?.periodStart || 0;
+  const end = stats?.periodEnd || 0;
+  const events = library.playbackEvents.filter((ev) => {
+    const t = ev.timestamp || 0;
+    return t >= start && t < end;
+  });
+  for (const b of buckets) {
+    const set = new Set();
+    for (const ev of events) {
+      if (!bucketMatchesEvent(b, ev)) continue;
+      let key = null;
+      if (metric === "artists")
+        key = ev.artist || ev.artists?.[0] || "Desconocido";
+      else if (metric === "songs") key = ev.songId;
+      else key = ev.albumId || ev.album || "desconocido";
+      if (key) set.add(key);
+    }
+    b.uniqueSongs = metric === "songs" ? set.size : 0;
+    b.uniqueArtists = metric === "artists" ? set.size : 0;
+    b.uniqueAlbums = metric === "albums" ? set.size : 0;
+  }
+  return buckets;
+});
+const metricMax = computed(() => {
+  const vals = chartBuckets.value.map((b) => bucketMetricValue(b));
+  return Math.max(1, ...vals);
+});
+const metricTotal = computed(() => {
+  return chartBuckets.value.reduce((acc, b) => acc + bucketMetricValue(b), 0);
+});
+const compareSeries = computed(() => {
+  if (!compareStats.value) return null;
+  const metric = selectedMetric.value;
+  const compBuckets = (compareStats.value.chartData || []).map((b) => ({
+    ...b,
+  }));
+  if (metric !== "minutes" && metric !== "plays") {
+    const start = compareStats.value.periodStart || 0;
+    const end = compareStats.value.periodEnd || 0;
+    const events = library.playbackEvents.filter((ev) => {
+      const t = ev.timestamp || 0;
+      return t >= start && t < end;
+    });
+    for (const b of compBuckets) {
+      const set = new Set();
+      for (const ev of events) {
+        if (!bucketMatchesEvent(b, ev)) continue;
+        let key = null;
+        if (metric === "artists")
+          key = ev.artist || ev.artists?.[0] || "Desconocido";
+        else if (metric === "songs") key = ev.songId;
+        else key = ev.albumId || ev.album || "desconocido";
+        if (key) set.add(key);
+      }
+      b.uniqueSongs = metric === "songs" ? set.size : 0;
+      b.uniqueArtists = metric === "artists" ? set.size : 0;
+      b.uniqueAlbums = metric === "albums" ? set.size : 0;
+    }
+  }
+  return compBuckets.map((b) => bucketMetricValue(b));
+});
+// Diferencia para KPIs y tendencia.
+const compareDelta = computed(() => {
+  if (!compareStats.value) return null;
+  const cur = currentStats.value;
+  const prev = compareStats.value;
+  const curTime = cur?.totalListenTime || 0;
+  const prevTime = prev?.totalListenTime || 0;
+  const diffTime = curTime - prevTime;
+  const pct =
+    prevTime > 0
+      ? ((curTime - prevTime) / prevTime) * 100
+      : curTime > 0
+        ? 100
+        : 0;
+  return {
+    diffTime,
+    diffTimeFormatted: formatListenTimeAbs(Math.abs(diffTime)),
+    pct: Math.round(pct * 10) / 10,
+    positive: diffTime >= 0,
+    prevTimeFormatted: library.formatListenTime(prevTime),
+    diffPlays: (cur?.totalPlays || 0) - (prev?.totalPlays || 0),
+  };
+});
+function formatListenTimeAbs(seconds) {
+  if (!seconds || seconds <= 0) return "0 min";
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+function kpiDelta(key) {
+  if (!compareStats.value) return null;
+  const cur = currentStats.value;
+  const prev = compareStats.value;
+  let curVal = 0;
+  let prevVal = 0;
+  if (key === "time") {
+    curVal = cur?.totalListenTime || 0;
+    prevVal = prev?.totalListenTime || 0;
+  } else if (key === "plays") {
+    curVal = cur?.totalPlays || 0;
+    prevVal = prev?.totalPlays || 0;
+  } else if (key === "songs") {
+    curVal = cur?.uniqueSongsCount || 0;
+    prevVal = prev?.uniqueSongsCount || 0;
+  } else if (key === "artists") {
+    curVal = cur?.uniqueArtistsCount || 0;
+    prevVal = prev?.uniqueArtistsCount || 0;
+  } else if (key === "albums") {
+    curVal = cur?.uniqueAlbumsCount || 0;
+    prevVal = prev?.uniqueAlbumsCount || 0;
+  }
+  const diff = curVal - prevVal;
+  return {
+    diff,
+    positive: diff >= 0,
+    pct:
+      prevVal > 0
+        ? Math.round((diff / prevVal) * 1000) / 10
+        : diff > 0
+          ? 100
+          : 0,
+  };
+}
+// Navegación histórica.
+function goPrevPeriod() {
+  const anchor = periodAnchor.value ? new Date(periodAnchor.value) : new Date();
+  periodAnchor.value = library
+    .shiftPeriod(selectedPeriod.value, anchor, -1)
+    .getTime();
+}
+function goNextPeriod() {
+  if (!canGoNext.value) return;
+  const anchor = periodAnchor.value ? new Date(periodAnchor.value) : new Date();
+  periodAnchor.value = library
+    .shiftPeriod(selectedPeriod.value, anchor, 1)
+    .getTime();
+}
+function goToCurrentPeriod() {
+  periodAnchor.value = null;
+}
+// ============================================================
+//   GRÁFICO DE BARRAS + TOOLTIP
+// ============================================================
+const selectedMetricLabel = computed(() => {
+  const m = metricOptions.find((o) => o.id === selectedMetric.value);
+  return m ? m.label : "Tiempo escuchado";
+});
+function getBarHeightPercent(bucket) {
+  const max = metricMax.value;
+  const val = bucketMetricValue(bucket);
+  if (!max) return 0;
+  return Math.max(0, Math.min(100, (val / max) * 100));
+}
+function formatBarValue(bucket) {
+  const m = selectedMetric.value;
+  const v = bucketMetricValue(bucket);
+  if (!v) return "";
+  if (m === "minutes") return `${Math.round(v)}m`;
+  return String(Math.round(v));
+}
+function formatMetricValue(bucket) {
+  const m = selectedMetric.value;
+  const v = bucketMetricValue(bucket);
+  if (m === "minutes") return `${Math.round(v)} min escuchados`;
+  if (m === "plays") return `${Math.round(v)} reproducciones`;
+  if (m === "songs") return `${Math.round(v)} canciones distintas`;
+  if (m === "artists") return `${Math.round(v)} artistas distintos`;
+  return `${Math.round(v)} álbumes distintos`;
+}
+// Tooltip interactivo (hover en desktop, tap en móvil).
 const hoveredBucket = ref(null);
-function showBucketTooltip(bucket) {
-  hoveredBucket.value = bucket;
+function setHoveredBucket(h) {
+  hoveredBucket.value = h;
 }
-function hideBucketTooltip() {
+function toggleHoveredBucket(h) {
+  if (hoveredBucket.value && hoveredBucket.value.index === h.index) {
+    hoveredBucket.value = null;
+  } else {
+    hoveredBucket.value = h;
+  }
+}
+function clearHoveredBucket() {
   hoveredBucket.value = null;
 }
-function tooltipPercentOfTotal(bucket) {
-  const total = currentStats.value?.totalListenTime || 0;
-  const bucketSec = (bucket?.minutes || 0) * 60;
-  if (!total || !bucketSec) return "0";
-  return ((bucketSec / total) * 100).toFixed(1).replace(/\.?0+$/, "");
+const tooltipStyle = computed(() => {
+  const h = hoveredBucket.value;
+  if (!h || !chartBuckets.value.length) return { display: "none" };
+  const n = chartBuckets.value.length;
+  const leftPct = (h.index / n) * 100;
+  const left = Math.max(6, Math.min(94, leftPct));
+  return { left: `${left}%` };
+});
+function tooltipPercentOfTotal(value) {
+  const total = metricTotal.value || 0;
+  if (!total) return "0";
+  return ((value / total) * 100).toFixed(1).replace(/\.?0+$/, "");
 }
-// Etiqueta contextual completa para el tooltip (p. ej. "Viernes 14 de febrero",
-// "14:00 - 15:00", "Febrero"). Según el periodo seleccionado.
-function bucketFullLabel(bucket) {
+function bucketFullTooltipLabel(bucket) {
   if (!bucket) return "";
   const p = selectedPeriod.value;
+  const monthsFull = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
   if (p === "day") {
-    const h = (bucket.hour ?? 0);
+    const h = bucket.hour ?? 0;
     const next = (h + 1) % 24;
     return `${String(h).padStart(2, "0")}:00 – ${String(next).padStart(2, "0")}:00`;
   }
-  if (p === "month") {
-    const d = bucket.dayNumber;
-    if (d) {
-      const now = new Date();
-      const date = new Date(now.getFullYear(), now.getMonth(), d);
-      return date.toLocaleDateString("es-ES", {
+  if (p === "week") {
+    if (
+      bucket.year != null &&
+      bucket.month != null &&
+      bucket.dayOfMonth != null
+    ) {
+      const d = new Date(bucket.year, bucket.month, bucket.dayOfMonth);
+      return d.toLocaleDateString("es-ES", {
         weekday: "long",
         day: "numeric",
         month: "long",
       });
     }
+    return bucket.label || "";
   }
-  if (p === "all") {
-    const monthNamesFull = [
-      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-    ];
-    if (bucket.monthIndex != null) {
-      return `${monthNamesFull[bucket.monthIndex]} ${bucket.year || ""}`.trim();
+  if (p === "month") {
+    if (
+      bucket.year != null &&
+      bucket.month != null &&
+      bucket.dayNumber != null
+    ) {
+      const d = new Date(bucket.year, bucket.month, bucket.dayNumber);
+      return d.toLocaleDateString("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
     }
+    return bucket.label || "";
   }
-  // week o fallback
-  const dayNamesFull = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  if (bucket.label === "Hoy") return "Hoy";
+  if (bucket.monthIndex != null) {
+    return `${monthsFull[bucket.monthIndex]} ${bucket.year || ""}`.trim();
+  }
   return bucket.label || "";
 }
-
 
 function formatRelativeTime(timestamp) {
   if (!timestamp) return "";

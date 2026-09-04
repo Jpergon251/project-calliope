@@ -930,9 +930,12 @@ export const useLibraryStore = defineStore("library", () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }
 
-  function generateChartData(events, period) {
+  // `now` es una Date opcional que ancla el periodo a una referencia concreta.
+  // Se usa para poder navegar a periodos históricos (día/semana/mes/año
+  // anteriores o posteriores) manteniendo la misma lógica de agrupación.
+  // Si no se pasa, se usa "ahora" (comportamiento original).
+  function generateChartData(events, period, now = new Date()) {
     const buckets = [];
-    const now = new Date();
     // Fecha en formato YYYY-MM-DD usando los componentes LOCALES.
     // toISOString() convierte a UTC, lo que desplazaba los días en
     // zonas horarias por delante de UTC (p. ej. España) y hacía que
@@ -947,21 +950,24 @@ export const useLibraryStore = defineStore("library", () => {
         d1.getDate() === d2.getDate()
       );
     }
+    // "Hoy" siempre se refiere a la fecha REAL actual, no al periodo navegado.
+    const realNow = new Date();
 
     if (period === "day") {
       // 1. Todas las 24 horas del día (00h a 23h), resaltando la hora actual
+      //    (solo se resalta si el día anclado ES hoy; en días históricos no hay
+      //    hora "actual").
       const currentHour = now.getHours();
-
+      const anchoringToday = isSameDay(now, realNow);
       for (let h = 0; h < 24; h++) {
         buckets.push({
           hour: h,
           label: `${String(h).padStart(2, "0")}h`,
           plays: 0,
           minutes: 0,
-          isCurrent: h === currentHour,
+          isCurrent: anchoringToday && h === currentHour,
         });
       }
-
       for (const ev of events) {
         const evDate = new Date(ev.timestamp);
         if (isSameDay(evDate, now)) {
@@ -980,21 +986,22 @@ export const useLibraryStore = defineStore("library", () => {
       const monday = new Date(now);
       monday.setDate(now.getDate() + mondayOffset);
       monday.setHours(0, 0, 0, 0);
-
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
-        const isToday = isSameDay(d, now);
+        const isToday = isSameDay(d, realNow);
         const dayStr = toLocalDateStr(d);
         buckets.push({
           label: isToday ? "Hoy" : dayNames[i],
           date: dayStr,
+          dayOfMonth: d.getDate(),
+          month: d.getMonth(),
+          year: d.getFullYear(),
           plays: 0,
           minutes: 0,
           isCurrent: isToday,
         });
       }
-
       for (const ev of events) {
         const evDate = toLocalDateStr(new Date(ev.timestamp));
         const b = buckets.find((item) => item.date === evDate);
@@ -1008,21 +1015,21 @@ export const useLibraryStore = defineStore("library", () => {
       const year = now.getFullYear();
       const month = now.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-
       for (let day = 1; day <= daysInMonth; day++) {
         const d = new Date(year, month, day);
-        const isToday = isSameDay(d, now);
+        const isToday = isSameDay(d, realNow);
         const dayStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         buckets.push({
           label: isToday ? "Hoy" : String(day),
           date: dayStr,
           dayNumber: day,
+          month,
+          year,
           plays: 0,
           minutes: 0,
           isCurrent: isToday,
         });
       }
-
       for (const ev of events) {
         const evDate = new Date(ev.timestamp);
         if (evDate.getFullYear() === year && evDate.getMonth() === month) {
@@ -1052,7 +1059,7 @@ export const useLibraryStore = defineStore("library", () => {
         "Dic",
       ];
       for (let m = 0; m < 12; m++) {
-        const isCurrent = m === now.getMonth();
+        const isCurrent = m === now.getMonth() && isSameDay(now, realNow);
         buckets.push({
           label: monthNames[m],
           monthIndex: m,
@@ -1077,27 +1084,63 @@ export const useLibraryStore = defineStore("library", () => {
     return buckets;
   }
 
-  function getProfileStats(period = "all") {
-    const now = Date.now();
-    let minTimestamp = 0;
-
+  // Calcula el rango [start, end) de un periodo concreto anclado a una fecha
+  // de referencia. `period` puede ser 'day' | 'week' | 'month' | 'all' (año).
+  // Devuelve { start, end, anchor } donde anchor es el inicio del periodo (Date).
+  function getPeriodRange(period, reference = new Date()) {
+    const anchor = new Date(reference);
+    anchor.setHours(0, 0, 0, 0);
     if (period === "day") {
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      minTimestamp = startOfToday.getTime();
-    } else if (period === "week") {
-      minTimestamp = now - 7 * 24 * 60 * 60 * 1000;
-    } else if (period === "month") {
-      minTimestamp = now - 30 * 24 * 60 * 60 * 1000;
-    } else {
-      // "all" ahora representa el Año actual (Enero - Diciembre).
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      minTimestamp = startOfYear.getTime();
+      const start = new Date(anchor);
+      const end = new Date(anchor);
+      end.setDate(end.getDate() + 1);
+      return { start, end, anchor };
     }
-
-    const events = playbackEvents.value.filter(
-      (e) => (e.timestamp || 0) >= minTimestamp,
-    );
+    if (period === "week") {
+      // Semana de lunes a domingo.
+      const dow = anchor.getDay(); // 0 = domingo
+      const mondayOffset = dow === 0 ? -6 : 1 - dow;
+      const start = new Date(anchor);
+      start.setDate(anchor.getDate() + mondayOffset);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { start, end, anchor: start };
+    }
+    if (period === "month") {
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+      const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+      return { start, end, anchor: start };
+    }
+    // "all" representa el Año completo.
+    const start = new Date(anchor.getFullYear(), 0, 1);
+    const end = new Date(anchor.getFullYear() + 1, 0, 1);
+    return { start, end, anchor: start };
+  }
+  // Desplaza la referencia al periodo anterior o siguiente del mismo tipo.
+  function shiftPeriod(period, reference, direction) {
+    const r = new Date(reference);
+    if (direction === -1) {
+      if (period === "day") r.setDate(r.getDate() - 1);
+      else if (period === "week") r.setDate(r.getDate() - 7);
+      else if (period === "month") r.setMonth(r.getMonth() - 1);
+      else r.setFullYear(r.getFullYear() - 1);
+    } else {
+      if (period === "day") r.setDate(r.getDate() + 1);
+      else if (period === "week") r.setDate(r.getDate() + 7);
+      else if (period === "month") r.setMonth(r.getMonth() + 1);
+      else r.setFullYear(r.getFullYear() + 1);
+    }
+    return r;
+  }
+  function getProfileStats(period = "all", anchorDate = null) {
+    // `anchorDate` es una Date opcional que ancla el periodo (permite navegar
+    // a periodos históricos). Si no se pasa, se usa la fecha actual.
+    const reference = anchorDate instanceof Date ? new Date(anchorDate) : new Date();
+    const { start, end } = getPeriodRange(period, reference);
+    const events = playbackEvents.value.filter((e) => {
+      const t = e.timestamp || 0;
+      return t >= start.getTime() && t < end.getTime();
+    });
 
     let totalPlays = events.length;
     let totalListenTime = 0;
@@ -1172,7 +1215,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
-    if (period === "all" && profileStatsSummary.value) {
+    if (period === "all" && profileStatsSummary.value && reference.getFullYear() === new Date().getFullYear()) {
       const sum = profileStatsSummary.value;
       if ((sum.totalPlays || 0) > totalPlays) totalPlays = sum.totalPlays;
       if ((sum.totalListenTime || 0) > totalListenTime)
@@ -1335,27 +1378,29 @@ export const useLibraryStore = defineStore("library", () => {
       };
     });
 
-    const chartData = generateChartData(events, period);
-
-    return {
-      period,
-      totalPlays,
-      totalListenTime,
-      totalListenTimeFormatted: formatListenTime(totalListenTime),
-      uniqueSongsCount: songAgg.size,
-      uniqueArtistsCount: artistAgg.size,
-      uniqueAlbumsCount: albumAgg.size,
-      likedSongsCount,
-      topSong,
-      topArtist,
-      topAlbum,
-      topSongs,
-      topArtists,
-      topAlbums,
-      recentActivity,
-      chartData,
-    };
-  }
+      const chartData = generateChartData(events, period, start);
+      return {
+        period,
+        totalPlays,
+        totalListenTime,
+        totalListenTimeFormatted: formatListenTime(totalListenTime),
+        uniqueSongsCount: songAgg.size,
+        uniqueArtistsCount: artistAgg.size,
+        uniqueAlbumsCount: albumAgg.size,
+        likedSongsCount,
+        topSong,
+        topArtist,
+        topAlbum,
+        topSongs,
+        topArtists,
+        topAlbums,
+        recentActivity,
+        chartData,
+        // Rango del periodo consultado (útil para la navegación histórica).
+        periodStart: start.getTime(),
+        periodEnd: end.getTime(),
+      };
+    }
 
   // =========================
   // SHUFFLE & AUTOPLAY LOGIC
@@ -4416,7 +4461,8 @@ export const useLibraryStore = defineStore("library", () => {
     getSongStats,
 
     getProfileStats,
-
+    getPeriodRange,
+    shiftPeriod,
     formatListenTime,
 
     // -------------------------
