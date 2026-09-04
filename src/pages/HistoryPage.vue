@@ -61,7 +61,14 @@
             <!-- Details -->
             <div class="item-details">
               <span class="item-title" :title="item.title">{{ item.title }}</span>
-              <span class="item-subtitle">{{ item.subtitle }}</span>
+              <span
+                class="item-subtitle"
+                :class="{ 'clickable-artist': item.type === 'song' }"
+                @click.stop="item.type === 'song' ? goToArtist(item.subtitle) : null"
+                :title="item.type === 'song' ? `Ver artista: ${item.subtitle}` : ''"
+              >
+                {{ item.subtitle }}
+              </span>
             </div>
 
             <!-- Duration if song -->
@@ -197,6 +204,11 @@ function confirmClearHistory() {
   if (confirm('¿Deseas vaciar todo tu historial de reproducción?')) {
     library.clearListeningHistory();
   }
+}
+
+function goToArtist(name) {
+  if (!name || name === 'Unknown' || name === 'Artista desconocido') return;
+  router.push({ name: 'artist', params: { name: encodeURIComponent(name.trim()) } });
 }
 
 function playHistoryItem(item) {

@@ -57,7 +57,7 @@
 
   .song-info {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 16px;
     width: 100%;
@@ -139,31 +139,188 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    justify-self: center;
+    margin: 0 auto;
+    gap: 10px;
 
     button {
       display: grid;
-      width: 38px;
-      height: 38px;
-      padding: 0;
       place-items: center;
+      padding: 0;
       border: 1px solid transparent;
       border-radius: 50%;
-      background: transparent;
-      color: var(--text-primary);
       cursor: pointer;
       transition:
         background-color var(--transition-fast),
         border-color var(--transition-fast),
         color var(--transition-fast),
+        box-shadow var(--transition-fast),
         transform var(--transition-fast);
+
+      &:active {
+        transform: scale(0.92);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+    }
+
+    /* 1. Anterior y Siguiente (Skip buttons: idénticos entre sí) */
+    .skip-btn {
+      width: 38px;
+      height: 38px;
+      background: transparent;
+      color: var(--text-primary);
+
+      .control-icon {
+        width: 20px;
+        height: 20px;
+      }
 
       @media (hover: hover) and (pointer: fine) {
         &:hover {
           border-color: var(--border-color);
           background: var(--surface-hover);
-          color: var(--accent-light);
+          color: #fff;
           transform: translateY(-1px);
+        }
+      }
+    }
+
+    /* 2. Play/Pause (Botón central destacado) */
+    .play-pause-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      box-shadow: var(--neon-glow);
+      border: none;
+
+      .control-icon {
+        width: 20px;
+        height: 20px;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          background: var(--accent-hover);
+          box-shadow: var(--neon-glow);
+          transform: scale(1.06);
+        }
+      }
+
+      &:active {
+        background: var(--accent-active);
+        transform: scale(0.94);
+      }
+    }
+
+    /* 3. Aleatorio y Autoplay (Mode buttons: idénticos entre sí) */
+    .mode-btn {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      color: var(--text-muted);
+
+      .control-icon {
+        width: 17px;
+        height: 17px;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: var(--border-color);
+          transform: translateY(-1px);
+        }
+      }
+
+      &.active {
+        color: var(--accent-light, var(--accent));
+        border-color: var(--accent-border);
+        background: var(--accent-surface);
+        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.25);
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: var(--accent-surface-strong);
+            transform: scale(1.06);
+          }
+        }
+      }
+    }
+
+    /* 4. Botón de Cola */
+    .queue-button {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      color: var(--text-muted);
+
+      .control-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: var(--border-color);
+        }
+      }
+
+      &.active,
+      &.is-active {
+        color: var(--accent-light, var(--accent));
+        border-color: var(--accent-border);
+        background: var(--accent-surface);
+        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+      }
+    }
+  }
+
+  /* =========================================================
+     CALLIOPE PERCEPTUAL VOLUME CONTROL
+     ========================================================= */
+
+  .calliope-volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    -webkit-user-select: none;
+
+    .vol-btn {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      .vol-icon {
+        width: 18px;
+        height: 18px;
+        transition: transform var(--transition-fast), color var(--transition-fast);
+      }
+
+      &:hover {
+        background: var(--surface-hover);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+
+        .vol-icon {
+          transform: scale(1.08);
         }
       }
 
@@ -172,108 +329,209 @@
       }
 
       &:focus-visible {
-        outline: 2px solid var(--accent-light);
-        outline-offset: 3px;
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
       }
 
-      &:nth-child(2) {
-        width: 44px;
-        height: 44px;
-        background: var(--accent);
-        color: var(--accent-contrast);
-        box-shadow: var(--neon-glow);
+      &.muted {
+        color: var(--accent);
 
-        @media (hover: hover) and (pointer: fine) {
-          &:hover {
-            background: var(--accent-hover);
-            box-shadow: var(--neon-glow);
-            transform: scale(1.05);
-          }
+        .mute-icon {
+          color: var(--accent);
+        }
+      }
+    }
+
+    .vol-slider-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      touch-action: none;
+      outline: none;
+
+      &:focus-visible {
+        .vol-track {
+          box-shadow: 0 0 0 2px var(--accent-border);
+        }
+      }
+    }
+
+    .vol-track {
+      position: relative;
+      width: 100%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+      overflow: visible;
+      transition: background var(--transition-fast);
+    }
+
+    .vol-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+      transition: width 0.08s ease-out, background var(--transition-fast);
+    }
+
+    .vol-thumb {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--accent);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(var(--accent-rgb), 0.5);
+      transform: translate(-50%, -50%) scale(0.7);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform var(--transition-fast), opacity var(--transition-fast), border-color var(--transition-fast);
+
+      &.active {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    &:hover .vol-thumb,
+    &.is-dragging .vol-thumb {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .vol-badge {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      transform: translateX(-50%);
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(14, 14, 14, 0.95);
+      border: 1px solid var(--accent-border);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), var(--neon-glow-soft);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 100;
+
+      .vol-badge-text {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--accent-light, var(--accent));
+        letter-spacing: 0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      &::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 4px;
+        border-style: solid;
+        border-color: rgba(14, 14, 14, 0.95) transparent transparent transparent;
+      }
+    }
+
+    &.is-muted {
+      .vol-fill {
+        background: var(--text-muted);
+        box-shadow: none;
+      }
+      .vol-thumb {
+        border-color: var(--text-muted);
+      }
+    }
+
+    &.layout-bar {
+      justify-self: end;
+
+      .vol-slider-wrap {
+        width: 100px;
+        height: 28px;
+      }
+
+      .vol-track {
+        height: 4px;
+      }
+
+      &:hover,
+      &.is-dragging {
+        .vol-track {
+          background: rgba(255, 255, 255, 0.2);
+        }
+        .vol-fill {
+          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.65);
+        }
+      }
+    }
+
+    &.layout-expanded {
+      width: 100%;
+      padding: 4px 0;
+      gap: 14px;
+
+      .vol-btn {
+        width: 42px;
+        height: 42px;
+        border: 1px solid var(--border-color);
+        background: var(--surface-hover);
+
+        .vol-icon {
+          width: 20px;
+          height: 20px;
         }
 
-        &:active {
-          background: var(--accent-active);
-          transform: scale(0.94);
+        &:hover {
+          border-color: var(--accent);
+          color: var(--accent);
         }
       }
 
-      &.queue-button.active,
-      &.queue-button.is-active {
-        color: var(--accent-light);
-        border-color: var(--accent-border);
-        background: var(--accent-surface);
-        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+      .vol-slider-wrap {
+        flex: 1;
+        height: 40px;
+      }
+
+      .vol-track {
+        height: 6px;
+      }
+
+      .vol-thumb {
+        width: 16px;
+        height: 16px;
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      .vol-expanded-meta {
+        min-width: 58px;
+        text-align: right;
+
+        .vol-db-label {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: var(--accent-light, var(--accent));
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.02em;
+        }
       }
     }
   }
 
-  .volume {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-self: end;
+  .badge-fade-enter-active,
+  .badge-fade-leave-active {
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
 
-    .volume-button {
-      display: grid;
-      width: 38px;
-      height: 38px;
-      padding: 0;
-      place-items: center;
-      border: 1px solid transparent;
-      border-radius: 50%;
-      background: transparent;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition:
-        color var(--transition-fast),
-        background-color var(--transition-fast),
-        border-color var(--transition-fast);
-
-      @media (hover: hover) and (pointer: fine) {
-        &:hover {
-          border-color: var(--border-color);
-          background: var(--surface-hover);
-          color: var(--text-primary);
-        }
-      }
-
-      &:active {
-        transform: scale(0.94);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--accent-light);
-        outline-offset: 3px;
-      }
-    }
-
-    .volume-slider-container {
-      position: absolute;
-      right: 0;
-      bottom: 48px;
-      padding: 12px;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-
-      background:
-        radial-gradient(
-          ellipse 120% 100% at 80% 100%,
-          rgba(var(--accent-rgb), 0.035),
-          transparent 65%
-        ),
-        var(--bg-tertiary);
-
-      box-shadow: var(--shadow-md);
-    }
-
-    .volume-slider {
-      width: 20px;
-      height: 120px;
-      accent-color: var(--accent);
-      cursor: pointer;
-      direction: rtl;
-      writing-mode: vertical-lr;
-    }
+  .badge-fade-enter-from,
+  .badge-fade-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
   }
 }
 
@@ -463,6 +721,8 @@
     }
 
     .queue-button,
+    .autoplay-control-btn,
+    .shuffle-control-btn,
     .volume {
       display: none !important;
     }
@@ -881,6 +1141,29 @@
     }
   }
 
+  .shuffle-btn,
+  .autoplay-btn {
+    color: var(--text-muted);
+    border: 1px solid transparent;
+
+    &:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active {
+      color: var(--accent-light, var(--accent)) !important;
+      background: var(--accent-surface) !important;
+      border-color: var(--accent-border) !important;
+      box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.35) !important;
+
+      &:hover {
+        background: var(--accent-surface-strong) !important;
+        color: var(--accent-light, var(--accent)) !important;
+      }
+    }
+  }
+
   .main-control {
     width: 66px;
     height: 66px;
@@ -1046,25 +1329,18 @@
     place-items: center;
     border: 1px solid var(--border-color);
     border-radius: 50%;
-    background: var(--surface-hover);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--text-secondary);
     cursor: pointer;
     transition:
       color var(--transition-fast),
       border-color var(--transition-fast),
       background-color var(--transition-fast),
+      box-shadow var(--transition-fast),
       transform var(--transition-fast);
 
-    @media (hover: hover) and (pointer: fine) {
-      &:hover {
-        border-color: var(--accent-border);
-        background: var(--accent-surface);
-        color: var(--accent-light);
-      }
-    }
-
     &:active {
-      transform: scale(0.93);
+      transform: scale(0.92);
     }
 
     &:focus-visible {
@@ -1072,10 +1348,106 @@
       outline-offset: 3px;
     }
 
-    &.active {
-      border-color: var(--accent);
-      background: var(--accent-surface);
-      color: var(--accent-light);
+    &.fav-btn,
+    &.favorite-button {
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          border-color: rgba(255, 91, 91, 0.5);
+          background: rgba(255, 91, 91, 0.12);
+          color: #ff5b5b;
+          box-shadow: 0 0 10px rgba(255, 91, 91, 0.2);
+          transform: translateY(-1px);
+        }
+      }
+
+      &.active {
+        background: rgba(255, 91, 91, 0.18);
+        border-color: #ff5b5b;
+        color: #ff5b5b;
+        box-shadow: 0 0 14px rgba(255, 91, 91, 0.35);
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: rgba(255, 91, 91, 0.24);
+            color: #ff7575;
+            transform: translateY(-1px);
+          }
+        }
+      }
     }
+
+    &.like-btn,
+    &.like-button {
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          border-color: var(--accent);
+          background: rgba(var(--accent-rgb), 0.12);
+          color: var(--accent);
+          box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+          transform: translateY(-1px);
+        }
+      }
+
+      &.active {
+        background: rgba(var(--accent-rgb), 0.18);
+        border-color: var(--accent);
+        color: var(--accent);
+        box-shadow: var(--neon-glow);
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: rgba(var(--accent-rgb), 0.24);
+            color: var(--accent-light, var(--accent));
+            transform: translateY(-1px);
+          }
+        }
+      }
+    }
+
+    &.dislike-btn,
+    &.dislike-button {
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          border-color: rgba(239, 68, 68, 0.5);
+          background: rgba(239, 68, 68, 0.12);
+          color: #ef4444;
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+          transform: translateY(-1px);
+        }
+      }
+
+      &.active {
+        background: rgba(239, 68, 68, 0.18);
+        border-color: #ef4444;
+        color: #ef4444;
+        box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: rgba(239, 68, 68, 0.24);
+            color: #ff5c5c;
+            transform: translateY(-1px);
+          }
+        }
+      }
+    }
+  }
+}
+
+.player-bar-artist-link,
+.player-clickable-artist {
+  cursor: pointer;
+  transition: color var(--transition-fast), text-decoration var(--transition-fast);
+
+  &:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+}
+
+.player-page-controls {
+  .autoplay-btn.active {
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent);
   }
 }

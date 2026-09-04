@@ -1,8 +1,11 @@
 <template>
     <main class="album-page">
+        <h1 class="album-title" v-if="album">{{ album.name }}</h1>
+        <p class="album-artist-name" v-if="album?.artist">{{ album.artist }}</p>
 
         <PlayListSongs
             :songs="albumSongs"
+            :album="album"
             :cover="albumCover"
             :is-sortable="false"
         />
@@ -15,41 +18,39 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
-
-import { useLibraryStore } from "../stores/libraryStore";
-
+import { useLibraryStore } from "../stores/libraryStore.js";
 import PlayListSongs from "../components/library/PlayListSongs.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
-
-import { watch } from "vue";
-
-
-
 
 const route = useRoute();
 const libraryStore = useLibraryStore();
 
 const albumId = computed(() => route.params.id);
 
-const albumCover = computed(() => {
-    const album = libraryStore.albums.find(
-        album => album.id === albumId.value
+const album = computed(() => {
+    return (
+        libraryStore.albums.find(
+            a => a.id === albumId.value || a.name === albumId.value
+        ) || null
     );
-
-    return album?.cover ?? null;
 });
 
+const albumCover = computed(() => {
+    return album.value?.cover ?? null;
+});
 
 const albumSongs = computed(() =>
     libraryStore.songs.filter(
-        song => song.albumId === albumId.value
+        song => song.albumId === albumId.value || (album.value && song.album === album.value.name)
     )
 );
-watch(albumSongs, (songs) => {
-    console.log("Album songs:", songs);
-});
 
+watch(album, (alb) => {
+    if (alb) {
+        libraryStore.recordAlbumPlayed(alb);
+    }
+}, { immediate: true });
 </script>
 

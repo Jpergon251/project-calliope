@@ -8,20 +8,35 @@
               :type="playlist?.id === library.FAVORITES_PLAYLIST_ID ? 'favorite' : 'playlist'"
               class="playlist-image"
           />
-          <div v-if="playlist" class="playlist-actions">
-            <button class="action-btn play" @click="playListNow" aria-label="Reproducir playlist">
+          <div v-if="playlist || album" class="playlist-actions">
+            <button
+              class="action-btn play"
+              @click="playListNow"
+              :aria-label="album ? 'Reproducir álbum' : 'Reproducir playlist'"
+              :title="album ? 'Reproducir álbum' : 'Reproducir playlist'"
+            >
               <Play fill="currentcolor"/>
             </button>
 
-            <button class="action-btn queue" @click="addListToQueue" aria-label="Añadir playlist a la cola">
+            <button
+              class="action-btn queue"
+              @click="addListToQueue"
+              :aria-label="album ? 'Añadir álbum a la cola' : 'Añadir playlist a la cola'"
+              :title="album ? 'Añadir a la cola' : 'Añadir a la cola'"
+            >
               <ListPlus />
             </button>
 
-            <button class="action-btn shuffle" @click="addListToQueueRandom" aria-label="Añadir playlist a la cola aleatoria">
+            <button
+              class="action-btn shuffle"
+              @click="playRandomNow"
+              :aria-label="album ? 'Reproducir aleatoriamente' : 'Reproducir playlist aleatoriamente'"
+              :title="album ? 'Reproducir aleatoriamente' : 'Reproducir aleatoriamente'"
+            >
               <Shuffle />
             </button>
 
-            <div class="action-menu-wrapper" v-if="!isFavoritesPlaylist">
+            <div class="action-menu-wrapper" v-if="playlist && !isFavoritesPlaylist">
               <button
                 class="action-btn menu"
                 :class="{ active: showActionMenu }"
@@ -161,6 +176,7 @@ const showDeleteConfirmModal = ref(false);
 const props = defineProps({
     songs: Array,
     playlist: Object,
+    album: Object,
     cover: String,
     isSortable: {
       type: Boolean,
@@ -179,6 +195,7 @@ const justDropped = ref(false);
 const isFavoritesPlaylist = computed(() => props.playlist?.id === library.FAVORITES_PLAYLIST_ID);
 
 const resolvedSongs = computed(() => {
+  if (props.album) return props.songs || [];
   if (!props.playlist) return props.songs || [];
 
   if (props.playlist.id === "all") {
@@ -362,20 +379,41 @@ onBeforeUnmount(() => {
 
 function playListNow() {
   if (!resolvedSongs.value.length) return;
+  if (props.album) {
+    library.recordAlbumPlayed(props.album);
+  } else if (props.playlist) {
+    library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
+  }
   const [firstSong, ...rest] = resolvedSongs.value;
   library.playQueue = rest;
   library.playFromPlaylist(firstSong, resolvedSongs.value);
 }
 
 function addListToQueue() {
-  library.playQueue = [...(library.playQueue || []), ...resolvedSongs.value];
+  if (!resolvedSongs.value.length) return;
+  if (props.album) {
+    library.recordAlbumPlayed(props.album);
+  } else if (props.playlist) {
+    library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
+  }
+  library.addSongsToQueue(resolvedSongs.value);
+}
+
+function playRandomNow() {
+  if (!resolvedSongs.value.length) return;
+  if (props.album) {
+    library.recordAlbumPlayed(props.album);
+  } else if (props.playlist) {
+    library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
+  }
+  const shuffledSongs = library.smartShuffle(resolvedSongs.value);
+  const [firstSong, ...rest] = shuffledSongs;
+  library.playQueue = rest;
+  library.playFromPlaylist(firstSong, shuffledSongs);
 }
 
 function addListToQueueRandom() {
-  const queue = [...(library.playQueue || [])];
-  const shuffledSongs = [...resolvedSongs.value].sort(() => Math.random() - 0.5);
-  queue.push(...shuffledSongs);
-  library.playQueue = queue;
+  playRandomNow();
 }
 
 function deletePlaylist() {

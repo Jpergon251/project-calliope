@@ -69,39 +69,67 @@
         </div>
       </header>
 
-      <!-- View Selector Tabs -->
-      <nav class="queue-view-tabs" aria-label="Secciones de la cola">
-        <button
-          type="button"
-          class="queue-tab-btn"
-          :class="{ active: activeTab === 'all' }"
-          @click="activeTab = 'all'"
-        >
-          <span>Todas</span>
-        </button>
+      <!-- View Selector Tabs & Mode Toggles Toolbar -->
+      <div class="queue-toolbar-row">
+        <nav class="queue-view-tabs" aria-label="Secciones de la cola">
+          <button
+            type="button"
+            class="queue-tab-btn"
+            :class="{ active: activeTab === 'all' }"
+            @click="activeTab = 'all'"
+          >
+            <span>Todos</span>
+          </button>
 
-        <button
-          type="button"
-          class="queue-tab-btn"
-          :class="{ active: activeTab === 'upcoming' }"
-          @click="activeTab = 'upcoming'"
-        >
-          <span>A continuación</span>
-          <span class="tab-badge" v-if="queue.length">{{ queue.length }}</span>
-        </button>
+          <button
+            type="button"
+            class="queue-tab-btn"
+            :class="{ active: activeTab === 'upcoming' }"
+            @click="activeTab = 'upcoming'"
+          >
+            <span>A continuación</span>
+            <span class="tab-badge" v-if="queue.length">{{ queue.length }}</span>
+          </button>
 
-        <button
-          type="button"
-          class="queue-tab-btn"
-          :class="{ active: activeTab === 'history' }"
-          @click="activeTab = 'history'"
-        >
-          <span>Ya reproducidas</span>
-          <span class="tab-badge muted" v-if="historyQueue.length">{{
-            historyQueue.length
-          }}</span>
-        </button>
-      </nav>
+          <button
+            type="button"
+            class="queue-tab-btn"
+            :class="{ active: activeTab === 'history' }"
+            @click="activeTab = 'history'"
+          >
+            <span>Ya escuchados</span>
+            <span class="tab-badge muted" v-if="historyQueue.length">{{
+              historyQueue.length
+            }}</span>
+          </button>
+        </nav>
+
+        <div class="queue-mode-toggles">
+          <button
+            type="button"
+            class="action-pill-btn shuffle-toggle-btn"
+            :class="{ active: library.isShuffleEnabled }"
+            @click="library.toggleShuffle()"
+            :title="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria'"
+            :aria-label="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria desactivada'"
+          >
+            <Shuffle class="btn-icon" />
+            <span class="mode-label">Aleatorio</span>
+          </button>
+
+          <button
+            type="button"
+            class="action-pill-btn autoplay-toggle-btn"
+            :class="{ active: library.autoplay }"
+            @click="library.toggleAutoplay()"
+            :title="library.autoplay ? 'Reproducción automática activada' : 'Activar reproducción automática'"
+            aria-label="Alternar reproducción automática"
+          >
+            <Infinity class="btn-icon" />
+            <span class="mode-label">Autoplay</span>
+          </button>
+        </div>
+      </div>
 
       <!-- Main Scrollable Body -->
       <div class="queue-scroll-body" ref="scrollBodyRef">
@@ -130,9 +158,9 @@
             </div>
           </div>
 
-          <div v-if="currentSong" class="hero-song-row">
+          <div v-if="currentSong || library.playingSong" class="hero-song-row">
             <div class="hero-cover-wrap" @click="handleOpenNowPlaying">
-              <SongCover class="hero-cover" :song="currentSong" />
+              <SongCover class="hero-cover" :song="currentSong || library.playingSong" />
               <div class="cover-hover-overlay" title="Ver en pantalla completa">
                 <Maximize2 class="zoom-icon" />
               </div>
@@ -141,22 +169,33 @@
             <div class="hero-info" @click="handleOpenNowPlaying">
               <h3
                 class="hero-title"
-                :title="currentSong.title || currentSong.name"
+                :title="(currentSong || library.playingSong).title || (currentSong || library.playingSong).name"
               >
-                {{ currentSong.title || currentSong.name }}
+                {{ (currentSong || library.playingSong).title || (currentSong || library.playingSong).name }}
               </h3>
               <p
                 class="hero-artist"
-                :title="currentSong.artist || 'Artista desconocido'"
+                :title="(currentSong || library.playingSong).artist || 'Artista desconocido'"
               >
-                {{ currentSong.artist || "Artista desconocido" }}
+                <span v-if="currentSongArtists.length">
+                  <span
+                    v-for="(artName, idx) in currentSongArtists"
+                    :key="artName"
+                    class="queue-clickable-artist"
+                    @click.stop="goToArtist(artName)"
+                    :title="`Ver artista: ${artName}`"
+                  >
+                    {{ artName }}<span v-if="idx < currentSongArtists.length - 1">, </span>
+                  </span>
+                </span>
+                <span v-else>{{ (currentSong || library.playingSong).artist || "Artista desconocido" }}</span>
               </p>
               <span
-                v-if="currentSong.album"
+                v-if="(currentSong || library.playingSong).album"
                 class="hero-album"
-                :title="currentSong.album"
+                :title="(currentSong || library.playingSong).album"
               >
-                {{ currentSong.album }}
+                {{ (currentSong || library.playingSong).album }}
               </span>
             </div>
 
@@ -164,17 +203,58 @@
               <button
                 type="button"
                 class="hero-action-btn fav-btn"
-                :class="{ active: currentSong.favorite }"
+                :class="{ active: (currentSong || library.playingSong).favorite }"
                 :aria-label="
-                  currentSong.favorite
+                  (currentSong || library.playingSong).favorite
                     ? 'Quitar de favoritos'
                     : 'Añadir a favoritos'
                 "
-                @click.stop="library.toggleFavorite(currentSong)"
+                :title="
+                  (currentSong || library.playingSong).favorite
+                    ? 'Quitar de favoritos'
+                    : 'Añadir a favoritos'
+                "
+                @click.stop="library.toggleFavorite(currentSong || library.playingSong)"
               >
                 <Heart
-                  :size="19"
-                  :fill="currentSong.favorite ? 'currentColor' : 'none'"
+                  :size="18"
+                  :fill="(currentSong || library.playingSong).favorite ? 'currentColor' : 'none'"
+                />
+              </button>
+
+              <button
+                type="button"
+                class="hero-action-btn like-btn"
+                :class="{ active: currentSongRating === 'like' }"
+                :aria-label="
+                  currentSongRating === 'like'
+                    ? 'Quitar Me gusta'
+                    : 'Me gusta'
+                "
+                :title="currentSongRating === 'like' ? 'Quitar Me gusta' : 'Me gusta'"
+                @click.stop="library.toggleLike(currentSong || library.playingSong)"
+              >
+                <ThumbsUp
+                  :size="18"
+                  :fill="currentSongRating === 'like' ? 'currentColor' : 'none'"
+                />
+              </button>
+
+              <button
+                type="button"
+                class="hero-action-btn dislike-btn"
+                :class="{ active: currentSongRating === 'dislike' }"
+                :aria-label="
+                  currentSongRating === 'dislike'
+                    ? 'Quitar No me gusta'
+                    : 'No me gusta'
+                "
+                :title="currentSongRating === 'dislike' ? 'Quitar No me gusta' : 'No me gusta'"
+                @click.stop="library.toggleDislike(currentSong || library.playingSong)"
+              >
+                <ThumbsDown
+                  :size="18"
+                  :fill="currentSongRating === 'dislike' ? 'currentColor' : 'none'"
                 />
               </button>
 
@@ -240,6 +320,8 @@
               :key="song.id"
               class="queue-track-row"
               :class="{
+                'is-current': isSongCurrent(song),
+                'is-playing': isSongPlaying(song),
                 'is-dragging': draggedIndex === index,
                 'drop-indicator-top':
                   hoverIndex === index && dropPosition === 'before',
@@ -266,8 +348,18 @@
                 <GripVertical class="handle-icon" />
               </div>
 
-              <!-- Track Number Index -->
-              <span class="track-order-num">{{ index + 1 }}</span>
+              <!-- Track Number Index or Playing Indicator -->
+              <div
+                v-if="isSongPlaying(song)"
+                class="track-playing-indicator"
+                aria-label="Sonando ahora"
+                title="Sonando ahora"
+              >
+                <span class="mini-eq-bar eq-1"></span>
+                <span class="mini-eq-bar eq-2"></span>
+                <span class="mini-eq-bar eq-3"></span>
+              </div>
+              <span v-else class="track-order-num">{{ index + 1 }}</span>
 
               <!-- Artwork Thumbnail -->
               <div class="track-cover-container">
@@ -275,10 +367,11 @@
                 <button
                   type="button"
                   class="cover-play-badge"
-                  aria-label="Reproducir ahora"
-                  @click.stop="handleTrackClick(index)"
+                  :aria-label="isSongPlaying(song) ? 'Pausar' : 'Reproducir ahora'"
+                  @click.stop="handleTrackPlayToggle(song, index)"
                 >
-                  <Play :size="13" fill="currentColor" />
+                  <Pause v-if="isSongPlaying(song)" :size="13" fill="currentColor" />
+                  <Play v-else :size="13" fill="currentColor" />
                 </button>
               </div>
 
@@ -291,7 +384,18 @@
                   class="track-artist"
                   :title="song.artist || 'Artista desconocido'"
                 >
-                  {{ song.artist || "Artista desconocido" }}
+                  <span v-if="getSongArtists(song).length">
+                    <span
+                      v-for="(artName, idx) in getSongArtists(song)"
+                      :key="artName"
+                      class="queue-clickable-artist"
+                      @click.stop="goToArtist(artName)"
+                      :title="`Ver artista: ${artName}`"
+                    >
+                      {{ artName }}<span v-if="idx < getSongArtists(song).length - 1">, </span>
+                    </span>
+                  </span>
+                  <span v-else>{{ song.artist || "Artista desconocido" }}</span>
                 </span>
               </div>
 
@@ -318,7 +422,7 @@
             <div class="empty-icon-wrap">
               <Music2 class="empty-svg" />
             </div>
-            <h4 class="empty-heading">Tu cola de reproducción está vacía</h4>
+            <h4 class="empty-heading">No hay canciones a continuación</h4>
             <p class="empty-desc">
               Añade canciones desde cualquier playlist, álbum o canción para que
               sigan sonando automáticamente.
@@ -338,7 +442,7 @@
           <div class="section-title-bar">
             <div class="title-left">
               <History class="section-icon" />
-              <h3 class="section-title">Ya reproducidas</h3>
+              <h3 class="section-title">Ya escuchados</h3>
               <span class="count-tag muted">{{ historyQueue.length }}</span>
             </div>
 
@@ -379,7 +483,18 @@
                   class="track-artist"
                   :title="song.artist || 'Artista desconocido'"
                 >
-                  {{ song.artist || "Artista desconocido" }}
+                  <span v-if="getSongArtists(song).length">
+                    <span
+                      v-for="(artName, idx) in getSongArtists(song)"
+                      :key="artName"
+                      class="queue-clickable-artist"
+                      @click.stop="goToArtist(artName)"
+                      :title="`Ver artista: ${artName}`"
+                    >
+                      {{ artName }}<span v-if="idx < getSongArtists(song).length - 1">, </span>
+                    </span>
+                  </span>
+                  <span v-else>{{ song.artist || "Artista desconocido" }}</span>
                 </span>
               </div>
 
@@ -424,12 +539,14 @@
 </template>
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import SongCover from "../library/SongCover.vue";
 import {
   GripVertical,
   Heart,
   History,
+  Infinity,
   ListMusic,
   ListOrdered,
   ListPlus,
@@ -438,11 +555,15 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Shuffle,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   X,
 } from "lucide-vue-next";
 
 const emit = defineEmits(["close"]);
+const router = useRouter();
 const library = useLibraryStore();
 
 const panelRef = ref(null);
@@ -456,6 +577,51 @@ const activeTab = ref("all"); // 'all' | 'upcoming' | 'history'
 const queue = computed(() => library.playQueue || []);
 const historyQueue = computed(() => library.historyQueue || []);
 const currentSong = computed(() => library.playingSong);
+
+function getSongArtists(song) {
+  if (!song?.artist) return [];
+  const parsed = library.parseArtistNames(song.artist);
+  return parsed.length ? parsed : [song.artist];
+}
+
+const currentSongArtists = computed(() => {
+  const song = currentSong.value || library.playingSong;
+  if (!song?.artist) return [];
+  const parsed = library.parseArtistNames(song.artist);
+  return parsed.length ? parsed : [song.artist];
+});
+
+const currentSongRating = computed(() => {
+  const song = currentSong.value || library.playingSong;
+  if (!song?.id) return "neutral";
+  return library.getSongRating(song.id);
+});
+
+function isSongCurrent(song) {
+  if (!song?.id) return false;
+  const current = currentSong.value || library.playingSong;
+  return song.id === current?.id;
+}
+
+function isSongPlaying(song) {
+  return isSongCurrent(song) && library.isPlaying;
+}
+
+function handleTrackPlayToggle(song, index) {
+  if (isSongCurrent(song)) {
+    library.togglePlay();
+  } else {
+    handleTrackClick(index);
+  }
+}
+
+function goToArtist(name) {
+  if (!name || name === "Unknown" || name === "Artista desconocido") return;
+  emit("close");
+  library.closeQueue();
+  library.closeNowPlaying();
+  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
+}
 
 const reversedHistory = computed(() => {
   return [...(library.historyQueue || [])].reverse();
@@ -507,7 +673,8 @@ function handleClose() {
 }
 
 function handleOpenNowPlaying() {
-  if (library.playingSong) {
+  const current = currentSong.value || library.playingSong;
+  if (current) {
     library.openNowPlaying();
   }
 }

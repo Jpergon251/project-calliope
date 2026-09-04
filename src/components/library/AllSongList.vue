@@ -235,7 +235,7 @@ function refreshPreviewSongs() {
     return;
   }
 
-  previewSongs.value = shuffle(songs).slice(
+  previewSongs.value = library.smartShuffle(songs).slice(
     0,
     PREVIEW_LIMIT
   );

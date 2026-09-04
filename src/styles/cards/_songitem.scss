@@ -117,3 +117,12 @@
         flex-shrink: 0;
     }
 }
+.song-item-artist-link {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+}

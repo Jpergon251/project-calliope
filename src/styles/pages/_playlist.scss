@@ -7,11 +7,21 @@
     padding-bottom: 120px;
     box-sizing: border-box;
 
-    .playlist-title {
+    .playlist-title,
+    .album-title {
         position: relative;
         z-index: 1;
         margin: auto 20px;
         font-size: clamp(2rem, 4vw, 3rem);
+    }
+
+    .album-artist-name {
+        position: relative;
+        z-index: 1;
+        margin: 4px 20px 16px;
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        font-weight: 500;
     }
 }
 

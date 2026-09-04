@@ -2,7 +2,7 @@ import { openDB } from "idb";
 
 export const dbPromise = openDB(
   "music-player",
-  9,
+  10,
   {
     upgrade(db) {
 
@@ -36,6 +36,18 @@ export const dbPromise = openDB(
 
       if (!db.objectStoreNames.contains("profiles")) {
         db.createObjectStore("profiles", {
+          keyPath: "id"
+        });
+      }
+
+      if (!db.objectStoreNames.contains("playback_stats")) {
+        db.createObjectStore("playback_stats", {
+          keyPath: "id"
+        });
+      }
+
+      if (!db.objectStoreNames.contains("song_ratings")) {
+        db.createObjectStore("song_ratings", {
           keyPath: "id"
         });
       }

@@ -18,16 +18,9 @@
           aria-hidden="true"
         ></div>
 
-        <div
-          v-else
-          class="banner-neon-mesh"
-          aria-hidden="true"
-        ></div>
+        <div v-else class="banner-neon-mesh" aria-hidden="true"></div>
 
-        <div
-          class="banner-gradient-overlay"
-          aria-hidden="true"
-        ></div>
+        <div class="banner-gradient-overlay" aria-hidden="true"></div>
 
         <!-- Back -->
         <button
@@ -51,11 +44,7 @@
               class="banner-avatar"
             />
 
-            <div
-              v-else
-              class="banner-avatar-fallback"
-              aria-hidden="true"
-            >
+            <div v-else class="banner-avatar-fallback" aria-hidden="true">
               <UserRound :size="68" stroke-width="1.5" />
             </div>
           </div>
@@ -71,10 +60,7 @@
               {{ artistDisplayName }}
             </h1>
 
-            <p
-              v-if="artistRealName"
-              class="artist-real-name"
-            >
+            <p v-if="artistRealName" class="artist-real-name">
               {{ artistRealName }}
             </p>
 
@@ -84,24 +70,14 @@
                 {{ artistSongs.length === 1 ? "canción" : "canciones" }}
               </span>
 
-              <span
-                v-if="artistAlbums.length"
-                class="dot-sep"
-              >
-                •
-              </span>
+              <span v-if="artistAlbums.length" class="dot-sep"> • </span>
 
               <span v-if="artistAlbums.length">
                 {{ artistAlbums.length }}
                 {{ artistAlbums.length === 1 ? "álbum" : "álbumes" }}
               </span>
 
-              <span
-                v-if="collaboratorNames.length"
-                class="dot-sep"
-              >
-                •
-              </span>
+              <span v-if="collaboratorNames.length" class="dot-sep"> • </span>
 
               <span v-if="collaboratorNames.length">
                 {{ collaboratorNames.length }}
@@ -121,10 +97,7 @@
                 :disabled="!artistSongs.length"
                 @click="playArtist"
               >
-                <Play
-                  :size="18"
-                  fill="currentColor"
-                />
+                <Play :size="18" fill="currentColor" />
                 <span>Reproducir</span>
               </button>
 
@@ -165,13 +138,9 @@
           class="artist-section artist-about-section"
         >
           <div class="section-heading">
-            <span class="section-kicker">
-              Sobre el artista
-            </span>
+            <span class="section-kicker"> Sobre el artista </span>
 
-            <h2 class="section-title">
-              Acerca de
-            </h2>
+            <h2 class="section-title">Acerca de</h2>
           </div>
 
           <p class="artist-description">
@@ -189,13 +158,9 @@
         >
           <div class="section-header-row">
             <div>
-              <span class="section-kicker">
-                Discografía
-              </span>
+              <span class="section-kicker"> Discografía </span>
 
-              <h2 class="section-title">
-                Álbumes
-              </h2>
+              <h2 class="section-title">Álbumes</h2>
             </div>
 
             <span class="section-count">
@@ -222,18 +187,12 @@
                   :alt="`Portada de ${album.name}`"
                 />
 
-                <div
-                  v-else
-                  class="album-cover-fallback"
-                >
+                <div v-else class="album-cover-fallback">
                   <DiscAlbum :size="42" />
                 </div>
 
                 <div class="album-play-overlay">
-                  <Play
-                    :size="18"
-                    fill="currentColor"
-                  />
+                  <Play :size="18" fill="currentColor" />
                 </div>
               </div>
 
@@ -265,13 +224,9 @@
         >
           <div class="section-header-row">
             <div>
-              <span class="section-kicker">
-                Conexiones
-              </span>
+              <span class="section-kicker"> Conexiones </span>
 
-              <h2 class="section-title">
-                Colaboradores
-              </h2>
+              <h2 class="section-title">Colaboradores</h2>
             </div>
 
             <span class="section-count">
@@ -307,26 +262,15 @@
         <section class="artist-section artist-songs-section">
           <div class="section-header-row">
             <div>
-              <span class="section-kicker">
-                Discografía
-              </span>
+              <span class="section-kicker"> Discografía </span>
 
-              <h2 class="section-title">
-                Canciones
-              </h2>
+              <h2 class="section-title">Canciones</h2>
             </div>
 
-            <div
-              v-if="artistSongs.length"
-              class="songs-section-actions"
-            >
+            <div v-if="artistSongs.length" class="songs-section-actions">
               <span class="songs-count-tag">
                 {{ artistSongs.length }}
-                {{
-                  artistSongs.length === 1
-                    ? "canción"
-                    : "canciones"
-                }}
+                {{ artistSongs.length === 1 ? "canción" : "canciones" }}
               </span>
 
               <button
@@ -376,17 +320,12 @@
           </div>
 
           <!-- Empty -->
-          <div
-            v-else
-            class="artist-empty-state"
-          >
+          <div v-else class="artist-empty-state">
             <Music2 :size="24" />
 
             <div>
               <strong>No hay canciones</strong>
-              <span>
-                Este artista todavía no tiene canciones asociadas.
-              </span>
+              <span> Este artista todavía no tiene canciones asociadas. </span>
             </div>
           </div>
         </section>
@@ -397,24 +336,16 @@
          ARTIST NOT FOUND
     ====================================================== -->
 
-    <section
-      v-else
-      class="artist-not-found"
-    >
+    <section v-else class="artist-not-found">
       <div class="artist-not-found-icon">
         <UserRound :size="34" />
       </div>
 
       <h1>Artista no encontrado</h1>
 
-      <p>
-        No se ha encontrado este artista en tu biblioteca.
-      </p>
+      <p>No se ha encontrado este artista en tu biblioteca.</p>
 
-      <button
-        type="button"
-        @click="router.back()"
-      >
+      <button type="button" @click="router.back()">
         <ChevronLeft :size="17" />
         Volver
       </button>
@@ -438,15 +369,11 @@
         <!-- Modal header -->
         <header class="artist-editor-header">
           <div>
-            <span class="modal-kicker">
-              Perfil del artista
-            </span>
+            <span class="modal-kicker"> Perfil del artista </span>
 
             <h2>Editar artista</h2>
 
-            <p>
-              Personaliza cómo aparece este artista en tu biblioteca.
-            </p>
+            <p>Personaliza cómo aparece este artista en tu biblioteca.</p>
           </div>
 
           <button
@@ -471,10 +398,7 @@
                 :alt="artistDisplayName"
               />
 
-              <div
-                v-else
-                class="editor-cover-placeholder"
-              >
+              <div v-else class="editor-cover-placeholder">
                 <UserRound :size="40" />
                 <span>Sin imagen</span>
               </div>
@@ -534,17 +458,13 @@
 
               <div>
                 <strong>Información</strong>
-                <span>
-                  Datos que se mostrarán en el perfil.
-                </span>
+                <span> Datos que se mostrarán en el perfil. </span>
               </div>
             </div>
 
             <!-- Artistic name -->
             <label class="editor-field">
-              <span>
-                Nombre artístico
-              </span>
+              <span> Nombre artístico </span>
 
               <input
                 v-model="artistProfileDraft.artisticName"
@@ -608,16 +528,9 @@
             :disabled="isSavingArtist"
             @click="saveArtistProfileChanges"
           >
-            <LoaderCircle
-              v-if="isSavingArtist"
-              :size="16"
-              class="spin"
-            />
+            <LoaderCircle v-if="isSavingArtist" :size="16" class="spin" />
 
-            <Check
-              v-else
-              :size="16"
-            />
+            <Check v-else :size="16" />
 
             <span>
               {{ isSavingArtist ? "Guardando..." : "Guardar cambios" }}
@@ -630,17 +543,9 @@
 </template>
 
 <script setup>
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  ref,
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 
-import {
-  useRoute,
-  useRouter,
-} from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   Camera,
@@ -684,8 +589,12 @@ function decodeRouteValue(value) {
 
 function sameArtistName(a, b) {
   return (
-    String(a || "").trim().toLowerCase() ===
-    String(b || "").trim().toLowerCase()
+    String(a || "")
+      .trim()
+      .toLowerCase() ===
+    String(b || "")
+      .trim()
+      .toLowerCase()
   );
 }
 
@@ -695,10 +604,7 @@ function sameArtistName(a, b) {
 
 const artistName = computed(() => {
   return decodeRouteValue(
-    route.params.name ||
-      route.params.artist ||
-      route.params.id ||
-      "",
+    route.params.name || route.params.artist || route.params.id || "",
   );
 });
 
@@ -710,9 +616,7 @@ const artistData = computed(() => {
   }
 
   return (
-    library.artists.find((artist) =>
-      sameArtistName(artist.name, name),
-    ) || null
+    library.artists.find((artist) => sameArtistName(artist.name, name)) || null
   );
 });
 
@@ -765,11 +669,23 @@ const artistSongs = computed(() => {
 });
 
 const artistAlbums = computed(() => {
-  if (artistData.value?.albums) {
-    return artistData.value.albums;
-  }
-
   const albums = new Map();
+  // Los álbumes que llegan desde el store no tienen `songCount` ni
+  // `songs`, así que los contamos aquí a partir de `library.songs`.
+  if (artistData.value?.albums) {
+    return artistData.value.albums.map((album) => {
+      const songCount = library.songs.filter((song) => {
+        return (
+          song.albumId === album.id || (song.album && song.album === album.name)
+        );
+      }).length;
+      return {
+        ...album,
+        songCount,
+        songs: album.songs || [],
+      };
+    });
+  }
 
   artistSongs.value.forEach((song) => {
     const name = song.album;
@@ -787,10 +703,7 @@ const artistAlbums = computed(() => {
 
     albums.get(name).songs.push(song);
 
-    if (
-      !albums.get(name).cover &&
-      song.cover
-    ) {
+    if (!albums.get(name).cover && song.cover) {
       albums.get(name).cover = song.cover;
     }
   });
@@ -812,9 +725,7 @@ const collaboratorNames = computed(() => {
     const artist = String(song.artist || "");
 
     artist
-      .split(
-        /[,;&]|\s+feat\.?\s+|\s+ft\.?\s+/i,
-      )
+      .split(/[,;&]|\s+feat\.?\s+|\s+ft\.?\s+/i)
       .map((name) => name.trim())
       .filter(Boolean)
       .forEach((name) => {
@@ -838,10 +749,7 @@ function scrollArtistSongs(direction) {
 
   if (!container) return;
 
-  const amount = Math.max(
-    container.clientWidth * 0.78,
-    260,
-  );
+  const amount = Math.max(container.clientWidth * 0.78, 260);
 
   container.scrollBy({
     left: amount * direction,
@@ -861,10 +769,7 @@ function playArtist() {
 
   library.playSong(firstSong);
 
-  if (
-    typeof library.setPlayQueue === "function" &&
-    remainingSongs.length
-  ) {
+  if (typeof library.setPlayQueue === "function" && remainingSongs.length) {
     library.setPlayQueue(remainingSongs);
   }
 
@@ -938,11 +843,7 @@ function collaboratorDisplayName(name) {
     sameArtistName(item.name, name),
   );
 
-  return (
-    artist?.artisticName ||
-    artist?.name ||
-    name
-  );
+  return artist?.artisticName || artist?.name || name;
 }
 
 /* ============================================================
@@ -996,15 +897,9 @@ function downscaleImage(
           maxHeight / image.naturalHeight,
         );
 
-        const width = Math.max(
-          1,
-          Math.round(image.naturalWidth * scale),
-        );
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
 
-        const height = Math.max(
-          1,
-          Math.round(image.naturalHeight * scale),
-        );
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
 
         const canvas = document.createElement("canvas");
 
@@ -1014,35 +909,18 @@ function downscaleImage(
         const context = canvas.getContext("2d");
 
         if (!context) {
-          reject(
-            new Error(
-              "No se pudo crear el contexto del canvas.",
-            ),
-          );
+          reject(new Error("No se pudo crear el contexto del canvas."));
           return;
         }
 
-        context.drawImage(
-          image,
-          0,
-          0,
-          width,
-          height,
-        );
+        context.drawImage(image, 0, 0, width, height);
 
-        const mimeType =
-          file.type === "image/png"
-            ? "image/png"
-            : "image/jpeg";
+        const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
 
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              reject(
-                new Error(
-                  "No se pudo procesar la imagen.",
-                ),
-              );
+              reject(new Error("No se pudo procesar la imagen."));
               return;
             }
 
@@ -1054,22 +932,14 @@ function downscaleImage(
       };
 
       image.onerror = () => {
-        reject(
-          new Error(
-            "No se pudo cargar la imagen.",
-          ),
-        );
+        reject(new Error("No se pudo cargar la imagen."));
       };
 
       image.src = reader.result;
     };
 
     reader.onerror = () => {
-      reject(
-        new Error(
-          "No se pudo leer el archivo.",
-        ),
-      );
+      reject(new Error("No se pudo leer el archivo."));
     };
 
     reader.readAsDataURL(file);
@@ -1092,15 +962,9 @@ function openArtistModal() {
       artistData.value?.artisticName ||
       artistName.value,
 
-    realName:
-      profile?.realName ||
-      artistData.value?.realName ||
-      "",
+    realName: profile?.realName || artistData.value?.realName || "",
 
-    description:
-      profile?.description ||
-      artistData.value?.description ||
-      "",
+    description: profile?.description || artistData.value?.description || "",
   };
 
   /*
@@ -1109,31 +973,24 @@ function openArtistModal() {
    */
   artistUrlDraft.value =
     artistData.value?.customCover &&
-    !String(
-      artistData.value.customCover,
-    ).startsWith("blob:")
+    !String(artistData.value.customCover).startsWith("blob:")
       ? artistData.value.customCover
       : "";
 
   pendingArtistImage.value = null;
 
   if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(
-      temporaryImageObjectUrl,
-    );
+    URL.revokeObjectURL(temporaryImageObjectUrl);
 
     temporaryImageObjectUrl = null;
   }
 
-  editorImagePreview.value =
-    artistData.value?.customCover || null;
+  editorImagePreview.value = artistData.value?.customCover || null;
 
   isArtistModalOpen.value = true;
 
   nextTick(() => {
-    document.body.classList.add(
-      "artist-modal-open",
-    );
+    document.body.classList.add("artist-modal-open");
   });
 }
 
@@ -1149,18 +1006,14 @@ function closeArtistModal() {
   pendingArtistImage.value = null;
 
   if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(
-      temporaryImageObjectUrl,
-    );
+    URL.revokeObjectURL(temporaryImageObjectUrl);
 
     temporaryImageObjectUrl = null;
   }
 
   editorImagePreview.value = null;
 
-  document.body.classList.remove(
-    "artist-modal-open",
-  );
+  document.body.classList.remove("artist-modal-open");
 }
 
 /* ============================================================
@@ -1173,33 +1026,21 @@ async function pickArtistImageFile(event) {
   if (!file) return;
 
   try {
-    const image = await downscaleImage(
-      file,
-      1280,
-      1280,
-      0.88,
-    );
+    const image = await downscaleImage(file, 1280, 1280, 0.88);
 
     pendingArtistImage.value = image;
 
     if (temporaryImageObjectUrl) {
-      URL.revokeObjectURL(
-        temporaryImageObjectUrl,
-      );
+      URL.revokeObjectURL(temporaryImageObjectUrl);
     }
 
-    temporaryImageObjectUrl =
-      URL.createObjectURL(image);
+    temporaryImageObjectUrl = URL.createObjectURL(image);
 
-    editorImagePreview.value =
-      temporaryImageObjectUrl;
+    editorImagePreview.value = temporaryImageObjectUrl;
 
     artistUrlDraft.value = "";
   } catch (error) {
-    console.error(
-      "Error procesando imagen del artista:",
-      error,
-    );
+    console.error("Error procesando imagen del artista:", error);
   }
 
   event.target.value = "";
@@ -1213,9 +1054,7 @@ function removePendingArtistImage() {
   pendingArtistImage.value = null;
 
   if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(
-      temporaryImageObjectUrl,
-    );
+    URL.revokeObjectURL(temporaryImageObjectUrl);
 
     temporaryImageObjectUrl = null;
   }
@@ -1242,9 +1081,7 @@ function previewArtistUrl() {
   pendingArtistImage.value = null;
 
   if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(
-      temporaryImageObjectUrl,
-    );
+    URL.revokeObjectURL(temporaryImageObjectUrl);
 
     temporaryImageObjectUrl = null;
   }
@@ -1263,68 +1100,43 @@ async function saveArtistProfileChanges() {
 
   try {
     const profile = {
-      artisticName:
-        artistProfileDraft.value.artisticName.trim(),
+      artisticName: artistProfileDraft.value.artisticName.trim(),
 
-      realName:
-        artistProfileDraft.value.realName.trim(),
+      realName: artistProfileDraft.value.realName.trim(),
 
-      description:
-        artistProfileDraft.value.description.trim(),
+      description: artistProfileDraft.value.description.trim(),
     };
 
-    if (
-      typeof library.saveArtistProfile ===
-      "function"
-    ) {
-      await library.saveArtistProfile(
-        artistName.value,
-        profile,
-      );
+    if (typeof library.saveArtistProfile === "function") {
+      await library.saveArtistProfile(artistName.value, profile);
     }
 
     /*
      * Uploaded image.
      */
     if (pendingArtistImage.value) {
-      if (
-        typeof library.setCustomArtistCover ===
-        "function"
-      ) {
+      if (typeof library.setCustomArtistCover === "function") {
         await library.setCustomArtistCover(
           artistName.value,
           pendingArtistImage.value,
         );
       }
-    }
+    } else if (artistUrlDraft.value.trim()) {
     /*
      * URL image.
      */
-    else if (artistUrlDraft.value.trim()) {
-      if (
-        typeof library.setCustomArtistCover ===
-        "function"
-      ) {
+      if (typeof library.setCustomArtistCover === "function") {
         await library.setCustomArtistCover(
           artistName.value,
           artistUrlDraft.value.trim(),
         );
       }
-    }
+    } else if (!editorImagePreview.value && hasCustomCover.value) {
     /*
      * Explicitly removed image.
      */
-    else if (
-      !editorImagePreview.value &&
-      hasCustomCover.value
-    ) {
-      if (
-        typeof library.removeCustomArtistCover ===
-        "function"
-      ) {
-        await library.removeCustomArtistCover(
-          artistName.value,
-        );
+      if (typeof library.removeCustomArtistCover === "function") {
+        await library.removeCustomArtistCover(artistName.value);
       }
     }
 
@@ -1332,10 +1144,7 @@ async function saveArtistProfileChanges() {
 
     closeArtistModal();
   } catch (error) {
-    console.error(
-      "Error guardando perfil del artista:",
-      error,
-    );
+    console.error("Error guardando perfil del artista:", error);
   } finally {
     isSavingArtist.value = false;
   }
@@ -1347,13 +1156,9 @@ async function saveArtistProfileChanges() {
 
 onBeforeUnmount(() => {
   if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(
-      temporaryImageObjectUrl,
-    );
+    URL.revokeObjectURL(temporaryImageObjectUrl);
   }
 
-  document.body.classList.remove(
-    "artist-modal-open",
-  );
+  document.body.classList.remove("artist-modal-open");
 });
 </script>

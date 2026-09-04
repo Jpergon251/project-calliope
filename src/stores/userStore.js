@@ -33,6 +33,7 @@ export const DEFAULT_PREFERENCES = {
   librarySortMode: "name",
   saveListeningHistory: true,
   localDataOnly: true,
+  autoplay: true,
 };
 
 export const DEFAULT_PROFILE = {

@@ -2,6 +2,7 @@
     <router-link
         :to="`/playlist/${playlist.id}`"
         class="playlist-link"
+        @click="recordClick"
     >
         <MediaCard class="playlist-item">
 
@@ -38,11 +39,14 @@ import { useLibraryStore } from "../../stores/libraryStore";
 
 const library = useLibraryStore();
 
-
-defineProps({
+const props = defineProps({
     playlist: {
         type: Object,
         required: true
     }
 });
+
+function recordClick() {
+    library.recordPlaylistPlayed(props.playlist, props.playlist?.songIds?.length);
+}
 </script>

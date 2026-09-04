@@ -45,7 +45,18 @@
     </div>
 
     <span class="song-artist">
-      {{ song.artist }}
+      <span v-if="artistNames.length">
+        <span
+          v-for="(artName, idx) in artistNames"
+          :key="artName"
+          class="song-item-artist-link"
+          @click.stop="goToArtist(artName)"
+          :title="`Ver artista: ${artName}`"
+        >
+          {{ artName }}<span v-if="idx < artistNames.length - 1">, </span>
+        </span>
+      </span>
+      <span v-else>{{ song.artist || 'Artista desconocido' }}</span>
     </span>
 
   </MediaCard>
@@ -71,6 +82,19 @@ const props = defineProps({
 
 const isMobile = ref(false);
 const songCover = computed(() => resolveSongCover(library, props.song));
+
+const artistNames = computed(() => {
+  if (!props.song?.artist) return [];
+  const parsed = library.parseArtistNames(props.song.artist);
+  return parsed.length ? parsed : [props.song.artist];
+});
+
+function goToArtist(name) {
+  if (!name || name === "Unknown" || name === "Artista desconocido") return;
+  library.closeNowPlaying();
+  library.closeQueue();
+  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
+}
 function updateIsMobile() {
   isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;
 }

@@ -35,26 +35,78 @@
       <div class="song-card" @click="openCurrentSong" :class="{ 'is-clickable': !!library.playingSong }">
         <SongCover class="song-cover" :song="library.playingSong"/>
         <section class="song-title">
-
           <h3 class="song-name" v-if="library.playingSong">{{ library.playingSong.name }}</h3>
           <p v-else class="song-name advertisment">No hay canción reproduciéndose</p>
-          <span class="song-artist" v-if="library.playingSong">{{ library.playingSong.artist }}</span>
+          <span class="song-artist" v-if="library.playingSong">
+            <span v-if="playingSongArtists.length">
+              <span
+                v-for="(artName, idx) in playingSongArtists"
+                :key="artName"
+                class="player-bar-artist-link"
+                @click.stop="goToArtist(artName)"
+                :title="`Ver artista: ${artName}`"
+              >
+                {{ artName }}<span v-if="idx < playingSongArtists.length - 1">, </span>
+              </span>
+            </span>
+            <span v-else>{{ library.playingSong.artist }}</span>
+          </span>
         </section>
       </div>
 
       <!-- Controls -->
       <section class="controls">
-        <button type="button" @click.stop="library.playPreviousSong()" aria-label="Canción anterior" title="Canción anterior">
+        <button
+          class="mode-btn shuffle-control-btn"
+          :class="{ active: library.isShuffleEnabled }"
+          type="button"
+          @click.stop="library.toggleShuffle()"
+          :aria-label="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria desactivada'"
+          :title="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria'"
+        >
+          <Shuffle class="control-icon" />
+        </button>
+
+        <button
+          type="button"
+          class="skip-btn prev-btn"
+          @click.stop="library.playPreviousSong()"
+          aria-label="Canción anterior"
+          title="Canción anterior"
+        >
           <SkipBack class="control-icon" fill="white" />
         </button>
 
-        <button type="button" class="play-pause-btn" @click.stop="library.togglePlay()" :aria-label="library.isPlaying ? 'Pausar' : 'Reproducir'" :title="library.isPlaying ? 'Pausar' : 'Reproducir'">
+        <button
+          type="button"
+          class="play-pause-btn"
+          @click.stop="library.togglePlay()"
+          :aria-label="library.isPlaying ? 'Pausar' : 'Reproducir'"
+          :title="library.isPlaying ? 'Pausar' : 'Reproducir'"
+        >
           <Pause v-if="library.isPlaying" class="control-icon" fill="white" />
           <Play v-else class="control-icon" fill="white"/>
         </button>
 
-        <button type="button" @click.stop="library.playNextSong()" aria-label="Siguiente canción" title="Siguiente canción">
+        <button
+          type="button"
+          class="skip-btn next-btn"
+          @click.stop="library.playNextSong()"
+          aria-label="Siguiente canción"
+          title="Siguiente canción"
+        >
           <SkipForward class="control-icon" fill="white" />
+        </button>
+
+        <button
+          class="mode-btn autoplay-control-btn"
+          :class="{ active: library.autoplay }"
+          type="button"
+          @click.stop="library.toggleAutoplay()"
+          :aria-label="library.autoplay ? 'Desactivar reproducción automática' : 'Activar reproducción automática'"
+          :title="library.autoplay ? 'Reproducción automática activada' : 'Reproducción automática desactivada'"
+        >
+          <Infinity class="control-icon" />
         </button>
 
         <button
@@ -69,14 +121,22 @@
         </button>
       </section>
 
-    <!-- Volume Control -->
-      <VolumeModal :library="library"/>
+      <!-- Volume Control (Right) -->
+      <VolumeModal :library="library" layout="bar" />
     </section>
   </section>
 </template>
 
 <script setup>
-import { Play, Pause, SkipBack, SkipForward, ListMusic } from "lucide-vue-next";
+import {
+  Infinity,
+  ListMusic,
+  Pause,
+  Play,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+} from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { useRouter } from "vue-router";
 import SongCover from "../library/SongCover.vue";
@@ -85,6 +145,19 @@ import { computed } from "vue";
 
 const library = useLibraryStore();
 const router = useRouter();
+
+const playingSongArtists = computed(() => {
+  if (!library.playingSong?.artist) return [];
+  const parsed = library.parseArtistNames(library.playingSong.artist);
+  return parsed.length ? parsed : [library.playingSong.artist];
+});
+
+function goToArtist(name) {
+  if (!name || name === "Unknown" || name === "Artista desconocido") return;
+  library.closeNowPlaying();
+  library.closeQueue();
+  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
+}
 
 const progressPercent = computed(() => {
   const d = library.duration;

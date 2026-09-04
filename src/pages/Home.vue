@@ -275,18 +275,6 @@ const jumpBackInItems = computed(() => {
 // 2. "Selecciones rápidas": DEBEN SER CANCIONES
 const quickPickSongs = ref([]);
 
-function shuffleSongs(songs) {
-  const result = [...songs];
-
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result;
-}
-
 function refreshQuickPicks() {
   const all = library.songs || [];
 
@@ -295,45 +283,7 @@ function refreshQuickPicks() {
     return;
   }
 
-  const favorites = all.filter(song => song.favorite);
-  const others = all.filter(song => !song.favorite);
-
-  /*
-   * Los favoritos tienen prioridad, pero no son obligatorios.
-   * Mezclamos ambos grupos para que la selección cambie.
-   */
-  const shuffledFavorites = shuffleSongs(favorites);
-  const shuffledOthers = shuffleSongs(others);
-
-  const selected = [];
-
-  // Si hay favoritos, damos algunas posiciones a favoritos.
-  const favoriteCount = Math.min(
-    shuffledFavorites.length,
-    Math.max(1, Math.ceil(6 * 0.4))
-  );
-
-  selected.push(
-    ...shuffledFavorites.slice(0, favoriteCount)
-  );
-
-  // Completamos con canciones aleatorias.
-  selected.push(
-    ...shuffledOthers.slice(0, 6 - selected.length)
-  );
-
-  // Si no había suficientes canciones normales,
-  // completamos con favoritos restantes.
-  if (selected.length < 6) {
-    selected.push(
-      ...shuffledFavorites.slice(
-        favoriteCount,
-        favoriteCount + (6 - selected.length)
-      )
-    );
-  }
-
-  quickPickSongs.value = shuffleSongs(selected).slice(0, 6);
+  quickPickSongs.value = library.smartShuffle(all).slice(0, 6);
 }
 
 // 3. "Álbumes más escuchados": real counts from listening history

@@ -31,7 +31,20 @@
       <section class="player-page-details" aria-live="polite">
         <div class="song-meta">
           <h1 :title="song.title || song.name">{{ song.title || song.name }}</h1>
-          <p>{{ song.artist || 'Artista desconocido' }}</p>
+          <p class="song-artist-line">
+            <span v-if="songArtists.length">
+              <span
+                v-for="(artName, idx) in songArtists"
+                :key="artName"
+                class="player-clickable-artist"
+                @click.stop="goToArtist(artName)"
+                :title="`Ver artista: ${artName}`"
+              >
+                {{ artName }}<span v-if="idx < songArtists.length - 1">, </span>
+              </span>
+            </span>
+            <span v-else>{{ song.artist || 'Artista desconocido' }}</span>
+          </p>
         </div>
         <div class="player-page-actions">
           <button
@@ -39,9 +52,30 @@
             class="favorite-button"
             :class="{ active: song.favorite }"
             :aria-label="song.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'"
-            @click="library.toggleFavorite(song)"
+            :title="song.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'"
+            @click.stop="library.toggleFavorite(song)"
           >
-            <Heart :fill="song.favorite ? 'currentColor' : 'none'" />
+            <Heart :fill="song.favorite ? 'currentColor' : 'none'" :size="20" />
+          </button>
+          <button
+            type="button"
+            class="rating-btn like-btn"
+            :class="{ active: currentRating === 'like' }"
+            :aria-label="currentRating === 'like' ? 'Quitar Me gusta' : 'Me gusta'"
+            :title="currentRating === 'like' ? 'Quitar Me gusta' : 'Me gusta'"
+            @click.stop="library.toggleLike(song)"
+          >
+            <ThumbsUp :fill="currentRating === 'like' ? 'currentColor' : 'none'" :size="19" />
+          </button>
+          <button
+            type="button"
+            class="rating-btn dislike-btn"
+            :class="{ active: currentRating === 'dislike' }"
+            :aria-label="currentRating === 'dislike' ? 'Quitar No me gusta' : 'No me gusta'"
+            :title="currentRating === 'dislike' ? 'Quitar No me gusta' : 'No me gusta'"
+            @click.stop="library.toggleDislike(song)"
+          >
+            <ThumbsDown :fill="currentRating === 'dislike' ? 'currentColor' : 'none'" :size="19" />
           </button>
         </div>
       </section>
@@ -74,6 +108,16 @@
       </section>
 
       <section class="player-page-controls" aria-label="Controles de reproducción">
+        <button
+          type="button"
+          class="ctrl-btn shuffle-btn"
+          :class="{ active: library.isShuffleEnabled }"
+          :aria-label="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria desactivada'"
+          :title="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria'"
+          @click="library.toggleShuffle()"
+        >
+          <Shuffle :size="20" />
+        </button>
         <button type="button" class="ctrl-btn" aria-label="Canción anterior" @click="library.playPreviousSong">
           <SkipBack fill="currentColor" />
         </button>
@@ -89,6 +133,16 @@
         </button>
         <button type="button" class="ctrl-btn" aria-label="Siguiente canción" @click="library.playNextSong">
           <SkipForward fill="currentColor" />
+        </button>
+        <button
+          type="button"
+          class="ctrl-btn autoplay-btn"
+          :class="{ active: library.autoplay }"
+          :aria-label="library.autoplay ? 'Desactivar reproducción automática' : 'Activar reproducción automática'"
+          :title="library.autoplay ? 'Reproducción automática activada' : 'Reproducción automática desactivada'"
+          @click="handleToggleAutoplay"
+        >
+          <Infinity :size="22" />
         </button>
       </section>
 
@@ -108,7 +162,19 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ChevronDown, Heart, Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-vue-next';
+import {
+  ChevronDown,
+  Heart,
+  Infinity,
+  Music2,
+  Pause,
+  Play,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  ThumbsDown,
+  ThumbsUp,
+} from 'lucide-vue-next';
 import { useLibraryStore } from '../stores/libraryStore.js';
 import AudioVisualizer from '../components/common/AudioVisualizer.vue';
 import SongIconCover from '../components/common/SongIconCover.vue';
@@ -125,6 +191,29 @@ const router = useRouter();
 const route = useRoute();
 const library = useLibraryStore();
 const song = computed(() => library.playingSong);
+
+const songArtists = computed(() => {
+  if (!song.value?.artist) return [];
+  const parsed = library.parseArtistNames(song.value.artist);
+  return parsed.length ? parsed : [song.value.artist];
+});
+
+const currentRating = computed(() => {
+  if (!song.value?.id) return 'neutral';
+  return library.getSongRating(song.value.id);
+});
+
+function goToArtist(name) {
+  if (!name || name === 'Unknown' || name === 'Artista desconocido') return;
+  emit('close');
+  library.closeNowPlaying();
+  library.closeQueue();
+  router.push({ name: 'artist', params: { name: encodeURIComponent(name.trim()) } });
+}
+
+function handleToggleAutoplay() {
+  library.toggleAutoplay();
+}
 
 // Minimize logic
 function handleMinimize() {
