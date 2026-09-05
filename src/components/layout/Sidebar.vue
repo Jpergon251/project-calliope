@@ -17,6 +17,11 @@
           <span class="page-name">Biblioteca</span>
         </router-link>
 
+        <router-link to="/metadata" class="page-link">
+          <Tags class="page-icon" />
+          <span class="page-name">Metadatos</span>
+        </router-link>
+
         <!-- Acceso directo a Historial en barra inferior móvil -->
         <router-link to="/history" class="page-link mobile-nav-visible mobile-only-link">
           <History class="page-icon" />
@@ -119,6 +124,7 @@ import {
   Info,
   LibraryIcon,
   Play,
+  Tags,
   UserRound,
 } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";

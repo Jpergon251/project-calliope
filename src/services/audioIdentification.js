@@ -1,12 +1,10 @@
-import {
-  Fingerprinter
-} from 'rusty-chromaprint-wasm';
+import { Fingerprinter } from "rusty-chromaprint-wasm";
 
 // API Key del usuario registrada en AcoustID
-const ACOUSTID_CLIENT = 'gCqZRLkoQU';
+const ACOUSTID_CLIENT = "gCqZRLkoQU";
 const MAX_FINGERPRINT_SECONDS = 120;
 const MIN_MATCH_SCORE = 0.5;
-const MUSICBRAINZ_API = 'https://musicbrainz.org/ws/2';
+const MUSICBRAINZ_API = "https://musicbrainz.org/ws/2";
 
 /**
  * Convierte muestras Float32 [-1, 1] a Int16 [-32768, 32767]
@@ -61,7 +59,7 @@ function audioBufferToMono(audioBuffer, maxSeconds = MAX_FINGERPRINT_SECONDS) {
  */
 function createFingerprint(audioBuffer) {
   const sampleRate = audioBuffer.sampleRate;
-    const mono = audioBufferToMono(audioBuffer, MAX_FINGERPRINT_SECONDS);
+  const mono = audioBufferToMono(audioBuffer, MAX_FINGERPRINT_SECONDS);
   const samples = float32ToInt16(mono);
 
   const fp = new Fingerprinter();
@@ -69,13 +67,15 @@ function createFingerprint(audioBuffer) {
 
   const CHUNK = 4096;
   for (let offset = 0; offset < samples.length; offset += CHUNK) {
-    fp.consume(samples.subarray(offset, Math.min(offset + CHUNK, samples.length)));
+    fp.consume(
+      samples.subarray(offset, Math.min(offset + CHUNK, samples.length)),
+    );
   }
 
   fp.finish();
   return {
     compressed: fp.getCompressedFingerprint(),
-    duration: samples.length / sampleRate
+    duration: samples.length / sampleRate,
   };
 }
 
@@ -87,25 +87,27 @@ async function lookupAcoustID(fingerprint, duration) {
     client: ACOUSTID_CLIENT,
     duration: String(Math.round(duration)),
     fingerprint,
-    meta: 'recordings+releasegroups+releases'
+    meta: "recordings+releasegroups+releases",
   });
 
-  const response = await fetch('https://api.acoustid.org/v2/lookup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString()
+  const response = await fetch("https://api.acoustid.org/v2/lookup", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
   });
 
-    let data = null;
+  let data = null;
   try {
     data = await response.json();
   } catch {
-    throw new Error(`Error al leer la respuesta de AcoustID (HTTP ${response.status})`);
+    throw new Error(
+      `Error al leer la respuesta de AcoustID (HTTP ${response.status})`,
+    );
   }
 
-  if (!response.ok || data.status !== 'ok') {
+  if (!response.ok || data.status !== "ok") {
     throw new Error(
-      data?.error?.message || `AcoustID respondió con HTTP ${response.status}`
+      data?.error?.message || `AcoustID respondió con HTTP ${response.status}`,
     );
   }
 
@@ -120,24 +122,26 @@ async function lookupAcoustIDTrack(trackId) {
   const body = new URLSearchParams({
     client: ACOUSTID_CLIENT,
     trackid: trackId,
-    meta: 'recordingids'
+    meta: "recordingids",
   });
-  const response = await fetch('https://api.acoustid.org/v2/lookup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString()
+  const response = await fetch("https://api.acoustid.org/v2/lookup", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
   });
 
   let data = null;
   try {
     data = await response.json();
   } catch {
-    throw new Error(`Error al leer la respuesta de AcoustID (HTTP ${response.status})`);
+    throw new Error(
+      `Error al leer la respuesta de AcoustID (HTTP ${response.status})`,
+    );
   }
 
-  if (!response.ok || data.status !== 'ok') {
+  if (!response.ok || data.status !== "ok") {
     throw new Error(
-      data?.error?.message || `AcoustID respondió con HTTP ${response.status}`
+      data?.error?.message || `AcoustID respondió con HTTP ${response.status}`,
     );
   }
 
@@ -156,16 +160,16 @@ async function resolveRecordingResults(results) {
     if (!result.id) continue;
     const trackResults = await lookupAcoustIDTrack(result.id);
     const recordingIds = trackResults
-      .flatMap(trackResult => Array.isArray(trackResult.recordings)
-        ? trackResult.recordings
-        : [])
-      .map(recording => recording?.id)
+      .flatMap((trackResult) =>
+        Array.isArray(trackResult.recordings) ? trackResult.recordings : [],
+      )
+      .map((recording) => recording?.id)
       .filter(Boolean);
 
     if (recordingIds.length) {
       resolved.push({
         ...result,
-        recordings: [...new Set(recordingIds)].map(id => ({ id }))
+        recordings: [...new Set(recordingIds)].map((id) => ({ id })),
       });
     }
   }
@@ -177,18 +181,21 @@ async function resolveRecordingResults(results) {
  * Elige el resultado con mayor puntuación que tenga grabación asociada
  */
 function chooseBestResult(results) {
-  const candidates = (Array.isArray(results) ? results : []).flatMap(result => {
-    const score = Number(result?.score);
-    return (Array.isArray(result?.recordings) ? result.recordings : [])
-      .filter(recording => recording?.id && Number.isFinite(score))
-      .map(recording => ({ result, recording, score }));
-  });
+  const candidates = (Array.isArray(results) ? results : []).flatMap(
+    (result) => {
+      const score = Number(result?.score);
+      return (Array.isArray(result?.recordings) ? result.recordings : [])
+        .filter((recording) => recording?.id && Number.isFinite(score))
+        .map((recording) => ({ result, recording, score }));
+    },
+  );
 
   candidates.sort((left, right) => {
     if (right.score !== left.score) return right.score - left.score;
-    const metadata = recording => Number(Boolean(recording.title))
-      + Number(Boolean(recording.artists?.length))
-      + Number(Boolean(recording.releasegroups?.length));
+    const metadata = (recording) =>
+      Number(Boolean(recording.title)) +
+      Number(Boolean(recording.artists?.length)) +
+      Number(Boolean(recording.releasegroups?.length));
     return metadata(right.recording) - metadata(left.recording);
   });
 
@@ -197,118 +204,141 @@ function chooseBestResult(results) {
 }
 
 function artistCreditNames(artistCredit) {
-  if (!Array.isArray(artistCredit)) return '';
+  if (!Array.isArray(artistCredit)) return "";
   return artistCredit
-    .map(credit => credit?.name || credit?.artist?.name || '')
+    .map((credit) => credit?.name || credit?.artist?.name || "")
     .filter(Boolean)
-    .join(', ');
+    .join(", ");
 }
 
 function artistNames(artists) {
-  if (!Array.isArray(artists)) return '';
-  return artists.map(artist => artist?.name || '').filter(Boolean).join(', ');
+  if (!Array.isArray(artists)) return "";
+  return artists
+    .map((artist) => artist?.name || "")
+    .filter(Boolean)
+    .join(", ");
 }
 
 function genreNames(...sources) {
-  return [...new Set(sources
-    .flatMap(source => Array.isArray(source) ? source : [])
-    .map(genre => typeof genre === 'string' ? genre : genre?.name)
-    .filter(Boolean))];
+  return [
+    ...new Set(
+      sources
+        .flatMap((source) => (Array.isArray(source) ? source : []))
+        .map((genre) => (typeof genre === "string" ? genre : genre?.name))
+        .filter(Boolean),
+    ),
+  ];
 }
 
 async function lookupMusicBrainzRecording(recordingId) {
   const params = new URLSearchParams({
-    inc: 'artist-credits+releases+release-groups+media+genres',
-    fmt: 'json'
+    inc: "artist-credits+releases+release-groups+media+genres",
+    fmt: "json",
   });
   const response = await fetch(
     `${MUSICBRAINZ_API}/recording/${encodeURIComponent(recordingId)}?${params}`,
-    { headers: { Accept: 'application/json' } }
+    { headers: { Accept: "application/json" } },
   );
 
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`MusicBrainz respondió con HTTP ${response.status}.`);
+  if (!response.ok)
+    throw new Error(`MusicBrainz respondió con HTTP ${response.status}.`);
   return response.json();
 }
 
 function releaseGroupId(release) {
-  return release?.['release-group']?.id || release?.release_group?.id || '';
+  return release?.["release-group"]?.id || release?.release_group?.id || "";
 }
 
 function chooseRelease(recording, acoustidRecording) {
   const releases = Array.isArray(recording?.releases) ? recording.releases : [];
   const preferredGroups = new Set(
-    (acoustidRecording?.releasegroups || []).map(group => group?.id).filter(Boolean)
+    (acoustidRecording?.releasegroups || [])
+      .map((group) => group?.id)
+      .filter(Boolean),
   );
 
-  return [...releases].sort((left, right) => {
-    const preferredDifference = Number(preferredGroups.has(releaseGroupId(right)))
-      - Number(preferredGroups.has(releaseGroupId(left)));
-    if (preferredDifference) return preferredDifference;
-    const mediaDifference = Number(Array.isArray(right.media) && right.media.length)
-      - Number(Array.isArray(left.media) && left.media.length);
-    if (mediaDifference) return mediaDifference;
-    return Number(left.status !== 'official') - Number(right.status !== 'official');
-  })[0] || null;
+  return (
+    [...releases].sort((left, right) => {
+      const preferredDifference =
+        Number(preferredGroups.has(releaseGroupId(right))) -
+        Number(preferredGroups.has(releaseGroupId(left)));
+      if (preferredDifference) return preferredDifference;
+      const mediaDifference =
+        Number(Array.isArray(right.media) && right.media.length) -
+        Number(Array.isArray(left.media) && left.media.length);
+      if (mediaDifference) return mediaDifference;
+      return (
+        Number(left.status !== "official") - Number(right.status !== "official")
+      );
+    })[0] || null
+  );
 }
 
 function getTrackData(release, recordingId, title) {
   const media = Array.isArray(release?.media) ? release.media : [];
   for (const medium of media) {
     const tracks = Array.isArray(medium.tracks) ? medium.tracks : [];
-    const track = tracks.find(item => item.recording?.id === recordingId)
-      || tracks.find(item => item.title === title);
+    const track =
+      tracks.find((item) => item.recording?.id === recordingId) ||
+      tracks.find((item) => item.title === title);
     if (track) {
       return {
-        track: track.position ? String(track.position) : '',
-        trackTotal: medium['track-count'] ? String(medium['track-count']) : '',
-        disk: medium.position ? String(medium.position) : '',
-        diskTotal: release['media-count']
-          ? String(release['media-count'])
-          : String(media.length)
+        track: track.position ? String(track.position) : "",
+        trackTotal: medium["track-count"] ? String(medium["track-count"]) : "",
+        disk: medium.position ? String(medium.position) : "",
+        diskTotal: release["media-count"]
+          ? String(release["media-count"])
+          : String(media.length),
       };
     }
   }
-  return { track: '', trackTotal: '', disk: '', diskTotal: '' };
+  return { track: "", trackTotal: "", disk: "", diskTotal: "" };
 }
 
 function getCover(release, recording) {
-  const groupId = releaseGroupId(release)
-    || recording?.releasegroups?.find(group => group?.id)?.id;
-  if (groupId) return `https://coverartarchive.org/release-group/${groupId}/front-500`;
-  return release?.id ? `https://coverartarchive.org/release/${release.id}/front-500` : '';
+  const groupId =
+    releaseGroupId(release) ||
+    recording?.releasegroups?.find((group) => group?.id)?.id;
+  if (groupId)
+    return `https://coverartarchive.org/release-group/${groupId}/front-500`;
+  return release?.id
+    ? `https://coverartarchive.org/release/${release.id}/front-500`
+    : "";
 }
 
 function mapMetadata(acoustidResult, acoustidRecording, musicBrainzRecording) {
   const recording = musicBrainzRecording || {};
-  const title = recording.title || acoustidRecording.title || '';
-  const artist = artistCreditNames(recording['artist-credit'])
-    || artistNames(acoustidRecording.artists);
+  const title = recording.title || acoustidRecording.title || "";
+  const artist =
+    artistCreditNames(recording["artist-credit"]) ||
+    artistNames(acoustidRecording.artists);
   const release = chooseRelease(recording, acoustidRecording);
-  const releaseGroup = release?.['release-group'];
+  const releaseGroup = release?.["release-group"];
   const genres = genreNames(
     recording.genres,
     release?.genres,
     releaseGroup?.genres,
-    acoustidRecording.genres
+    acoustidRecording.genres,
   );
   return {
     title,
     artist,
-    albumArtist: artistCreditNames(release?.['artist-credit']) || artist,
-    album: releaseGroup?.title
-      || acoustidRecording.releasegroups?.find(group => group?.title)?.title
-      || release?.title
-      || '',
+    albumArtist: artistCreditNames(release?.["artist-credit"]) || artist,
+    album:
+      releaseGroup?.title ||
+      acoustidRecording.releasegroups?.find((group) => group?.title)?.title ||
+      release?.title ||
+      "",
     genre: genres,
     year: release?.date?.year
       ? String(release.date.year)
-      : (release?.date?.slice?.(0, 4) || ''),
+      : release?.date?.slice?.(0, 4) || "",
     ...getTrackData(release, recording.id || acoustidRecording.id, title),
     cover: getCover(release, acoustidRecording),
     confidence: acoustidResult.score,
     musicBrainzRecordingId: acoustidRecording.id,
-    acoustid: acoustidResult.result.id || ''
+    acoustid: acoustidResult.result.id || "",
   };
 }
 
@@ -319,30 +349,38 @@ function mapMetadata(acoustidResult, acoustidRecording, musicBrainzRecording) {
  */
 export async function identifyAudio(file) {
   if (!(file instanceof File)) {
-    throw new Error('El archivo proporcionado no es válido.');
+    throw new Error("El archivo proporcionado no es válido.");
   }
 
-  console.log('[Calliope] Analizando:', file.name);
+  console.log("[Calliope] Analizando:", file.name);
 
   // 1. Decodificar audio
   const audioBuffer = await decodeAudioFile(file);
   console.log(
-    `[Calliope] Audio: ${audioBuffer.duration.toFixed(2)}s @ ${audioBuffer.sampleRate}Hz`
+    `[Calliope] Audio: ${audioBuffer.duration.toFixed(2)}s @ ${audioBuffer.sampleRate}Hz`,
   );
 
   // 2. Generar huella acústica (Chromaprint WASM)
   const fingerprint = createFingerprint(audioBuffer);
-  console.log('[Calliope] Fingerprint:', fingerprint.compressed.slice(0, 40) + '...');
+  console.log(
+    "[Calliope] Fingerprint:",
+    fingerprint.compressed.slice(0, 40) + "...",
+  );
 
   // 3. Consultar AcoustID
-  const results = await lookupAcoustID(fingerprint.compressed, audioBuffer.duration);
-  console.log('[Calliope] Resultados AcoustID:', results);
+  const results = await lookupAcoustID(
+    fingerprint.compressed,
+    audioBuffer.duration,
+  );
+  console.log("[Calliope] Resultados AcoustID:", results);
 
   // 4. Elegir mejor coincidencia
   const best = chooseBestResult(await resolveRecordingResults(results));
   if (!best) return null;
 
   // AcoustID identifies the recording; MusicBrainz supplies release/media details.
-  const musicBrainzRecording = await lookupMusicBrainzRecording(best.recording.id);
+  const musicBrainzRecording = await lookupMusicBrainzRecording(
+    best.recording.id,
+  );
   return mapMetadata(best, best.recording, musicBrainzRecording);
 }

@@ -1069,22 +1069,6 @@
 
         <div class="pref-row">
           <div class="pref-text">
-            <strong>Gestionar metadatos</strong>
-            <p>Consulta, edita y analiza los metadatos de tus canciones.</p>
-          </div>
-
-          <button
-            type="button"
-            class="btn btn-primary"
-            :disabled="!library.folderHandle"
-            @click="router.push('/metadata')"
-          >
-            Metadatos
-          </button>
-        </div>
-
-        <div class="pref-row">
-          <div class="pref-text">
             <strong>Escanear de nuevo</strong>
             <p>Busca nuevos archivos añadidos a la carpeta seleccionada.</p>
           </div>
@@ -1225,7 +1209,11 @@
             </p>
           </div>
 
-          <button type="button" class="btn btn-danger" @click="wipeProfile">
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="openDeleteProfileModal"
+          >
             Eliminar perfil
           </button>
         </div>
@@ -1389,6 +1377,79 @@
             >
               <span v-if="isSettingPassword">Guardando...</span>
               <span v-else>Establecer y activar</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL CONFIRMACIÓN ELIMINAR PERFIL
+         ============================================================ -->
+
+    <div
+      v-if="isDeleteProfileModalOpen"
+      class="modal-backdrop"
+      @click.self="closeDeleteProfileModal"
+    >
+      <div class="modal-card delete-profile-dialog-card">
+        <div class="modal-header-simple">
+          <h3>¿Eliminar este perfil?</h3>
+
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Cerrar"
+            :disabled="isDeletingProfile"
+            @click="closeDeleteProfileModal"
+          >
+            <X :size="16" />
+          </button>
+        </div>
+
+        <p class="dialog-desc danger-warning-text">
+          Esta acción es permanente y no se puede deshacer. Se eliminarán los
+          datos asociados a este perfil localmente en Calliope, incluyendo tu
+          identidad, preferencias, historial y estadísticas.
+        </p>
+
+        <form @submit.prevent="confirmWipeProfile">
+          <div class="delete-confirmation-prompt">
+            <span class="prompt-label">Para confirmar, escribe exactamente:</span>
+            <span class="prompt-nickname">{{ expectedProfileNickname }}</span>
+          </div>
+
+          <label class="form-field">
+            <span>Nombre del perfil</span>
+            <input
+              v-model="deleteConfirmationInput"
+              type="text"
+              :placeholder="expectedProfileNickname"
+              autocomplete="off"
+              spellcheck="false"
+              required
+              autofocus
+              :disabled="isDeletingProfile"
+            />
+          </label>
+
+          <div class="dialog-actions-row">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              :disabled="isDeletingProfile"
+              @click="closeDeleteProfileModal"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-danger"
+              :disabled="!isDeleteNicknameMatching || isDeletingProfile"
+            >
+              <span v-if="isDeletingProfile">Eliminando...</span>
+              <span v-else>Eliminar definitivamente</span>
             </button>
           </div>
         </form>
@@ -2104,16 +2165,48 @@ function cancelSetPassword() {
   passwordError.value = "";
 }
 
-async function wipeProfile() {
-  const confirmed = confirm(
-    "Se eliminará este perfil completo (identidad, imágenes y preferencias) de este dispositivo." +
-      "\n\n¿Continuar?",
-  );
+const isDeleteProfileModalOpen = ref(false);
+const deleteConfirmationInput = ref("");
+const isDeletingProfile = ref(false);
 
-  if (!confirmed) return;
+const expectedProfileNickname = computed(() => {
+  return (
+    user.profile.username ||
+    user.profile.displayName ||
+    user.profile.name ||
+    "Oyente"
+  ).trim();
+});
 
-  await user.wipeProfile();
-  router.push("/welcome");
+const isDeleteNicknameMatching = computed(() => {
+  return deleteConfirmationInput.value.trim() === expectedProfileNickname.value;
+});
+
+function openDeleteProfileModal() {
+  deleteConfirmationInput.value = "";
+  isDeletingProfile.value = false;
+  isDeleteProfileModalOpen.value = true;
+}
+
+function closeDeleteProfileModal() {
+  if (isDeletingProfile.value) return;
+  isDeleteProfileModalOpen.value = false;
+  deleteConfirmationInput.value = "";
+}
+
+async function confirmWipeProfile() {
+  if (!isDeleteNicknameMatching.value || isDeletingProfile.value) return;
+
+  isDeletingProfile.value = true;
+  try {
+    await user.wipeProfile();
+    isDeleteProfileModalOpen.value = false;
+    router.push("/welcome");
+  } catch (err) {
+    console.error("[Profile] Error al eliminar perfil:", err);
+  } finally {
+    isDeletingProfile.value = false;
+  }
 }
 
 onMounted(async () => {

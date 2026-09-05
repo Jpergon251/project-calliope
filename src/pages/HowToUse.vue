@@ -1,27 +1,89 @@
 <template>
   <main class="how-to-use">
     <header class="page-header">
-      <BookOpen class="page-header-icon" />
+      <div class="header-badge">
+        <Sparkles class="badge-icon" />
+        <span>GUÍA DEL REPRODUCTOR</span>
+      </div>
 
       <h1>Cómo usar Calliope</h1>
 
-      <p>
-        Aprende a configurar tu biblioteca, reproducir tu música y utilizar
-        todas las funciones disponibles en Calliope.
+      <p class="header-desc">
+        Descubre cómo sacar el máximo partido a tu reproductor de música local: desde la
+        configuración inicial de tu biblioteca hasta la reproducción inteligente, estadísticas y modo móvil.
       </p>
+
+      <nav class="guide-nav" aria-label="Navegación de secciones de la guía">
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('primeros-pasos')"
+        >
+          <Rocket class="chip-icon" />
+          <span>Primeros pasos</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('biblioteca')"
+        >
+          <FolderOpen class="chip-icon" />
+          <span>Biblioteca</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('reproduccion')"
+        >
+          <Play class="chip-icon" />
+          <span>Reproducción</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('interaccion')"
+        >
+          <Heart class="chip-icon" />
+          <span>Preferencias</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('estadisticas')"
+        >
+          <BarChart3 class="chip-icon" />
+          <span>Estadísticas</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('movil')"
+        >
+          <Smartphone class="chip-icon" />
+          <span>Móvil</span>
+        </button>
+        <button
+          type="button"
+          class="nav-chip"
+          @click="scrollToSection('privacidad')"
+        >
+          <ShieldCheck class="chip-icon" />
+          <span>Privacidad</span>
+        </button>
+      </nav>
     </header>
 
-    <!-- PRIMEROS PASOS -->
-
-    <section class="guide-section" aria-labelledby="getting-started-title">
+    <!-- 1. PRIMEROS PASOS -->
+    <section id="primeros-pasos" class="guide-section" aria-labelledby="getting-started-title">
       <div class="section-heading">
-        <Rocket />
-
+        <div class="heading-icon-wrap">
+          <Rocket />
+        </div>
         <div>
+          <span class="section-tag">CONFIGURACIÓN INICIAL</span>
           <h2 id="getting-started-title">Primeros pasos</h2>
-
           <p>
-            Configura Calliope por primera vez y empieza a escuchar tu música.
+            Configura Calliope en segundos y empieza a escuchar tu música directamente desde tu dispositivo.
           </p>
         </div>
       </div>
@@ -29,311 +91,417 @@
       <div class="steps-list">
         <article class="guide-step">
           <span class="step-number">01</span>
-
           <div>
-            <h3>Selecciona tu carpeta de música</h3>
-
+            <h3>Crea o selecciona tu perfil</h3>
             <p>
-              Al iniciar Calliope por primera vez, selecciona la carpeta donde
-              tienes almacenados tus archivos de música.
+              Comienza creando tu perfil personalizado o entrando como Invitado. Cada perfil mantiene su
+              propio historial, canciones favoritas, estadísticas de escucha y ajustes individuales.
             </p>
           </div>
         </article>
 
         <article class="guide-step">
           <span class="step-number">02</span>
-
           <div>
-            <h3>Permite el acceso a tus archivos</h3>
-
+            <h3>Selecciona tu carpeta de música local</h3>
             <p>
-              El navegador solicitará permiso para que Calliope pueda acceder a
-              la carpeta seleccionada y leer tus archivos.
+              Elige la carpeta de tu ordenador o almacenamiento donde guardas tus archivos de audio. Calliope
+              utiliza la API nativa del navegador para acceder a los ficheros con tu autorización.
             </p>
           </div>
         </article>
 
         <article class="guide-step">
           <span class="step-number">03</span>
-
           <div>
-            <h3>Espera a que se analice la biblioteca</h3>
-
+            <h3>Lectura local y extracción de metadatos</h3>
             <p>
-              Calliope analizará los archivos compatibles y obtendrá información
-              como títulos, artistas, álbumes y portadas.
+              Calliope analiza tus archivos en tiempo real y extrae carátulas en alta calidad, artistas,
+              álbumes, números de pista y formatos sin subir ni un solo byte a ningún servidor externo.
             </p>
           </div>
         </article>
 
         <article class="guide-step">
           <span class="step-number">04</span>
-
           <div>
-            <h3>Empieza a escuchar</h3>
-
+            <h3>Reproduce al instante</h3>
             <p>
-              Una vez completado el análisis, podrás explorar tu biblioteca y
-              empezar a reproducir tus canciones.
+              Una vez indexada la carpeta, navega por tu música con fluidez instantánea, crea listas de
+              reproducción y disfruta de una experiencia auditiva pura y sin interrupciones.
             </p>
           </div>
         </article>
       </div>
     </section>
 
-    <!-- BIBLIOTECA -->
-
-    <section class="guide-section" aria-labelledby="library-title">
+    <!-- 2. BIBLIOTECA -->
+    <section id="biblioteca" class="guide-section" aria-labelledby="library-title">
       <div class="section-heading">
-        <FolderOpen />
-
+        <div class="heading-icon-wrap">
+          <FolderOpen />
+        </div>
         <div>
+          <span class="section-tag">CATÁLOGO Y NAVEGACIÓN</span>
           <h2 id="library-title">Tu biblioteca</h2>
-
-          <p>Todo lo necesario para organizar y explorar tu música.</p>
+          <p>Explora, organiza y filtra tu música local con herramientas ágiles y visuales.</p>
         </div>
       </div>
 
       <div class="guide-grid">
         <article class="guide-card">
-          <Music />
-
+          <Music class="card-icon" />
           <h3>Canciones</h3>
-
           <p>
-            Explora todos los archivos de música disponibles en tu biblioteca y
-            utiliza el buscador para encontrar rápidamente una canción.
+            Accede a todas las pistas de tu biblioteca en una lista ordenada por título, duración o fecha.
+            Filtra en segundos con el buscador instantáneo integrado.
           </p>
         </article>
 
         <article class="guide-card">
-          <Disc3 />
-
+          <Disc3 class="card-icon" />
           <h3>Álbumes</h3>
-
           <p>
-            Calliope agrupa automáticamente tus canciones utilizando los
-            metadatos incluidos en los archivos.
+            Calliope agrupa automáticamente tus pistas en discos completos a partir de sus metadatos ID3/FLAC,
+            mostrando sus portadas originales en alta resolución.
           </p>
         </article>
 
         <article class="guide-card">
-          <Mic2 />
-
+          <Mic2 class="card-icon" />
           <h3>Artistas</h3>
-
           <p>
-            Consulta las canciones asociadas a cada artista de tu biblioteca.
+            Páginas individuales dedicadas para cada artista de tu colección, con desglose de sus álbumes,
+            canciones más populares y total de reproducciones.
           </p>
         </article>
 
         <article class="guide-card">
-          <RefreshCw />
-
-          <h3>Actualizar biblioteca</h3>
-
+          <ListPlus class="card-icon" />
+          <h3>Playlists</h3>
           <p>
-            Si añades nueva música a tu carpeta, puedes volver a escanearla para
-            que Calliope detecte los nuevos archivos.
+            Crea listas a medida, añade pistas desde cualquier menú contextual, cambia el orden de reproducción
+            arrastrando y personaliza sus títulos sin modificar tus archivos de audio.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <Heart class="card-icon favorite-icon" />
+          <h3>Favoritos</h3>
+          <p>
+            Guarda tus temas predilectos con un toque en el corazón para tenerlos reunidos en una lista
+            permanente accesible desde la barra lateral.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <Search class="card-icon" />
+          <h3>Búsqueda y navegación</h3>
+          <p>
+            Busca en tiempo real por nombre de canción, artista o álbum. El motor de búsqueda local ofrece
+            coincidencias inmediatas sin demoras.
           </p>
         </article>
       </div>
     </section>
 
-    <!-- REPRODUCCIÓN -->
-
-    <section class="guide-section" aria-labelledby="playback-title">
+    <!-- 3. REPRODUCCIÓN -->
+    <section id="reproduccion" class="guide-section" aria-labelledby="playback-title">
       <div class="section-heading">
-        <Play />
-
+        <div class="heading-icon-wrap">
+          <Play />
+        </div>
         <div>
-          <h2 id="playback-title">Reproducción</h2>
-
-          <p>Controla tu música desde el reproductor.</p>
+          <span class="section-tag">MOTOR DE AUDIO</span>
+          <h2 id="playback-title">Reproducción y controles</h2>
+          <p>Control de audio de alta precisión con funciones pensadas para una escucha sin fricción.</p>
         </div>
       </div>
 
       <div class="guide-grid">
         <article class="guide-card">
-          <PlayCircle />
-
-          <h3>Controles</h3>
-
+          <PlayCircle class="card-icon" />
+          <h3>Reproductor (Player)</h3>
           <p>
-            Reproduce, pausa y cambia entre canciones utilizando los controles
-            del reproductor.
+            Barra inferior persistente con carátula interactiva, información en tiempo real, scrubber de progreso
+            con seek instantáneo y acceso directo al visualizador dinámico.
           </p>
         </article>
 
         <article class="guide-card">
-          <Shuffle />
-
-          <h3>Reproducción aleatoria</h3>
-
+          <ListMusic class="card-icon" />
+          <h3>Cola dinámica</h3>
           <p>
-            Activa el modo aleatorio para reproducir las canciones en un orden
-            diferente.
+            Consulta qué pistas sonarán a continuación, reordena canciones sobre la marcha, añade álbumes
+            completos o vacía la cola sin afectar a tus listas fijas.
           </p>
         </article>
 
         <article class="guide-card">
-          <Repeat />
-
-          <h3>Repetición</h3>
-
+          <Shuffle class="card-icon" />
+          <h3>Aleatorio (Shuffle)</h3>
           <p>
-            Repite una canción o continúa reproduciendo la cola de reproducción
-            normalmente.
+            Mezcla inteligente que baraja tus canciones evitando repeticiones inmediatas y conservando la
+            cola original en segundo plano.
           </p>
         </article>
 
         <article class="guide-card">
-          <Volume2 />
+          <Repeat class="card-icon" />
+          <h3>Modos de repetición</h3>
+          <p>
+            Alterna entre tres estados: desactivado, repetir toda la lista/cola en bucle, o repetir la canción
+            actual de forma indefinida.
+          </p>
+        </article>
 
-          <h3>Volumen</h3>
+        <article class="guide-card highlight-card">
+          <Infinity class="card-icon accent-icon" />
+          <h3>Autoplay inteligente</h3>
+          <p>
+            Cuando tu lista o cola se agota, Calliope añade automáticamente nuevos temas afines de tu biblioteca
+            basándose en tus gustos, manteniendo la música activa sin parar.
+          </p>
+        </article>
 
-          <p>Controla el volumen directamente desde el reproductor.</p>
+        <article class="guide-card">
+          <Volume2 class="card-icon" />
+          <h3>Volumen y navegación</h3>
+          <p>
+            Control milimétrico con slider no lineal, botón de silencio instantáneo y navegación rápida
+            hacia adelante o atrás entre canciones.
+          </p>
         </article>
       </div>
     </section>
 
-    <!-- COLA -->
-
-    <section class="guide-section" aria-labelledby="queue-title">
+    <!-- 4. INTERACCIÓN CON CANCIONES -->
+    <section id="interaccion" class="guide-section" aria-labelledby="interaction-title">
       <div class="section-heading">
-        <ListMusic />
-
-        <div>
-          <h2 id="queue-title">Cola de reproducción</h2>
-
-          <p>Decide qué canciones quieres escuchar a continuación.</p>
+        <div class="heading-icon-wrap">
+          <Heart />
         </div>
-      </div>
-
-      <article class="guide-feature">
-        <ListMusic class="feature-icon" />
-
         <div>
-          <h3>Gestiona tu cola</h3>
-
-          <p>
-            Añade canciones a la cola, cambia su orden o elimina aquellas que ya
-            no quieras reproducir.
-          </p>
-
-          <p>
-            La cola te permite preparar una sesión de escucha sin tener que
-            crear una playlist permanente.
-          </p>
-        </div>
-      </article>
-    </section>
-
-    <!-- PLAYLISTS -->
-
-    <section class="guide-section" aria-labelledby="playlists-title">
-      <div class="section-heading">
-        <ListPlus />
-
-        <div>
-          <h2 id="playlists-title">Playlists</h2>
-
-          <p>Organiza tus canciones en listas personalizadas.</p>
+          <span class="section-tag">PREFERENCIAS Y VALORACIONES</span>
+          <h2 id="interaction-title">Interacción y preferencias</h2>
+          <p>Enseña a Calliope tus gustos musicales para una experiencia personalizada y afinada.</p>
         </div>
       </div>
 
       <div class="guide-grid">
         <article class="guide-card">
-          <Plus />
-
-          <h3>Crear una playlist</h3>
-
+          <ThumbsUp class="card-icon thumb-up" />
+          <h3>Me gusta (Like)</h3>
           <p>
-            Crea una nueva playlist y dale un nombre para organizar tus
-            canciones.
+            Pulsa el pulgar hacia arriba en cualquier canción para marcar que te encanta. Calliope recordará
+            tu preferencia y la asociará a tu perfil.
           </p>
         </article>
 
         <article class="guide-card">
-          <ListPlus />
-
-          <h3>Añadir canciones</h3>
-
-          <p>Añade canciones de tu biblioteca a cualquier playlist.</p>
-        </article>
-
-        <article class="guide-card">
-          <ListX />
-
-          <h3>Eliminar canciones</h3>
-
+          <ThumbsDown class="card-icon thumb-down" />
+          <h3>No me gusta (Dislike)</h3>
           <p>
-            Puedes eliminar canciones de una playlist sin eliminar el archivo
-            original de tu biblioteca.
+            Indica los temas que prefieres omitir. Esto evita que suenen por sorpresa o se sugieran automáticamente
+            mientras escuchas música.
           </p>
         </article>
 
         <article class="guide-card">
-          <ArrowDownUp />
-
-          <h3>Reordenar</h3>
-
+          <Heart class="card-icon favorite-icon" />
+          <h3>Favoritos</h3>
           <p>
-            Cambia el orden de las canciones para decidir cómo quieres
-            reproducir tu playlist.
+            El corazón reúne tus temas esenciales en una categoría destacada y prioritaria de tu biblioteca,
+            fácil de reproducir en un clic.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <History class="card-icon" />
+          <h3>Historial de reproducción</h3>
+          <p>
+            Consulta cronológicamente cada una de las sesiones y temas que has escuchado, con fecha, hora exacta
+            y acceso para volver a reproducirlos.
           </p>
         </article>
       </div>
+
+      <div class="guide-notice recommendation-notice">
+        <Sparkles class="notice-icon" />
+        <div>
+          <h3>¿Cómo influyen tus preferencias en el Autoplay?</h3>
+          <p>
+            El algoritmo inteligente de Calliope utiliza tus <strong>Likes</strong> y <strong>Favoritos</strong>
+            para priorizar temas de los mismos artistas y álbumes en la cola continua cuando se acaban tus canciones.
+          </p>
+          <p>
+            Por el contrario, cualquier pista marcada con <strong>Dislike</strong> es <em>estrictamente excluida</em>
+            del generador automático de cola, asegurando que jamás suene de fondo sin tu consentimiento.
+          </p>
+        </div>
+      </div>
     </section>
 
-    <!-- METADATOS -->
-
-    <section class="guide-section" aria-labelledby="metadata-title">
+    <!-- 5. ESTADÍSTICAS -->
+    <section id="estadisticas" class="guide-section" aria-labelledby="stats-title">
       <div class="section-heading">
-        <Tags />
-
+        <div class="heading-icon-wrap">
+          <BarChart3 />
+        </div>
         <div>
-          <h2 id="metadata-title">Metadatos y portadas</h2>
-
-          <p>
-            Calliope utiliza la información incluida en tus archivos para
-            organizar la biblioteca.
-          </p>
+          <span class="section-tag">MÉTRICAS Y ANÁLISIS</span>
+          <h2 id="stats-title">Estadísticas de escucha</h2>
+          <p>Conoce a fondo tus hábitos musicales mediante datos procesados exclusivamente en tu dispositivo.</p>
         </div>
       </div>
 
-      <div class="guide-notice">
-        <Info />
-
-        <div>
-          <h3>¿Qué son los metadatos?</h3>
-
+      <div class="guide-grid stats-grid">
+        <article class="guide-card">
+          <Clock class="card-icon" />
+          <h3>Tiempo escuchado y reproducciones</h3>
           <p>
-            Son datos almacenados dentro de los archivos de música que contienen
-            información como el título, artista, álbum, año, género y portada.
+            Contabilización exacta de tus horas y minutos de reproducción real, así como el número total
+            de pistas completadas.
           </p>
+        </article>
 
+        <article class="guide-card">
+          <Disc3 class="card-icon" />
+          <h3>Catálogo único explorado</h3>
           <p>
-            Si un archivo no contiene esta información, Calliope puede mostrar
-            datos incompletos o agruparlo de forma diferente.
+            Métricas de diversidad: cuántas canciones únicas, artistas distintos y álbumes completos has
+            disfrutado en cada periodo.
           </p>
-        </div>
+        </article>
+
+        <article class="guide-card">
+          <TrendingUp class="card-icon" />
+          <h3>Rankings personalizados</h3>
+          <p>
+            Clasificaciones automáticas con tu Top Canciones, Top Artistas y Top Álbumes más escuchados según
+            tu actividad real.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <Activity class="card-icon" />
+          <h3>Gráficas de actividad</h3>
+          <p>
+            Visualiza barras interactivas con la distribución de tu escucha por horas del día, días de la
+            semana o meses del año.
+          </p>
+        </article>
+
+        <article class="guide-card highlight-card">
+          <SlidersHorizontal class="card-icon accent-icon" />
+          <h3>Periodos y comparativas</h3>
+          <p>
+            Filtra entre Hoy, Esta semana, Este mes o Histórico total. Compara tu volumen de escucha respecto al
+            periodo anterior con indicadores porcentuales de tendencia.
+          </p>
+        </article>
       </div>
     </section>
 
-    <!-- SOLUCIÓN DE PROBLEMAS -->
+    <!-- 6. EXPERIENCIA MÓVIL -->
+    <section id="movil" class="guide-section" aria-labelledby="mobile-title">
+      <div class="section-heading">
+        <div class="heading-icon-wrap">
+          <Smartphone />
+        </div>
+        <div>
+          <span class="section-tag">DISEÑO RESPONSIVE</span>
+          <h2 id="mobile-title">Experiencia móvil</h2>
+          <p>Una interfaz concebida específicamente para pantallas táctiles y uso con una sola mano.</p>
+        </div>
+      </div>
 
+      <div class="guide-grid">
+        <article class="guide-card">
+          <Smartphone class="card-icon" />
+          <h3>Now Playing inmersivo</h3>
+          <p>
+            Al pulsar cualquier canción en dispositivos móviles, se despliega automáticamente la vista
+            <strong>Now Playing</strong> a pantalla completa con gran carátula, controles táctiles y visualizador.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <Sliders class="card-icon" />
+          <h3>Interfaz adaptada a tu mano</h3>
+          <p>
+            La navegación lateral se reorganiza en accesos rápidos optimizados para el pulgar, facilitando
+            cambiar de sección o controlar el reproductor sin esfuerzo.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <Sparkles class="card-icon" />
+          <h3>Fluidez y bajo consumo</h3>
+          <p>
+            Animaciones nativas a 60 FPS y renderizado ligero de carátulas para cuidar al máximo el rendimiento
+            y la autonomía de la batería de tu teléfono.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 7. PRIVACIDAD -->
+    <section id="privacidad" class="guide-section" aria-labelledby="privacy-title">
+      <div class="section-heading">
+        <div class="heading-icon-wrap">
+          <ShieldCheck />
+        </div>
+        <div>
+          <span class="section-tag">SEGURIDAD Y CONTROL</span>
+          <h2 id="privacy-title">Privacidad y modo local</h2>
+          <p>Tus archivos, tus datos y tu música permanecen bajo tu exclusivo control en todo momento.</p>
+        </div>
+      </div>
+
+      <div class="guide-grid">
+        <article class="guide-card">
+          <HardDrive class="card-icon" />
+          <h3>Biblioteca 100% en tu dispositivo</h3>
+          <p>
+            Calliope opera como un reproductor local nativo. Tus pistas musicales jamás se transmiten por la red,
+            ni se analizan en servidores externos, ni requieren una cuenta en la nube.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <WifiOff class="card-icon" />
+          <h3>Funcionamiento offline real</h3>
+          <p>
+            Escucha toda tu música sin cobertura, en modo avión o sin gastar datos. Una vez cargada la carpeta,
+            la aplicación funciona de forma completamente autónoma.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <User class="card-icon" />
+          <h3>Perfiles y datos aislados</h3>
+          <p>
+            Tus listas de reproducción, valoraciones (Likes/Dislikes), historial y métricas se guardan
+            únicamente en el almacenamiento seguro de tu navegador mediante IndexedDB.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 8. SOLUCIÓN DE PROBLEMAS -->
     <section
       class="guide-section troubleshooting"
       aria-labelledby="troubleshooting-title"
     >
       <div class="section-heading">
-        <Wrench />
-
+        <div class="heading-icon-wrap">
+          <Wrench />
+        </div>
         <div>
+          <span class="section-tag">PREGUNTAS FRECUENTES</span>
           <h2 id="troubleshooting-title">Solución de problemas</h2>
-
-          <p>Algunos problemas habituales y cómo solucionarlos.</p>
+          <p>Respuestas a dudas habituales sobre la biblioteca, archivos y reproducción.</p>
         </div>
       </div>
 
@@ -471,28 +639,46 @@
 
 <script setup lang="ts">
 import {
-  BookOpen,
+  Sparkles,
   Rocket,
   FolderOpen,
+  Play,
+  Heart,
+  BarChart3,
+  Smartphone,
+  ShieldCheck,
   Music,
   Disc3,
   Mic2,
-  RefreshCw,
-  Play,
+  ListPlus,
+  Search,
+  PlayCircle,
+  ListMusic,
   Shuffle,
   Repeat,
+  Infinity,
   Volume2,
-  ListMusic,
-  ListPlus,
-  Plus,
-  ListX,
-  ArrowDownUp,
-  Tags,
+  ThumbsUp,
+  ThumbsDown,
+  History,
+  Clock,
+  TrendingUp,
+  Activity,
+  SlidersHorizontal,
+  Sliders,
+  HardDrive,
+  WifiOff,
+  User,
   Wrench,
-  HelpCircle,
   ChevronDown,
-  Github,
-  PlayCircle,
-  Info
+  HelpCircle,
+  Github
 } from "lucide-vue-next";
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
 </script>

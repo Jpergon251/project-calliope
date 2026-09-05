@@ -5,7 +5,7 @@
 // Modo invitado temporal sin persistencia de datos.
 // =============================================================
 import { defineStore } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import { dbPromise } from "../lib/db.js";
 import { toDisplayUrl } from "../lib/covers.js";
 import {
@@ -574,12 +574,27 @@ export const useUserStore = defineStore("user", () => {
             ? profile.value.private
             : profile.value.isPrivate
         );
+        const rawProfile = toRaw(profile.value);
+        const rawPreferences = toRaw(rawProfile.preferences || {});
+        const currentAvatarBlob = avatarBlob.value || rawProfile.avatarBlob || null;
+        const currentBannerBlob = bannerBlob.value || null;
+
+        // Extraer un clon limpio sin Proxies de Vue que puedan causar DataCloneError
+        const cloneClean = {
+          ...rawProfile,
+          preferences: { ...rawPreferences },
+        };
+        delete cloneClean.avatarBlob;
+        delete cloneClean.bannerBlob;
+
+        const serialized = JSON.parse(JSON.stringify(cloneClean));
+
         const toSave = normalizeProfile({
-          ...profile.value,
+          ...serialized,
           private: isPriv,
           isPrivate: isPriv,
-          avatarBlob: avatarBlob.value || profile.value.avatarBlob || null,
-          bannerBlob: bannerBlob.value || null,
+          avatarBlob: currentAvatarBlob instanceof Blob ? currentAvatarBlob : null,
+          bannerBlob: currentBannerBlob instanceof Blob ? currentBannerBlob : null,
           updatedAt: Date.now(),
         });
         await db.put("profiles", toSave);
