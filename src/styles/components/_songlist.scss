@@ -441,6 +441,27 @@
 .song-list-container > .song-list .song-item:hover { background: var(--surface-hover); border-radius: var(--radius-sm); }
 .song-list .song-item { transition: background .18s ease, transform .18s ease; }
 
+.song-list .song-item .song-cover.song-cover-track-context {
+  gap: 0;
+
+  .release-track-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  .song-info {
+    margin-left: 14px;
+  }
+}
+
 /* ============================================================
    ESTADO VACÍO: SIN CARPETA DE MÚSICA
    ============================================================ */

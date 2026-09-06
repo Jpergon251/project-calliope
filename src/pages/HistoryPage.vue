@@ -11,7 +11,6 @@
 
       <div class="history-actions" v-if="library.listeningHistory.length > 0">
         <button
-          type="button"
           class="clear-history-btn"
           @click="confirmClearHistory"
           title="Borrar todo el historial"
@@ -46,16 +45,16 @@
             <span class="item-time">{{ formatTimeOfDay(item.timestamp) }}</span>
 
             <!-- Type badge -->
-            <span class="item-type-badge" :class="item.type">
+              <span class="item-type-badge" :class="item.type">
               <Music2 v-if="item.type === 'song'" :size="12" />
-              <DiscAlbum v-else-if="item.type === 'album'" :size="12" />
+              <DiscAlbum v-else-if="item.type === 'album' || item.type === 'release'" :size="12" />
               <ListMusic v-else :size="12" />
-              <span>{{ getTypeName(item.type) }}</span>
+              <span>{{ getTypeName(item) }}</span>
             </span>
 
             <!-- Cover Thumbnail -->
             <div class="item-cover-frame">
-              <CoverArt :cover="historyItemCover(item)" :kind="item.type === 'song' ? 'song' : item.type === 'album' ? 'album' : 'playlist'" :alt="item.title" class="cover-img" />
+              <CoverArt :cover="historyItemCover(item)" :kind="item.type === 'song' || item.type === 'release' ? 'album' : item.type === 'album' ? 'album' : 'playlist'" :alt="item.title" class="cover-img" />
             </div>
 
             <!-- Details -->
@@ -172,12 +171,14 @@ function formatDuration(seconds) {
   return `${m}:${s}`;
 }
 
-function getTypeName(type) {
-  switch (type) {
-    case 'album': return 'Álbum';
-    case 'playlist': return 'Playlist';
-    default: return 'Canción';
+function getTypeName(item) {
+  if (item.type === 'album') return 'Álbum';
+  if (item.type === 'release') {
+    return { single: 'Sencillo', ep: 'EP', album: 'Álbum' }[item.releaseType] || 'Publicación';
   }
+  if (item.type === 'playlist') return 'Playlist';
+  const labels = { album: 'Álbum', ep: 'EP', single: 'Sencillo', compilation: 'Compilación' };
+  return item.releaseType ? `Canción · ${labels[item.releaseType] || item.releaseType}` : 'Canción';
 }
 
 // Group history chronologically by day
@@ -215,12 +216,12 @@ function playHistoryItem(item) {
   if (item.type === 'song') {
     const song = library.songs.find(s => s.id === item.itemId);
     if (song) {
-      library.playSong(song);
+      library.playSong(song, true, { releaseId: item.releaseId });
       if (typeof window !== 'undefined' && window.innerWidth <= 760) {
         library.openNowPlaying();
       }
     }
-  } else if (item.type === 'album') {
+  } else if (item.type === 'album' || item.type === 'release') {
     router.push({ name: 'album', params: { id: item.itemId } });
   } else if (item.type === 'playlist') {
     router.push({ name: 'playlist', params: { playlistId: item.itemId } });

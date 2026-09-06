@@ -8,15 +8,10 @@
                 class="album-link"
                 @click="recordClick"
             >
-                <img
-                    v-if="album.cover"
-                    :src="album.cover"
+                <CoverArt
+                    :cover="album.cover"
                     :alt="album.name"
-                    class="album-image"
-                />
-
-                <Music
-                    v-else
+                    kind="album"
                     class="album-image"
                 />
             </router-link>
@@ -41,7 +36,7 @@
 
 <script setup>
 import MediaCard from "../common/MediaCard.vue";
-import { Music } from "lucide-vue-next";
+import CoverArt from "../common/CoverArt.vue";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 
 const library = useLibraryStore();

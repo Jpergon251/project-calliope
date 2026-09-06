@@ -39,7 +39,7 @@ const routes = [
   { path: '/playlist/:playlistId', name: 'playlist', component: Playlist, props: true },
   { path: '/settings', name: 'Settings', component: Settings },
   { path: '/profile', name: 'Profile', component: Profile },
-  { path: '/song/:id', name: 'song', component: Song, props: true },
+  { path: '/song/:id', name: 'song', component: Song },
   { path: '/album/:id', name: 'album', component: AlbumPage, props: true },
   { path: '/how-to-use', name: 'HowToUse', component: HowToUse },
   { path: '/support', name: 'Support', component: Support },

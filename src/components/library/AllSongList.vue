@@ -179,14 +179,15 @@ const filteredSongs = computed(() => {
       song.artist || ""
     ).toLocaleLowerCase();
 
-    const album = String(
-      song.album || ""
-    ).toLocaleLowerCase();
+    const releases = (song.releases || [])
+      .map((release) => release?.title || "")
+      .join(", ")
+      .toLocaleLowerCase();
 
     return (
       title.includes(query) ||
       artist.includes(query) ||
-      album.includes(query)
+      releases.includes(query)
     );
   });
 });

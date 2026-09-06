@@ -79,6 +79,11 @@
   object-fit: cover;
 }
 
+.cover-frame .song-detail-cover {
+  width: 100%;
+  height: 100%;
+}
+
 .cover-frame .fallback {
   padding: 25%;
   color: var(--accent-light);
@@ -205,6 +210,16 @@
       color: #ff7575;
       transform: translateY(-1px);
     }
+  }
+}
+
+.actions .secondary.metadata-btn {
+  &:hover {
+    border-color: var(--accent-border);
+    background: var(--accent-surface-strong);
+    color: var(--accent-light);
+    box-shadow: var(--neon-glow-soft);
+    transform: translateY(-1px);
   }
 }
 

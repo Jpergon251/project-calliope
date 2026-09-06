@@ -722,16 +722,16 @@ const collaboratorNames = computed(() => {
   const collaborators = new Set();
 
   artistSongs.value.forEach((song) => {
-    const artist = String(song.artist || "");
-
-    artist
-      .split(/[,;&]|\s+feat\.?\s+|\s+ft\.?\s+/i)
-      .map((name) => name.trim())
+    const structuredArtists = song.artistCredits?.length
+      ? song.artistCredits
+      : song.artists?.length
+        ? song.artists
+        : [song.artist];
+    structuredArtists
+      .map((artist) => typeof artist === 'string' ? artist : artist?.name)
       .filter(Boolean)
       .forEach((name) => {
-        if (!sameArtistName(name, artistName.value)) {
-          collaborators.add(name);
-        }
+        if (!sameArtistName(name, artistName.value)) collaborators.add(name);
       });
   });
 

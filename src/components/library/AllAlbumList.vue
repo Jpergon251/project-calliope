@@ -73,20 +73,12 @@
         @keyup.space.prevent="openAlbum(album)"
       >
         <div class="album-preview-cover">
-          <img
-            v-if="album.cover"
-            :src="album.cover"
+          <CoverArt
+            :cover="album.cover"
             :alt="album.name"
-            loading="lazy"
+            kind="album"
+            class="album-preview-cover-art"
           />
-
-          <div
-            v-else
-            class="album-preview-cover-fallback"
-            aria-hidden="true"
-          >
-            <DiscAlbum :size="42" />
-          </div>
 
           <div class="album-preview-overlay">
             <span class="album-open-icon">
@@ -171,6 +163,7 @@ import {
 } from "lucide-vue-next";
 
 import AlbumList from "../common/AlbumList.vue";
+import CoverArt from "../common/CoverArt.vue";
 
 import { useLibraryStore } from "../../stores/libraryStore.js";
 

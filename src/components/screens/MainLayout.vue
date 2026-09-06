@@ -3,17 +3,21 @@
     <Sidebar v-if="!isPlayerRoute || isMobile" class="sidebar" />
     <div v-if="!isPlayerRoute || isMobile" class="workspace">
       <AppHeader />
-      <RouterView v-slot="{ Component }" class="main">
+      <div class="main">
+        <RouterView v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
+      </div>
+    </div>
+    <div v-else class="main">
+      <RouterView v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
           <component :is="Component" />
         </Transition>
       </RouterView>
     </div>
-    <RouterView v-else v-slot="{ Component }" class="main">
-      <Transition name="page-fade" mode="out-in">
-        <component :is="Component" />
-      </Transition>
-    </RouterView>
   </section>
 
   <section v-if="!isPlayerRoute || isMobile" class="bottom-section">

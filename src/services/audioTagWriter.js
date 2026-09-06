@@ -106,17 +106,27 @@ function getAudioExtension(fileName, isMisnamedMp4 = false) {
 function safeFileName(value) {
   let str = String(value || 'audio').trim();
 
-  // Strip trailing accidental " ?" (space followed by question mark) that can be inherited from corrupt filenames
-  str = str.replace(/\s+\?$/, '');
+  // Reemplazar caracteres prohibidos por la File System Access API del navegador
+  // por sus equivalentes visuales Unicode seguros (ej. '？' para '?') para mantener ambos "¿?"
+  str = str
+    .replace(/\?/g, '？')
+    .replace(/:/g, '：')
+    .replace(/\*/g, '＊')
+    .replace(/"/g, '＂')
+    .replace(/</g, '＜')
+    .replace(/>/g, '＞')
+    .replace(/\|/g, '｜')
+    .replace(/\//g, '／')
+    .replace(/\\/g, '＼');
 
-  // Remove dangerous filesystem characters: path separators and control characters
-  str = str.replace(/[\\/:*?"<>|]/g, '');
+  // Eliminar caracteres de control ASCII
+  str = str.replace(/[\x00-\x1f\x7f]/g, '');
 
-  // Collapse multiple whitespace
+  // Colapsar espacios múltiples
   str = str.replace(/\s+/g, ' ').trim();
 
-  // Remove trailing dots, spaces, or accidental trailing question mark artifacts
-  str = str.replace(/[. ]+$/, '').replace(/\s+\?$/, '').trim();
+  // La API de archivos tampoco permite nombres que terminen en punto o espacio
+  str = str.replace(/[. ]+$/, '').trim();
 
   return str || 'audio';
 }
@@ -135,7 +145,27 @@ async function renameFile(fileHandle, directoryHandle, currentName, title, exten
     throw new Error(`Ya existe un archivo llamado "${nextName}".`);
   } catch (error) {
     if (error.message.startsWith('Ya existe')) throw error;
-    nextHandle = await directoryHandle.getFileHandle(nextName, { create: true });
+    try {
+      nextHandle = await directoryHandle.getFileHandle(nextName, { create: true });
+    } catch (createErr) {
+      // Fallback si el sistema de archivos rechaza algún carácter específico
+      if (createErr.name === 'TypeError' || createErr.message?.includes('not allowed')) {
+        const fallbackName = `${nextName.replace(/[\\/:*?"<>|?]/g, '').replace(/[. ]+$/, '')}`;
+        if (fallbackName && fallbackName !== nextName) {
+          nextHandle = await directoryHandle.getFileHandle(fallbackName, { create: true });
+          const source = await fileHandle.getFile();
+          const writable = await nextHandle.createWritable();
+          try {
+            await writable.write(source);
+          } finally {
+            await writable.close();
+          }
+          await directoryHandle.removeEntry(currentName);
+          return { fileHandle: nextHandle, name: fallbackName };
+        }
+      }
+      throw createErr;
+    }
   }
   const source = await fileHandle.getFile();
   const writable = await nextHandle.createWritable();
@@ -274,6 +304,10 @@ export async function writeAudioMetadata(fileHandle, metadata) {
     artist: artistsAsTagValue(metadata.artist),
     albumArtist: artistsAsTagValue(metadata.albumArtist),
     album: metadata.album || '',
+    releases: Array.isArray(metadata.releases)
+      ? metadata.releases.map((release) => release?.title || release?.name).filter(Boolean)
+      : undefined,
+    releaseType: metadata.releaseType || undefined,
     genre: metadata.genre || [],
     year: numberOrUndefined(metadata.year),
     trackNumber: metadata.track

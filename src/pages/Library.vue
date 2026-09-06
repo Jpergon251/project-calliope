@@ -104,6 +104,17 @@
         <button
           type="button"
           class="category-pill"
+          :class="{ active: activeCategory === 'singles-eps' }"
+          @click="selectCategory('singles-eps')"
+        >
+          <Music2 :size="16" />
+          <span>Sencillos y EP</span>
+          <span class="pill-count">{{ library.singlesAndEps.length }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="category-pill"
           :class="{ active: activeCategory === 'playlists' }"
           @click="selectCategory('playlists')"
         >
@@ -140,6 +151,12 @@
         />
 
         <AllAlbumList
+          :search-query="searchQuery"
+          :preview="true"
+        />
+
+        <SinglesEpsList
+          :releases="library.singlesAndEps"
           :search-query="searchQuery"
           :preview="true"
         />
@@ -195,6 +212,17 @@
         />
       </section>
 
+      <section
+        v-else-if="activeCategory === 'singles-eps'"
+        class="library-full-view"
+      >
+        <SinglesEpsList
+          :releases="library.singlesAndEps"
+          :search-query="searchQuery"
+          :preview="false"
+        />
+      </section>
+
 
       <!-- =================================================
            PLAYLISTS
@@ -223,6 +251,7 @@ import AllAlbumList from "../components/library/AllAlbumList.vue";
 import AllSongList from "../components/library/AllSongList.vue";
 import ArtistList from "../components/library/ArtistList.vue";
 import PLList from "../components/library/PLList.vue";
+import SinglesEpsList from "../components/library/SinglesEpsList.vue";
 import NoFolderState from "../components/common/NoFolderState.vue";
 
 import { useLibraryStore } from "../stores/libraryStore.js";
@@ -246,6 +275,7 @@ const VALID_CATEGORIES = [
   "all",
   "songs",
   "albums",
+  "singles-eps",
   "artists",
   "playlists",
 ];

@@ -92,19 +92,21 @@
             @dragend="handleDragEnd"
             >
 
-                  <div class="song-cover">
+                  <div class="song-cover" :class="{ 'song-cover-track-context': Boolean(props.album) }">
 
-                    <img
-                      v-if="song.cover"
-                      :src="song.cover"
-                      :alt="song.title || song.name"
-                      class="cover-image"
-                    />
+                    <div v-if="props.album" class="release-track-number" aria-label="Número de pista">
+                      <span>{{ formatTrackNumber(song) }}</span>
+                    </div>
+                    <template v-else>
+                      <img
+                        v-if="song.cover"
+                        :src="song.cover"
+                        :alt="song.title || song.name"
+                        class="cover-image"
+                      />
 
-                    <DiscAlbum
-                      v-else
-                      class="cover-image"
-                    />
+                      <DiscAlbum v-else class="cover-image" />
+                    </template>
 
                     <div class="song-info">
                       <span class="song-name">{{ song.title || song.name }}</span>
@@ -225,10 +227,22 @@ function startDrag(event, index) {
 
 function handleSongClick(song) {
   if (isDragging.value || justDropped.value) return;
-  library.playFromPlaylist(song, resolvedSongs.value);
+  library.playFromPlaylist(song, resolvedSongs.value, {
+    releaseId: props.album?.id || song.contextReleaseId || song.primaryReleaseId,
+  });
   if (typeof window !== "undefined" && window.innerWidth <= 760) {
     library.openNowPlaying();
   }
+}
+
+function formatTrackNumber(song) {
+  const track = library.releaseTracks.find((item) =>
+    item.recordingId === (song.recordingId || song.id) && item.releaseId === props.album?.id,
+  );
+  const discNumber = track?.discNumber || song.disk || song.disc;
+  const trackNumber = track?.trackNumber || song.track;
+  if (!trackNumber) return "-";
+  return discNumber && Number(discNumber) > 1 ? `${discNumber}-${trackNumber}` : String(trackNumber);
 }
 
 function handleDragStart(event, index) {

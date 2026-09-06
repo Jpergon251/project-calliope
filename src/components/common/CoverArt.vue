@@ -3,7 +3,7 @@
     <transition name="cover-fade">
       <img
         v-if="src && !failed"
-        :src="src"
+        :src="displaySrc"
         :alt="alt"
         loading="lazy"
         decoding="async"
@@ -33,7 +33,9 @@ const props = defineProps({
   /** song | album | playlist | artist | favorite */
   kind: { type: String, default: 'song' },
   /** Texto opcional bajo el icono del fallback (p.ej. iniciales) */
-  label: { type: String, default: '' }
+  label: { type: String, default: '' },
+  /** Portada alternativa para URLs externas que ya no están disponibles */
+  fallbackCover: { type: [String, Object], default: null }
 })
 
 const ICONS = { song: Music2, album: DiscAlbum, playlist: ListMusic, artist: User, favorite: Heart }
@@ -44,13 +46,21 @@ const fallbackIcon = computed(() => h(ICONS[props.kind] || Music2))
 const isLoaded = ref(false)
 const failed = ref(false)
 const src = computed(() => toDisplayUrl(props.cover))
+const fallbackSrc = computed(() => toDisplayUrl(props.fallbackCover))
+const displaySrc = ref(null)
 
-watch(src, () => {
+watch([src, fallbackSrc], () => {
   isLoaded.value = false
   failed.value = false
-})
+  displaySrc.value = src.value
+}, { immediate: true })
 
 function onError() {
+  if (fallbackSrc.value && fallbackSrc.value !== displaySrc.value) {
+    displaySrc.value = fallbackSrc.value
+    isLoaded.value = false
+    return
+  }
   failed.value = true
 }
 </script>

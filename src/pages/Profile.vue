@@ -662,15 +662,15 @@
           </p>
         </div>
 
-        <!-- Top Álbumes -->
+        <!-- Top publicaciones -->
         <div class="ranking-panel">
           <div class="ranking-header">
             <h4>
               <DiscAlbum :size="15" />
-              Top Álbumes
+              Top publicaciones
             </h4>
             <span class="ranking-count" v-if="currentStats.topAlbums.length"
-              >{{ currentStats.topAlbums.length }} álbumes</span
+              >{{ currentStats.topAlbums.length }} publicaciones</span
             >
           </div>
 
@@ -692,9 +692,9 @@
                 <span class="ranking-name" :title="alb.name">{{
                   alb.name
                 }}</span>
-                <span class="ranking-sub">{{
-                  alb.artist || "Varios artistas"
-                }}</span>
+                <span class="ranking-sub">
+                  {{ alb.artist || "Varios artistas" }} · {{ releaseTypeLabel(alb.releaseType) }}
+                </span>
               </div>
               <div class="ranking-stats">
                 <span class="rank-plays">{{ alb.plays }} reps.</span>
@@ -1957,6 +1957,10 @@ function goToArtist(name) {
     name: "artist",
     params: { name: encodeURIComponent(name.trim()) },
   });
+}
+
+function releaseTypeLabel(type) {
+  return { album: 'Álbum', single: 'Sencillo', ep: 'EP', compilation: 'Compilación' }[type] || 'Publicación';
 }
 
 function goToAlbum(albumId) {

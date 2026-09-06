@@ -1,10 +1,16 @@
 <template>
-  <main v-if="song" class="song-page">
+  <main class="song-page">
+    <template v-if="song">
     <section class="song-hero" aria-labelledby="song-title">
       <div class="cover-section">
         <div class="cover-frame">
-          <img v-if="song.cover" :src="song.cover" :alt="`Portada de ${song.title}`" />
-          <SongIconCover v-else class="fallback" />
+          <CoverArt
+            :cover="songCover"
+            :fallback-cover="songFallbackCover"
+            :alt="`Portada de ${song.title}`"
+            kind="song"
+            class="song-detail-cover"
+          />
         </div>
         <span class="cover-caption">Reproduciendo desde tu biblioteca</span>
       </div>
@@ -28,7 +34,7 @@
         </p>
         <p class="album-line">
           <DiscAlbum class="inline-icon" />
-          {{ song.album || 'Album desconocido' }}
+          {{ releaseNames || 'Lanzamiento desconocido' }}
         </p>
 
         <div class="actions">
@@ -67,6 +73,15 @@
           >
             <ThumbsDown :fill="currentRating === 'dislike' ? 'currentColor' : 'none'" :size="19" />
           </button>
+          <button
+            class="secondary metadata-btn"
+            type="button"
+            aria-label="Modificar metadatos"
+            title="Modificar metadatos"
+            @click="openMetadataEditor"
+          >
+            <Pencil :size="19" />
+          </button>
         </div>
 
         <!-- Song listening stats -->
@@ -90,7 +105,7 @@
         </div>
 
         <dl class="metadata">
-          <div><dt>Album</dt><dd>{{ song.album || 'Unknown' }}</dd></div>
+          <div><dt>Lanzamientos</dt><dd>{{ releaseNames || 'Unknown' }}</dd></div>
           <div>
             <dt>Artista</dt>
             <dd>
@@ -116,24 +131,51 @@
     <div class="song-atmosphere" :class="{ active: library.isPlaying }" aria-label="Visualizador de audio">
       <AudioVisualizer />
     </div>
+
+    </template>
+
+    <Teleport to="body">
+      <MetadataModal
+        v-if="metadataEditorSong"
+        :song="metadataEditorSong"
+        @close="closeMetadataEditor"
+        @updated="handleMetadataUpdated"
+      />
+    </Teleport>
   </main>
 </template>
 
 <script setup>
 import { useRoute, useRouter } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
-import { computed } from "vue";
-import { DiscAlbum, Heart, Pause, Play, ThumbsDown, ThumbsUp } from "lucide-vue-next";
-import SongIconCover from "../components/common/SongIconCover.vue";
+import { computed, ref } from "vue";
+import { DiscAlbum, Heart, Pause, Pencil, Play, ThumbsDown, ThumbsUp } from "lucide-vue-next";
+import CoverArt from "../components/common/CoverArt.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
+import MetadataModal from "../components/modals/MetadataModal.vue";
+import { getCoverForSong } from "../services/musicRelations.js";
 
 const route = useRoute();
 const router = useRouter();
 const library = useLibraryStore();
+const metadataEditorSong = ref(null);
 
 const song = computed(() =>
   library.songs.find(s => s.id === route.params.id)
 );
+
+const songCover = computed(() => getCoverForSong(
+  song.value,
+  { type: song.value?.contextReleaseId ? "release" : "song", releaseId: song.value?.contextReleaseId },
+  library.releases,
+) || song.value?.cover);
+
+const songFallbackCover = computed(() => {
+  const covers = (song.value?.releases || [])
+    .map((release) => release?.cover || release?.coverUrl)
+    .filter(Boolean);
+  return covers.find((cover) => cover !== songCover.value) || null;
+});
 
 const isCurrentSong = computed(() => library.playingSong?.id === song.value?.id);
 
@@ -141,6 +183,13 @@ const songArtists = computed(() => {
   if (!song.value?.artist) return [];
   const parsed = library.parseArtistNames(song.value.artist);
   return parsed.length ? parsed : [song.value.artist];
+});
+
+const releaseNames = computed(() => {
+  const names = (song.value?.releases || [])
+    .map((release) => release?.title)
+    .filter(Boolean);
+  return [...new Set(names)].join(', ') || song.value?.album || '';
 });
 
 const currentRating = computed(() => {
@@ -174,6 +223,18 @@ function playSong() {
     return;
   }
   library.playSong(song.value);
+}
+
+function openMetadataEditor() {
+  if (song.value) metadataEditorSong.value = song.value;
+}
+
+function closeMetadataEditor() {
+  metadataEditorSong.value = null;
+}
+
+function handleMetadataUpdated() {
+  metadataEditorSong.value = null;
 }
 
 function format(seconds) {

@@ -90,11 +90,18 @@ export function resolveHistoryCover(library, entry) {
   if (!entry) return null;
 
   let liveCover = null;
-  if (entry.type === "album") {
+  if (entry.type === "album" || entry.type === "release") {
     liveCover = library?.albums?.find(a => a.id === entry.itemId)?.cover;
+    liveCover ||= library?.releases?.find((release) => release.id === (entry.releaseId || entry.itemId))?.cover;
   } else if (entry.type === "song") {
     const song = library?.songs?.find(s => s.id === entry.itemId);
-    liveCover = song?.cover;
+    liveCover = entry.releaseId
+      ? library?.releases?.find((release) => release.id === entry.releaseId)?.cover
+      : song?.cover;
+    liveCover ||= song?.cover;
+    if (!liveCover && entry.releaseId) {
+      liveCover = library?.releases?.find((release) => release.id === entry.releaseId)?.coverUrl;
+    }
     if (!liveCover && song?.albumId) {
       liveCover = library?.albums?.find(a => a.id === song.albumId)?.cover;
     }

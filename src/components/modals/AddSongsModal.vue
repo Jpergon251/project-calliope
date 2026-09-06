@@ -145,7 +145,7 @@
               </div>
             </div>
 
-            <!-- Metadatos: Título, Artista, Álbum -->
+            <!-- Metadatos: Título, Artista, Lanzamientos -->
             <div class="song-meta">
               <span class="song-title" :title="song.title || song.name">
                 {{ song.title || song.name }}
@@ -155,9 +155,9 @@
                 <span class="song-artist" :title="song.artist || 'Artista desconocido'">
                   {{ song.artist || 'Artista desconocido' }}
                 </span>
-                <span v-if="song.album" class="bullet-separator">·</span>
-                <span v-if="song.album" class="song-album" :title="song.album">
-                  {{ song.album }}
+                <span v-if="releaseNames(song)" class="bullet-separator">·</span>
+                <span v-if="releaseNames(song)" class="song-album" :title="releaseNames(song)">
+                  {{ releaseNames(song) }}
                 </span>
               </div>
             </div>
@@ -264,6 +264,13 @@ function clearSearch() {
   searchInputRef.value?.focus();
 }
 
+function releaseNames(song) {
+  const names = (song.releases || [])
+    .map((release) => release?.title)
+    .filter(Boolean);
+  return [...new Set(names)].join(', ') || song.album || '';
+}
+
 const filteredSongs = computed(() => {
   const allSongs = props.songs || [];
   const query = search.value.trim().toLowerCase();
@@ -273,9 +280,9 @@ const filteredSongs = computed(() => {
   return allSongs.filter((song) => {
     const title = (song.title || song.name || "").toLowerCase();
     const artist = (song.artist || "").toLowerCase();
-    const album = (song.album || "").toLowerCase();
+    const releases = releaseNames(song).toLowerCase();
 
-    return title.includes(query) || artist.includes(query) || album.includes(query);
+    return title.includes(query) || artist.includes(query) || releases.includes(query);
   });
 });
 

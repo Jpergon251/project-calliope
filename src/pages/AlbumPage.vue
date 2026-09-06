@@ -31,7 +31,9 @@ const albumId = computed(() => route.params.id);
 
 const album = computed(() => {
     return (
-        libraryStore.albums.find(
+        libraryStore.releases.find(
+            a => a.id === albumId.value || a.title === albumId.value
+        ) || libraryStore.albums.find(
             a => a.id === albumId.value || a.name === albumId.value
         ) || null
     );
@@ -58,13 +60,21 @@ function parseTrackNumber(val) {
 }
 
 const albumSongs = computed(() => {
+    const releaseId = album.value?.id;
     const matched = libraryStore.songs.filter(
-        song => song.albumId === albumId.value || (album.value && song.album === album.value.name)
+        song => releaseId && Array.isArray(song.releaseIds)
+            ? song.releaseIds.includes(releaseId)
+            : song.albumId === albumId.value || (album.value && song.album === album.value.name)
     );
 
     return [...matched].sort((a, b) => {
-        const trackA = parseTrackNumber(a.track ?? a.trackNo ?? a.trackNumber);
-        const trackB = parseTrackNumber(b.track ?? b.trackNo ?? b.trackNumber);
+        const trackFor = (song) => libraryStore.releaseTracks.find((track) =>
+            track.recordingId === (song.recordingId || song.id) && track.releaseId === releaseId
+        );
+        const trackAData = trackFor(a);
+        const trackBData = trackFor(b);
+        const trackA = parseTrackNumber(trackAData?.trackNumber ?? a.track ?? a.trackNo ?? a.trackNumber);
+        const trackB = parseTrackNumber(trackBData?.trackNumber ?? b.track ?? b.trackNo ?? b.trackNumber);
 
         const hasTrackA = trackA !== null;
         const hasTrackB = trackB !== null;
@@ -74,8 +84,8 @@ const albumSongs = computed(() => {
                 return trackA - trackB;
             }
             // Si tienen el mismo track number, desempatar por disco o título
-            const discA = parseTrackNumber(a.disk ?? a.disc ?? a.diskNo);
-            const discB = parseTrackNumber(b.disk ?? b.disc ?? b.diskNo);
+            const discA = parseTrackNumber(trackAData?.discNumber ?? a.disk ?? a.disc ?? a.diskNo);
+            const discB = parseTrackNumber(trackBData?.discNumber ?? b.disk ?? b.disc ?? b.diskNo);
             if (discA !== null && discB !== null && discA !== discB) {
                 return discA - discB;
             }

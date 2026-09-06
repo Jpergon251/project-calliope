@@ -252,7 +252,16 @@
       max-width: 100%;
       box-sizing: border-box;
 
+      &.metadata-songs-scroll {
+        max-height: min(62vh, 760px);
+        overflow-y: auto;
+        padding: 4px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-hover) transparent;
+      }
+
       .metadata-song-card {
+        position: relative;
         display: flex;
         align-items: stretch;
         gap: 14px;
@@ -268,6 +277,17 @@
         max-width: 100%;
         box-sizing: border-box;
         overflow: hidden;
+
+        .metadata-song-select {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          z-index: 1;
+          width: 17px;
+          height: 17px;
+          accent-color: var(--accent);
+          cursor: pointer;
+        }
 
         &:hover, &:focus-visible {
           background: var(--card-hover-bg);
@@ -482,6 +502,46 @@
         }
       }
     }
+  }
+
+  .metadata-auto-panel {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--accent-surface), var(--bg-secondary));
+
+    .metadata-auto-kicker {
+      color: var(--accent-light);
+      font-size: 0.7rem;
+      font-weight: 750;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    h2 { margin: 4px 0 0; color: var(--text-primary); font-size: 1.1rem; }
+    p { max-width: 760px; margin: 6px 0 0; color: var(--text-secondary); font-size: 0.8rem; line-height: 1.45; }
+    .metadata-auto-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.75rem; }
+    .metadata-auto-actions > span:first-child { padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 999px; background: var(--bg-tertiary); color: var(--text-secondary); font-weight: 650; }
+    .metadata-auto-actions > span:nth-child(2), .metadata-auto-timer { margin-right: auto; color: var(--accent-light); font-variant-numeric: tabular-nums; }
+    .metadata-auto-actions button { min-height: 34px; font: inherit; font-weight: 650; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast); }
+    .metadata-auto-actions button:not(:disabled):hover { transform: translateY(-1px); }
+    .metadata-auto-actions .btn-subtle { padding: 7px 11px; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-secondary); }
+    .metadata-auto-actions .btn-subtle:hover { border-color: var(--accent-border); color: var(--text-primary); background: var(--surface-hover); }
+    .metadata-auto-clear { padding: 7px 11px; border: 1px solid rgba(255, 126, 126, 0.35); border-radius: var(--radius-sm); background: rgba(120, 30, 30, 0.16); color: #ffabab; }
+    .metadata-auto-clear:hover { border-color: rgba(255, 126, 126, 0.7); background: rgba(120, 30, 30, 0.28); }
+    .metadata-auto-stop { padding: 7px 12px; border: 1px solid rgba(255, 100, 100, 0.45); border-radius: var(--radius-sm); background: rgba(220, 38, 38, 0.2); color: #ffb4b4; }
+    .metadata-auto-stop:hover { border-color: rgba(255, 100, 100, 0.8); background: rgba(220, 38, 38, 0.35); color: #fff; }
+    .metadata-auto-button { padding: 8px 15px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-contrast); box-shadow: var(--neon-glow-soft); }
+    .metadata-auto-button:hover { background: var(--accent-hover); box-shadow: var(--neon-glow); }
+    .metadata-auto-button:disabled, .metadata-auto-actions button:disabled { cursor: not-allowed; opacity: 0.45; transform: none; }
+    .metadata-auto-results { display: grid; gap: 5px; max-height: 180px; overflow-y: auto; }
+    .metadata-auto-result { display: flex; flex-wrap: wrap; gap: 8px; padding: 7px 9px; border-radius: var(--radius-sm); background: var(--bg-tertiary); font-size: 0.72rem; }
+    .metadata-auto-result span { color: var(--text-muted); }
+    .metadata-auto-result.result-applied strong { color: var(--status-success); }
+    .metadata-auto-result.result-skipped strong { color: var(--warning-caution); }
+    .metadata-auto-result.result-error strong { color: var(--warning-danger); }
   }
 }
 
