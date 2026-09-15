@@ -1,0 +1,681 @@
+// =============================================================
+// CALLIOPE DESIGN SYSTEM — PLAYLIST MODALS
+// (Crear playlist, Editar playlist, Confirmar eliminación)
+// =============================================================
+
+// -------------------------------------------------------------
+// BACKDROPS (Fondo oscuro borroso con soporte safe-area)
+// -------------------------------------------------------------
+.create-playlist-backdrop,
+.playlist-edit-modal,
+.delete-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: playlist-modal-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+// -------------------------------------------------------------
+// MODAL CARDS (Tarjetas modales principales)
+// -------------------------------------------------------------
+.create-playlist-card,
+.playlist-edit-card,
+.delete-confirm-card {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary, #050505);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg, 20px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 24px rgba(var(--accent-rgb, 37, 216, 102), 0.04);
+  overflow: hidden;
+  animation: playlist-modal-scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  position: relative;
+}
+
+// Tarjeta específica de confirmación de borrado
+.delete-confirm-card {
+  width: min(430px, 100%);
+  border-color: rgba(255, 91, 91, 0.25);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 28px rgba(255, 91, 91, 0.08);
+}
+
+// -------------------------------------------------------------
+// MODAL HEADER (Encabezado)
+// -------------------------------------------------------------
+.create-playlist-card,
+.playlist-edit-card {
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+    background: var(--bg-secondary, #050505);
+
+    .header-titles {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+
+      .title-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: var(--radius-md, 12px);
+        background: var(--accent-surface, rgba(37, 216, 102, 0.08));
+        border: 1px solid var(--accent-border, rgba(37, 216, 102, 0.28));
+        color: var(--accent, #25d866);
+        flex-shrink: 0;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 750;
+        color: var(--text-primary, #ffffff);
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+
+      .subtitle {
+        margin: 3px 0 0;
+        font-size: 0.84rem;
+        color: var(--text-secondary, #a3a3a3);
+        line-height: 1.35;
+      }
+    }
+
+    .close-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+      color: var(--text-secondary, #a3a3a3);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+      flex-shrink: 0;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary, #ffffff);
+        transform: scale(1.05);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+  }
+}
+
+// Encabezado del modal de eliminación
+.delete-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 24px 0;
+
+  .danger-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 91, 91, 0.12);
+    border: 1px solid rgba(255, 91, 91, 0.28);
+    color: var(--warning-danger, #ff5b5b);
+    box-shadow: 0 0 16px rgba(255, 91, 91, 0.15);
+  }
+
+  .close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    color: var(--text-secondary, #a3a3a3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary, #ffffff);
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// FORM BODY (Campos de entrada)
+// -------------------------------------------------------------
+.create-playlist-form,
+.playlist-edit-form {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+
+  .form-body {
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+
+      .form-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary, #a3a3a3);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .required-indicator {
+          color: var(--accent, #25d866);
+          font-weight: 700;
+        }
+
+        .optional-label {
+          color: var(--text-muted, #666666);
+          font-size: 0.78rem;
+          font-weight: 400;
+        }
+      }
+
+      .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .form-input {
+          width: 100%;
+          height: 44px;
+          padding: 0 14px;
+          background: var(--bg-tertiary, #0a0a0a);
+          border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+          border-radius: var(--radius-md, 12px);
+          color: var(--text-primary, #ffffff);
+          font-size: 0.94rem;
+          font-family: inherit;
+          box-sizing: border-box;
+          transition: border-color var(--transition-fast, 0.15s ease),
+                      box-shadow var(--transition-fast, 0.15s ease),
+                      background var(--transition-fast, 0.15s ease);
+
+          &::placeholder {
+            color: var(--text-muted, #666666);
+          }
+
+          &:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+          }
+
+          &:focus {
+            outline: none;
+            background: var(--bg-hover, #121212);
+            border-color: var(--accent, #25d866);
+            box-shadow: 0 0 0 3px var(--accent-muted, rgba(37, 216, 102, 0.14));
+          }
+        }
+      }
+
+      // Previsualización de la portada
+      .cover-preview-wrapper {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--bg-tertiary, #0a0a0a);
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+        border-radius: var(--radius-md, 12px);
+
+        .preview-label {
+          font-size: 0.8rem;
+          color: var(--text-muted, #666666);
+        }
+
+        .cover-preview {
+          position: relative;
+          width: 52px;
+          height: 52px;
+          border-radius: var(--radius-sm, 8px);
+          overflow: hidden;
+          background: #111;
+          border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+          flex-shrink: 0;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+
+          .preview-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted, #666666);
+            padding: 4px;
+            text-align: center;
+            gap: 2px;
+
+            span {
+              font-size: 0.65rem;
+              line-height: 1;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// DELETE MODAL BODY (Cuerpo de confirmación)
+// -------------------------------------------------------------
+.delete-modal-body {
+  padding: 18px 24px 22px;
+
+  .delete-title {
+    margin: 0 0 8px;
+    font-size: 1.25rem;
+    font-weight: 750;
+    color: var(--text-primary, #ffffff);
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .delete-description {
+    margin: 0 0 16px;
+    font-size: 0.92rem;
+    color: var(--text-secondary, #a3a3a3);
+    line-height: 1.5;
+
+    .delete-playlist-name {
+      color: var(--text-primary, #ffffff);
+      font-weight: 700;
+    }
+  }
+
+  .delete-warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm, 10px);
+    background: rgba(255, 91, 91, 0.08);
+    border: 1px solid rgba(255, 91, 91, 0.2);
+
+    .warning-text {
+      margin: 0;
+      font-size: 0.82rem;
+      color: rgba(255, 170, 170, 0.95);
+      line-height: 1.45;
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// FOOTER ACTIONS (Botones de acción)
+// -------------------------------------------------------------
+.modal-footer,
+.delete-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  background: rgba(0, 0, 0, 0.25);
+
+  .btn-cancel {
+    height: 42px;
+    padding: 0 18px;
+    border-radius: var(--radius-md, 12px);
+    background: transparent;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    color: var(--text-secondary, #a3a3a3);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary, #ffffff);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    &:active {
+      background: rgba(255, 255, 255, 0.04);
+    }
+  }
+
+  .btn-confirm {
+    height: 42px;
+    padding: 0 20px;
+    border-radius: var(--radius-md, 12px);
+    background: var(--accent, #25d866);
+    border: 1px solid transparent;
+    color: var(--accent-contrast, #000000);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: var(--neon-glow-soft, 0 0 20px rgba(37, 216, 102, 0.14));
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover, #45e07b);
+      box-shadow: var(--neon-glow, 0 0 12px rgba(37, 216, 102, 0.32));
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+
+  .btn-delete {
+    height: 42px;
+    padding: 0 20px;
+    border-radius: var(--radius-md, 12px);
+    background: var(--warning-danger, #ff5b5b);
+    border: 1px solid transparent;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(255, 91, 91, 0.25);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: #ff4040;
+      box-shadow: 0 6px 20px rgba(255, 91, 91, 0.4);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// COMPATIBILIDAD CON ESTRUCTURA ANTERIOR
+// (Por si se usan selectores antiguos de CreatePlaylist / Delete)
+// -------------------------------------------------------------
+.modal-backdrop:not(.add-songs-backdrop):not(.metadata-modal-backdrop) {
+  .modal-card {
+    .modal-title {
+      margin: 0 0 18px;
+      font-size: 1.25rem;
+      font-weight: 750;
+      color: var(--text-primary, #ffffff);
+    }
+
+    .input-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+
+      label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary, #a3a3a3);
+
+        span {
+          color: var(--text-muted, #666666);
+          font-weight: 400;
+        }
+      }
+
+      input {
+        width: 100%;
+        height: 44px;
+        padding: 0 14px;
+        background: var(--bg-tertiary, #0a0a0a);
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+        border-radius: var(--radius-md, 12px);
+        color: var(--text-primary, #ffffff);
+        font-size: 0.94rem;
+        font-family: inherit;
+        box-sizing: border-box;
+
+        &:focus {
+          outline: none;
+          border-color: var(--accent, #25d866);
+          box-shadow: 0 0 0 3px var(--accent-muted, rgba(37, 216, 102, 0.14));
+        }
+      }
+    }
+
+    .actions,
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+
+      .cancel-button,
+      .cancel {
+        height: 42px;
+        padding: 0 18px;
+        border-radius: var(--radius-md, 12px);
+        background: transparent;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+        color: var(--text-secondary, #a3a3a3);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-family: inherit;
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: var(--text-primary, #ffffff);
+        }
+      }
+
+      .check-button,
+      .save {
+        height: 42px;
+        padding: 0 20px;
+        border-radius: var(--radius-md, 12px);
+        background: var(--accent, #25d866);
+        border: 1px solid transparent;
+        color: var(--accent-contrast, #000000);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 700;
+        font-family: inherit;
+        transition: background 0.15s ease, transform 0.15s ease;
+
+        &:hover {
+          background: var(--accent-hover, #45e07b);
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+}
+
+// Compatibilidad delete-confirm modal antiguo
+.delete-confirm-modal {
+  .delete-confirm-card {
+    padding: 24px;
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+      font-weight: 750;
+      color: var(--text-primary, #ffffff);
+    }
+
+    p {
+      margin: 0 0 20px;
+      font-size: 0.92rem;
+      color: var(--text-secondary, #a3a3a3);
+      line-height: 1.5;
+    }
+
+    .delete-confirm-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+
+      button {
+        height: 42px;
+        padding: 0 18px;
+        border-radius: var(--radius-md, 12px);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-family: inherit;
+        transition: background 0.15s ease, transform 0.15s ease;
+      }
+
+      .cancel {
+        background: transparent;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+        color: var(--text-secondary, #a3a3a3);
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: var(--text-primary, #ffffff);
+        }
+      }
+
+      .confirm {
+        background: var(--warning-danger, #ff5b5b);
+        border: 1px solid transparent;
+        color: #ffffff;
+        font-weight: 700;
+
+        &:hover {
+          background: #ff4040;
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// RESPONSIVE (Móviles)
+// -------------------------------------------------------------
+@media (max-width: 600px) {
+  .create-playlist-card,
+  .playlist-edit-card,
+  .delete-confirm-card {
+    width: 100%;
+    border-radius: var(--radius-lg, 18px);
+
+    .modal-header {
+      padding: 18px 18px 14px;
+    }
+
+    .form-body,
+    .delete-modal-body {
+      padding: 18px;
+    }
+
+    .modal-footer,
+    .delete-modal-footer {
+      padding: 14px 18px;
+
+      .btn-cancel,
+      .btn-confirm,
+      .btn-delete {
+        flex: 1;
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// ANIMACIONES
+// -------------------------------------------------------------
+@keyframes playlist-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes playlist-modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-playlist-backdrop,
+  .playlist-edit-modal,
+  .delete-confirm-modal,
+  .create-playlist-card,
+  .playlist-edit-card,
+  .delete-confirm-card {
+    animation: none;
+  }
+}
+

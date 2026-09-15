@@ -67,8 +67,7 @@ const playlistSongs = computed(() => {
 });
 
 const playlistMainCover = computed(() => {
-  const firstSong = playlistSongs.value[0];
-  return firstSong?.cover || null;
+  return playlist.value?.cover || null;
 });
 
 watch(

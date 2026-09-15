@@ -145,21 +145,67 @@
             </li>
         </ul>
 
-        <div v-if="showDeleteConfirmModal" class="delete-confirm-modal" @click.self="cancelDeletePlaylist">
-          <div class="delete-confirm-card">
-            <h3>¿Eliminar esta playlist?</h3>
-            <p>Esta acción no se puede deshacer.</p>
-            <div class="delete-confirm-actions">
-              <button class="cancel" @click="cancelDeletePlaylist">Cancelar</button>
-              <button class="confirm" @click="confirmDeletePlaylist">Eliminar</button>
+        <!-- Modal de confirmación de eliminación de playlist -->
+        <div
+          v-if="showDeleteConfirmModal"
+          class="modal-backdrop delete-confirm-modal"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-playlist-title"
+          @click.self="cancelDeletePlaylist"
+        >
+          <div class="modal-card delete-confirm-card">
+            <header class="delete-modal-header">
+              <div class="danger-badge" aria-hidden="true">
+                <AlertTriangle :size="22" />
+              </div>
+
+              <button
+                type="button"
+                class="close-button"
+                aria-label="Cerrar modal"
+                @click="cancelDeletePlaylist"
+              >
+                <X class="icon" :size="18" />
+              </button>
+            </header>
+
+            <div class="delete-modal-body">
+              <h3 id="delete-playlist-title" class="delete-title">¿Eliminar playlist?</h3>
+              <p class="delete-description">
+                ¿Estás seguro de que deseas eliminar <strong class="delete-playlist-name">"{{ playlist?.name }}"</strong>?
+              </p>
+              <div class="delete-warning-box">
+                <p class="warning-text">
+                  Esta acción no se puede deshacer. Las canciones no se borrarán de tu biblioteca.
+                </p>
+              </div>
             </div>
+
+            <footer class="delete-modal-footer delete-confirm-actions">
+              <button
+                type="button"
+                class="btn-cancel cancel"
+                @click="cancelDeletePlaylist"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                class="btn-delete confirm"
+                @click="confirmDeletePlaylist"
+              >
+                <Trash2 :size="16" />
+                <span>Eliminar playlist</span>
+              </button>
+            </footer>
           </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { BookHeart, DiscAlbum, GripVertical, Heart, ListPlus, MoreHorizontal, Music2, Pencil, Play, Plus, Shuffle, Trash2 } from "lucide-vue-next";
+import { AlertTriangle, BookHeart, DiscAlbum, GripVertical, Heart, ListPlus, MoreHorizontal, Music2, Pencil, Play, Plus, Shuffle, Trash2, X } from "lucide-vue-next";
 import { useLibraryStore }
 from "../../stores/libraryStore.js";
 import Library from "../../pages/Library.vue";
@@ -379,15 +425,27 @@ function handleOutsideClick() {
   }
 }
 
+function handleKeydown(event) {
+  if (event.key === "Escape") {
+    if (showDeleteConfirmModal.value) {
+      cancelDeletePlaylist();
+    } else if (showActionMenu.value) {
+      showActionMenu.value = false;
+    }
+  }
+}
+
 onMounted(() => {
   if (typeof window !== "undefined") {
     window.addEventListener("click", handleOutsideClick);
+    window.addEventListener("keydown", handleKeydown);
   }
 });
 
 onBeforeUnmount(() => {
   if (typeof window !== "undefined") {
     window.removeEventListener("click", handleOutsideClick);
+    window.removeEventListener("keydown", handleKeydown);
   }
 });
 
