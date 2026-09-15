@@ -1,7 +1,7 @@
 <template>
     <main class="album-page">
-        <h1 class="album-title" v-if="album">{{ album.name }}</h1>
-        <p class="album-artist-name" v-if="album?.artist">{{ album.artist }}</p>
+        <h1 class="album-title" v-if="album">{{ album.title || album.name }}</h1>
+        <p class="album-artist-name" v-if="releaseArtistLabel">{{ releaseArtistLabel }}</p>
 
         <PlayListSongs
             :songs="albumSongs"
@@ -31,16 +31,26 @@ const albumId = computed(() => route.params.id);
 
 const album = computed(() => {
     return (
-        libraryStore.releases.find(
-            a => a.id === albumId.value || a.title === albumId.value
-        ) || libraryStore.albums.find(
-            a => a.id === albumId.value || a.name === albumId.value
-        ) || null
+        libraryStore.releases.find((release) => release.id === albumId.value) ||
+        libraryStore.albums.find((item) => item.id === albumId.value) ||
+        null
     );
 });
 
 const albumCover = computed(() => {
-    return album.value?.cover ?? null;
+    return album.value?.cover || album.value?.coverUrl || null;
+});
+
+const releaseArtistLabel = computed(() => {
+    const artists = album.value?.involvedArtists?.length
+        ? album.value.involvedArtists
+        : album.value?.primaryArtists?.length
+            ? album.value.primaryArtists
+            : album.value?.artists || album.value?.artist || [];
+    const names = (Array.isArray(artists) ? artists : [artists])
+        .map((artist) => typeof artist === "string" ? artist : artist?.name)
+        .filter(Boolean);
+    return [...new Map(names.map((name) => [name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), name])).values()].join(", ");
 });
 
 function parseTrackNumber(val) {
@@ -59,18 +69,48 @@ function parseTrackNumber(val) {
     return null;
 }
 
+function comparableAlbumName(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase()
+        .replace(/[()[\]{}]/g, " ")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 const albumSongs = computed(() => {
     const releaseId = album.value?.id;
-    const matched = libraryStore.songs.filter(
-        song => releaseId && Array.isArray(song.releaseIds)
-            ? song.releaseIds.includes(releaseId)
-            : song.albumId === albumId.value || (album.value && song.album === album.value.name)
-    );
+    const albumName = comparableAlbumName(album.value?.title || album.value?.name);
+    if (!releaseId && !albumName) return [];
+
+    const matched = libraryStore.songs.filter((song) => {
+        const songReleaseIds = [
+            ...(Array.isArray(song.releaseIds) ? song.releaseIds : []),
+            ...(Array.isArray(song.releases) ? song.releases.map((release) => release?.id) : []),
+        ].filter(Boolean);
+        const songAlbumNames = [
+            song.album,
+            ...(Array.isArray(song.releases) ? song.releases.map((release) => release?.title) : []),
+        ].map(comparableAlbumName).filter(Boolean);
+
+        // Las canciones antiguas pueden conservar el álbum por nombre sin
+        // tener todavía la relación releaseIds/albumId reconstruida.
+        return (
+            songReleaseIds.includes(releaseId) ||
+            song.albumId === releaseId ||
+            (albumName && songAlbumNames.includes(albumName))
+        );
+    });
 
     return [...matched].sort((a, b) => {
-        const trackFor = (song) => libraryStore.releaseTracks.find((track) =>
-            track.recordingId === (song.recordingId || song.id) && track.releaseId === releaseId
-        );
+        const trackFor = (song) => {
+            const recordingId = song.recordingId || song.id;
+            return libraryStore.releaseTracks.find((track) =>
+                track.recordingId === recordingId && track.releaseId === releaseId
+            );
+        };
         const trackAData = trackFor(a);
         const trackBData = trackFor(b);
         const trackA = parseTrackNumber(trackAData?.trackNumber ?? a.track ?? a.trackNo ?? a.trackNumber);

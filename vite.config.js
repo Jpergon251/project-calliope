@@ -8,5 +8,14 @@ export default defineConfig({
   plugins: [
     vue(),
     wasm()
-  ]
+  ],
+  server: {
+    proxy: {
+      '/api/deezer': {
+        target: 'https://api.deezer.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/deezer/, ''),
+      },
+    },
+  },
 });

@@ -228,15 +228,29 @@ const playlistsCarousel = ref(null);
  * We deliberately do NOT shuffle playlists.
  */
 const orderedPlaylists = computed(() => {
+  const getMainCover = (playlist) => {
+    const firstSongId = playlist?.songIds?.[0];
+    const firstSong = firstSongId
+      ? library.songs.find((song) => song.id === firstSongId)
+      : null;
+    return firstSong?.cover || null;
+  };
+  const withMainCover = (playlist) => ({
+    ...playlist,
+    // Las tarjetas de playlist muestran la portada principal de su primera
+    // canción, no una portada heredada de un release o una portada antigua.
+    cover: getMainCover(playlist),
+  });
+
   const favorites = library.playlists.find(
     (playlist) => playlist.id === library.FAVORITES_PLAYLIST_ID,
   );
 
-  const others = library.playlists.filter(
-    (playlist) => playlist.id !== library.FAVORITES_PLAYLIST_ID,
-  );
+  const others = library.playlists
+    .filter((playlist) => playlist.id !== library.FAVORITES_PLAYLIST_ID)
+    .map(withMainCover);
 
-  return favorites ? [favorites, ...others] : others;
+  return favorites ? [withMainCover(favorites), ...others] : others;
 });
 
 /* ============================================================

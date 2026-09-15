@@ -295,7 +295,6 @@ import {
   X,
   Music2,
   Disc3,
-  CheckCircle2,
   CheckCheck,
   Check,
   AlertCircle,
@@ -522,7 +521,8 @@ async function runAutomaticMetadata() {
 
       const title = song.title || song.name;
       try {
-        if (!(song.file instanceof File || song.file instanceof Blob)) {
+        const hasAudioFile = typeof Blob !== "undefined" && song.file instanceof Blob;
+        if (!hasAudioFile) {
           autoResults.value.push({
             id: song.id,
             title,
@@ -537,16 +537,33 @@ async function runAutomaticMetadata() {
         const confidence = Number(
           result?.confidence || result?.metadata?.confidence || 0,
         );
+        const warnings = result?.diagnostics?.warnings || [];
+        const hasCompetingEvidence = warnings.includes(
+          "competing-candidates-reviewable",
+        );
+        const hasStableIdentity = Boolean(
+          result?.musicBrainzRecordingId ||
+            result?.metadata?.musicBrainzRecordingId ||
+            result?.diagnostics?.winner?.identityKey?.startsWith("mbid:"),
+        );
+        const hasAudioEvidence = ["acoustid", "optional"].some((provider) =>
+          String(result?.identificationSource || "").split("+").includes(provider),
+        );
+
         if (
           result?.status !== "match" ||
           !result.metadata ||
-          confidence < 0.7
+          confidence < 0.7 ||
+          hasCompetingEvidence ||
+          (!hasStableIdentity && !hasAudioEvidence)
         ) {
           autoResults.value.push({
             id: song.id,
             title,
             status: "skipped",
-            message: "Sin coincidencia suficientemente fiable",
+            message: hasCompetingEvidence
+              ? "Evidencia competida: requiere revisión manual"
+              : "Sin coincidencia suficientemente fiable",
           });
           continue;
         }

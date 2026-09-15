@@ -7,6 +7,7 @@ import {
   cleanGenres,
   normalizeReleaseTitle,
   resolveArtistEntities,
+  createStableFileId,
 } from "./musicEntities.js";
 import { getCoverForSong, selectPrimaryRelease } from "../services/musicRelations.js";
 import { applyReleaseContext } from "../services/musicRelations.js";
@@ -111,4 +112,55 @@ test("el contexto de reproduccion usa portada y pista del release seleccionado",
   assert.equal(contextual.releaseType, "single");
   assert.equal(contextual.track, 1);
   assert.equal(contextual.album, "Song");
+});
+
+test("los archivos con el mismo nombre en carpetas distintas no colisionan", () => {
+  const left = { name: "song.mp3", size: 1024, lastModified: 1234, webkitRelativePath: "albums/one/song.mp3" };
+  const right = { name: "song.mp3", size: 1024, lastModified: 1234, webkitRelativePath: "albums/two/song.mp3" };
+
+  assert.notEqual(createStableFileId(left), createStableFileId(right));
+  assert.equal(createStableFileId(left), createStableFileId({ ...left, webkitRelativePath: "albums/one/song.mp3" }));
+});
+test("separa primaryArtists e involvedArtists del release sin tocar el recording", () => {
+  const recording = createRecording({
+    id: "track-1",
+    title: "Track",
+    artists: [
+      { id: "timo", name: "TIMØ" },
+      { id: "nil", name: "Nil Moliner" },
+    ],
+  });
+  const release = createRelease({
+    id: "release-1",
+    title: "Canto Pa No Llorar",
+    primaryArtists: [{ id: "timo", name: "TIMØ" }],
+    involvedArtists: [
+      { id: "timo", name: "TIMØ" },
+      { id: "nil", name: "Nil Moliner" },
+      { id: "vanesa", name: "Vanesa Martín" },
+    ],
+  });
+
+  assert.deepEqual(recording.artists.map((artist) => artist.name), ["TIMØ", "Nil Moliner"]);
+  assert.deepEqual(release.primaryArtists.map((artist) => artist.name), ["TIMØ"]);
+  assert.deepEqual(release.involvedArtists.map((artist) => artist.name), ["TIMØ", "Nil Moliner", "Vanesa Martín"]);
+});
+
+test("deduplica artistas involucrados por ID y mantiene varios artistas principales", () => {
+  const release = createRelease({
+    id: "release-2",
+    title: "Collaborative Release",
+    primaryArtists: [
+      { id: "a", name: "Artist A" },
+      { id: "b", name: "Artist B" },
+    ],
+    involvedArtists: [
+      { id: "a", name: "Artist A" },
+      { id: "a", name: "Artist A" },
+      { id: "b", name: "Artist B" },
+    ],
+  });
+
+  assert.deepEqual(release.primaryArtists.map((artist) => artist.name), ["Artist A", "Artist B"]);
+  assert.deepEqual(release.involvedArtists.map((artist) => artist.name), ["Artist A", "Artist B"]);
 });

@@ -65,7 +65,7 @@ const ENV = import.meta.env || {};
 
 const CONFIG = {
   acoustid: {
-    client: ENV.VITE_ACOUSTID_CLIENT || "gCqZRLkoQU",
+    client: ENV.VITE_ACOUSTID_CLIENT,
     endpoint: "https://api.acoustid.org/v2/lookup",
   },
 
@@ -75,12 +75,18 @@ const CONFIG = {
       ENV.VITE_MUSICBRAINZ_USER_AGENT || "Calliope/2.1.0 (local music player)",
     minInterval: 1100,
     timeout: 15000,
-    retries: 3,
+    retries: 0,
     retryDelay: 1500,
   },
 
   itunes: {
     endpoint: "https://itunes.apple.com/search",
+    timeout: 12000,
+  },
+
+  deezer: {
+    endpoint: "https://api.deezer.com",
+    proxyEndpoint: ENV.VITE_DEEZER_PROXY_URL || "",
     timeout: 12000,
   },
 
@@ -124,6 +130,8 @@ const CONFIG = {
   },
 };
 
+const MIN_FINGERPRINT_MATCH_SCORE = 0.5;
+
 // ============================================================================
 // PESOS DE FUENTES
 // ============================================================================
@@ -134,6 +142,7 @@ const PROVIDER_WEIGHTS = {
   musicbrainz: 0.9,
   optional: 0.95,
   itunes: 0.8,
+  deezer: 0.82,
   lrclib: 0.25,
 };
 
@@ -234,6 +243,12 @@ function safeString(value) {
   return String(value).trim();
 }
 
+function isMusicBrainzId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    safeString(value),
+  );
+}
+
 function normalizeText(value) {
   return safeString(value)
     .normalize("NFD")
@@ -257,6 +272,31 @@ function normalizeArtist(value) {
     .replace(/\b(feat|ft|featuring)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeTrackTitle(value) {
+  return normalizeText(value)
+    .replace(/\s*\((?:feat\.?|ft\.?|featuring|con)\b[^)]*\)/gi, "")
+    .replace(/\s*\[(?:feat\.?|ft\.?|featuring|con)\b[^\]]*\]/gi, "")
+    .replace(/\s+(?:feat\.?|ft\.?|featuring|con)\s+.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function comparableTrackTitle(value) {
+  const withoutEditionSuffix = safeString(value)
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .replace(/\s*\[[^\]]*\]\s*$/g, "")
+    .trim();
+  const normalized = normalizeTrackTitle(withoutEditionSuffix);
+  return normalized || withoutEditionSuffix.toLocaleLowerCase();
+}
+
+function trackTitleSimilarity(left, right) {
+  return Math.max(
+    similarity(left, right),
+    similarity(comparableTrackTitle(left), comparableTrackTitle(right)),
+  );
 }
 
 function similarity(a, b) {
@@ -291,6 +331,25 @@ function artistSimilarity(a, b) {
 
   if (aa === bb) {
     return 1;
+  }
+
+  const splitArtists = (value) =>
+    value
+      .split(/\s*(?:,|&|\b(?:and|y|con|feat\.?|ft\.?|featuring)\b)\s*/i)
+      .map((item) => normalizeArtist(item))
+      .filter(Boolean);
+  const leftArtists = new Set(splitArtists(aa));
+  const rightArtists = new Set(splitArtists(bb));
+  const sharedArtists = [...leftArtists].filter((artist) =>
+    rightArtists.has(artist),
+  );
+
+  if (
+    sharedArtists.length &&
+    (sharedArtists.length === leftArtists.size ||
+      sharedArtists.length === rightArtists.size)
+  ) {
+    return 0.92;
   }
 
   return similarity(aa, bb);
@@ -667,6 +726,7 @@ async function runProvider(diagnostics, provider, executor) {
       provider,
       message,
     });
+    console.warn(`[Calliope] Provider ${provider} failed:`, message);
 
     return null;
   }
@@ -822,11 +882,14 @@ async function musicBrainzRequest(path, params = {}) {
   ).catch((error) => {
     if (error?.status === 503) {
       const retryAfter = Number(error.retryAfter);
-      const cooldown = Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : 30000;
+      const cooldown =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 30000;
       musicBrainzUnavailableUntil = Date.now() + Math.min(cooldown, 120000);
-      console.warn("[Calliope] MusicBrainz no disponible temporalmente; se continúa con los demás providers.");
+      console.warn(
+        "[Calliope] MusicBrainz no disponible temporalmente; se continúa con los demás providers.",
+      );
       return null;
     }
     throw error;
@@ -865,9 +928,17 @@ async function readLocalMetadata(file) {
         normalizeIsrc(
           Array.isArray(common.isrc) ? common.isrc[0] : common.isrc,
         ) || "",
-      musicBrainzRecordingId: safeString(common.musicbrainz_recordingid),
-      musicBrainzReleaseId: safeString(common.musicbrainz_releaseid),
-      musicBrainzReleaseGroupId: safeString(common.musicbrainz_releasegroupid),
+      musicBrainzRecordingId: isMusicBrainzId(common.musicbrainz_recordingid)
+        ? safeString(common.musicbrainz_recordingid)
+        : "",
+      musicBrainzReleaseId: isMusicBrainzId(common.musicbrainz_releaseid)
+        ? safeString(common.musicbrainz_releaseid)
+        : "",
+      musicBrainzReleaseGroupId: isMusicBrainzId(
+        common.musicbrainz_releasegroupid,
+      )
+        ? safeString(common.musicbrainz_releasegroupid)
+        : "",
       acoustid: safeString(common.acoustid_id),
       duration: Number.isFinite(format.duration) ? format.duration : 0,
     };
@@ -933,7 +1004,10 @@ function parseFilename(fileName) {
 async function decodeAudio(file) {
   const arrayBuffer = await file.arrayBuffer();
 
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const AudioContextClass =
+    typeof window !== "undefined"
+      ? window.AudioContext || window.webkitAudioContext
+      : globalThis.AudioContext || globalThis.webkitAudioContext;
 
   if (!AudioContextClass) {
     throw new Error("Web Audio API no disponible");
@@ -987,13 +1061,17 @@ async function generateFingerprint(file) {
     CONFIG.audio.maxSecondsForFingerprint,
   );
 
-  const fingerprinter = await Fingerprinter.create();
+  const fingerprinter = new Fingerprinter();
 
-  fingerprinter.start(CONFIG.audio.sampleRate);
+  // `pcm` ya está mezclado a mono; declarar el canal original aquí degrada
+  // la huella y puede producir coincidencias erróneas en archivos estéreo.
+  fingerprinter.start(audioBuffer.sampleRate, 1);
 
   fingerprinter.consume(pcm);
 
-  const fingerprint = fingerprinter.finish();
+  fingerprinter.finish();
+  const fingerprint = fingerprinter.getCompressedFingerprint();
+  fingerprinter.free();
 
   return {
     fingerprint,
@@ -1008,7 +1086,7 @@ async function generateFingerprint(file) {
 // ============================================================================
 
 async function queryAcoustID(fingerprint, duration) {
-  if (!fingerprint) {
+  if (!fingerprint || !CONFIG.acoustid.client) {
     return [];
   }
 
@@ -1086,6 +1164,54 @@ async function queryAcoustID(fingerprint, duration) {
   }
 
   return candidates;
+}
+
+function buildFieldChoices(candidates = [], winner = null) {
+  const matching = candidates.filter((candidate) => {
+    if (!winner || candidate === winner) return true;
+    const titleScore = trackTitleSimilarity(candidate.title, winner.title);
+    const artistScore = artistSimilarity(candidate.artist, winner.artist);
+    const durationScore = durationSimilarity(
+      candidate.duration,
+      winner.duration,
+    );
+    return (
+      titleScore >= 0.82 &&
+      artistScore >= 0.7 &&
+      (durationScore >= 0.5 || !candidate.duration || !winner.duration)
+    );
+  });
+  const choicesFor = (field, normalize = normalizeText) => {
+    const map = new Map();
+    for (const candidate of matching) {
+      const value = field === "genres" ? candidate.genres : candidate[field];
+      const values = Array.isArray(value) ? value : [value];
+      for (const item of values.filter(Boolean)) {
+        const key = normalize(item);
+        if (!key) continue;
+        const current = map.get(key) || {
+          value: item,
+          sources: [],
+          providers: [],
+        };
+        current.sources.push(candidate.provider);
+        current.providers.push(candidate.provider);
+        map.set(key, current);
+      }
+    }
+    return [...map.values()].map((item) => ({
+      ...item,
+      sources: [...new Set(item.sources)],
+      providers: [...new Set(item.providers)],
+    }));
+  };
+  return {
+    title: choicesFor("title"),
+    artists: choicesFor("artist", normalizeArtist),
+    albumArtists: choicesFor("albumArtist", normalizeArtist),
+    genres: choicesFor("genres", canonicalGenre),
+    cover: choicesFor("cover", (value) => String(value).trim()),
+  };
 }
 
 // ============================================================================
@@ -1206,22 +1332,43 @@ async function musicBrainzSearch(query) {
 
 function searchTextVariants(local, filename) {
   const titleValues = [local.title, filename.title].filter(Boolean);
-  const artistValues = [local.artist, local.albumArtist, filename.artist].filter(Boolean);
-  const stripSecondaryTitle = (value) => safeString(value)
-    .replace(/\s*\((?:feat\.?|ft\.?|featuring|remix|version|live|edit|radio edit|acoustic|extended)[^)]*\)/gi, "")
-    .replace(/\s*\[(?:feat\.?|ft\.?|featuring|remix|version|live|edit|radio edit|acoustic|extended)[^\]]*\]/gi, "")
-    .replace(/\s+-\s+(?:remix|live|edit|radio edit|acoustic|extended|remastered)\b.*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const titles = [...new Set([
-    ...titleValues,
-    ...titleValues.map(stripSecondaryTitle),
-    ...titleValues.map(normalizeComparable),
-  ].filter(Boolean))];
-  const artists = [...new Set([
-    ...artistValues,
-    ...artistValues.map(normalizeComparable),
-  ].filter(Boolean))];
+  const artistValues = [
+    local.artist,
+    local.albumArtist,
+    filename.artist,
+  ].filter(Boolean);
+  const stripSecondaryTitle = (value) =>
+    safeString(value)
+      .replace(
+        /\s*\((?:feat\.?|ft\.?|featuring|remix|version|live|edit|radio edit|acoustic|extended)[^)]*\)/gi,
+        "",
+      )
+      .replace(
+        /\s*\[(?:feat\.?|ft\.?|featuring|remix|version|live|edit|radio edit|acoustic|extended)[^\]]*\]/gi,
+        "",
+      )
+      .replace(
+        /\s+-\s+(?:remix|live|edit|radio edit|acoustic|extended|remastered)\b.*$/i,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim();
+  const titles = [
+    ...new Set(
+      [
+        ...titleValues,
+        ...titleValues.map(stripSecondaryTitle),
+        ...titleValues.map(normalizeComparable),
+      ].filter(Boolean),
+    ),
+  ];
+  const artists = [
+    ...new Set(
+      [...artistValues, ...artistValues.map(normalizeComparable)].filter(
+        Boolean,
+      ),
+    ),
+  ];
   return { titles, artists };
 }
 
@@ -1230,12 +1377,16 @@ async function queryMusicBrainzText(local, filename) {
   const queries = [];
   for (const title of titles) {
     for (const artist of artists.slice(0, 3)) {
-      queries.push(`recording:"${escapeLucene(title)}" AND artist:"${escapeLucene(artist)}"`);
+      queries.push(
+        `recording:"${escapeLucene(title)}" AND artist:"${escapeLucene(artist)}"`,
+      );
     }
     queries.push(`recording:"${escapeLucene(title)}"`);
   }
   if (artists.length && titles.length) {
-    queries.push(`artist:"${escapeLucene(artists[0])}" AND recording:"${escapeLucene(titles[0].split(" ").slice(0, 2).join(" "))}"`);
+    queries.push(
+      `artist:"${escapeLucene(artists[0])}" AND recording:"${escapeLucene(titles[0].split(" ").slice(0, 2).join(" "))}"`,
+    );
   }
 
   const results = [];
@@ -1303,7 +1454,9 @@ async function queryMusicBrainzText(local, filename) {
 async function queryITunes(local, filename) {
   const { titles, artists } = searchTextVariants(local, filename);
   const queries = [
-    ...titles.flatMap((title) => artists.slice(0, 2).map((artist) => `${artist} ${title}`)),
+    ...titles.flatMap((title) =>
+      artists.slice(0, 2).map((artist) => `${artist} ${title}`),
+    ),
     ...titles,
   ];
 
@@ -1384,6 +1537,101 @@ async function queryITunes(local, filename) {
   return results;
 }
 
+async function queryDeezer(local, filename) {
+  const { titles, artists } = searchTextVariants(local, filename);
+  const title = titles[0];
+  const artist = artists[0];
+
+  if (!title) {
+    return [];
+  }
+
+  const endpoint = getDeezerEndpoint("/search");
+  if (!endpoint) {
+    return [];
+  }
+
+  const query = artist
+    ? `artist:"${artist}" track:"${title}"`
+    : `track:"${title}"`;
+  const url = new URL(
+    endpoint,
+    typeof window !== "undefined" ? window.location.origin : undefined,
+  );
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "10");
+
+  const data = await fetchDeezerJson(url.toString());
+  const matches = Array.isArray(data?.data) ? data.data : [];
+  const results = [];
+  const seenAlbums = new Set();
+
+  for (const item of matches) {
+    const candidate = makeCandidate({
+      provider: "deezer",
+      sourceType: "text",
+      providerScore: 0.85,
+      title: item?.title,
+      artist: item?.artist?.name,
+      album: item?.album?.title,
+      albumArtist: item?.artist?.name,
+      duration: Number(item?.duration || 0),
+      cover:
+        item?.album?.cover_xl || item?.album?.cover_big || item?.album?.cover,
+      isrc: item?.isrc,
+      raw: item,
+    });
+
+    if (!candidate.title || seenAlbums.has(item?.album?.id)) {
+      continue;
+    }
+
+    seenAlbums.add(item?.album?.id);
+
+    if (item?.album?.id) {
+      try {
+        const album = await fetchDeezerJson(
+          getDeezerEndpoint(`/album/${encodeURIComponent(item.album.id)}`),
+        );
+        candidate.genres = uniqueGenres(
+          album?.genres?.data?.map((genre) => genre?.name).filter(Boolean) ||
+            [],
+        );
+      } catch {
+        // Artwork remains useful even when the album genre endpoint fails.
+      }
+    }
+
+    results.push(candidate);
+  }
+
+  return results;
+}
+
+async function fetchDeezerJson(url) {
+  if (!url) return null;
+  return fetchJsonWithRetry(
+    url,
+    {},
+    { timeout: CONFIG.deezer.timeout, retries: 0 },
+  );
+}
+
+function getDeezerEndpoint(path) {
+  if (CONFIG.deezer.proxyEndpoint) {
+    return `${CONFIG.deezer.proxyEndpoint.replace(/\/$/, "")}${path}`;
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+  ) {
+    return `/api/deezer${path}`;
+  }
+
+  return "";
+}
+
 function inferITunesReleaseType(collectionName) {
   const title = normalizeText(collectionName);
   if (/(^|\s)(ep)(\s|$)/.test(title)) return "ep";
@@ -1401,38 +1649,48 @@ async function queryLRCLIB(local, filename) {
     return [];
   }
 
-  const responses = await Promise.all(titles.slice(0, 5).map(async (title) => {
-    const url = new URL(`${CONFIG.lrclib.endpoint}/api/search`);
-    url.searchParams.set("track_name", title);
-    if (artists[0]) url.searchParams.set("artist_name", artists[0]);
-    if (local.album) url.searchParams.set("album_name", local.album);
-    return fetchJsonWithRetry(url.toString(), {}, { timeout: CONFIG.lrclib.timeout, retries: 0 });
-  }));
-
-  const results = responses.flatMap((data) => Array.isArray(data) ? data : []);
-  const seen = new Set();
-  return results.map((item) =>
-    makeCandidate({
-      provider: "lrclib",
-      sourceType: "text",
-      providerScore: 0.55,
-
-      title: item?.trackName,
-
-      artist: item?.artistName,
-
-      album: item?.albumName,
-
-      duration: Number(item?.duration || 0),
-
-      raw: item,
+  const responses = await Promise.all(
+    titles.slice(0, 5).map(async (title) => {
+      const url = new URL(`${CONFIG.lrclib.endpoint}/api/search`);
+      url.searchParams.set("track_name", title);
+      if (artists[0]) url.searchParams.set("artist_name", artists[0]);
+      if (local.album) url.searchParams.set("album_name", local.album);
+      return fetchJsonWithRetry(
+        url.toString(),
+        {},
+        { timeout: CONFIG.lrclib.timeout, retries: 0 },
+      );
     }),
-  ).filter((candidate) => {
-    const key = `${normalizeText(candidate.title)}|${normalizeArtist(candidate.artist)}|${candidate.duration}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  );
+
+  const results = responses.flatMap((data) =>
+    Array.isArray(data) ? data : [],
+  );
+  const seen = new Set();
+  return results
+    .map((item) =>
+      makeCandidate({
+        provider: "lrclib",
+        sourceType: "text",
+        providerScore: 0.55,
+
+        title: item?.trackName,
+
+        artist: item?.artistName,
+
+        album: item?.albumName,
+
+        duration: Number(item?.duration || 0),
+
+        raw: item,
+      }),
+    )
+    .filter((candidate) => {
+      const key = `${normalizeText(candidate.title)}|${normalizeArtist(candidate.artist)}|${candidate.duration}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 // ============================================================================
@@ -1531,7 +1789,9 @@ function makeCandidate(data = {}) {
   return {
     provider: data.provider || "unknown",
 
-    providers: [...new Set(data.providers || (data.provider ? [data.provider] : []))],
+    providers: [
+      ...new Set(data.providers || (data.provider ? [data.provider] : [])),
+    ],
 
     sourceType: data.sourceType || "text",
 
@@ -1724,7 +1984,7 @@ function clusterCandidates(candidates) {
   return clusters;
 }
 
-function candidatesSuitableForEnrichment(identity, candidate) {
+function candidatesSuitableForEnrichment(identity, candidate, context = {}) {
   if (
     identity.recordingId &&
     candidate.recordingId &&
@@ -1737,10 +1997,23 @@ function candidatesSuitableForEnrichment(identity, candidate) {
     return true;
   }
 
-  const titleScore = similarity(identity.title, candidate.title);
+  const titleScore = trackTitleSimilarity(identity.title, candidate.title);
   const artistScore = artistSimilarity(identity.artist, candidate.artist);
+  const localArtist = context.local?.artist || context.local?.albumArtist;
+  const localArtistScore = localArtist
+    ? artistSimilarity(candidate.artist, localArtist)
+    : 1;
+  const durationScore = durationSimilarity(
+    identity.duration || context.duration,
+    candidate.duration,
+  );
 
-  if (titleScore < 0.86 || artistScore < 0.7) {
+  const titleAndDurationMatch = titleScore >= 0.92 && durationScore >= 0.9;
+  if (
+    titleScore < 0.86 ||
+    localArtistScore < 0.6 ||
+    (artistScore < 0.7 && !titleAndDurationMatch)
+  ) {
     return false;
   }
 
@@ -1751,7 +2024,7 @@ function candidatesSuitableForEnrichment(identity, candidate) {
   return true;
 }
 
-function mergeCompatibleCandidates(identity, allCandidates) {
+function mergeCompatibleCandidates(identity, allCandidates, context = {}) {
   const merged = [...(identity.candidates || [])];
 
   for (const candidate of allCandidates || []) {
@@ -1759,12 +2032,34 @@ function mergeCompatibleCandidates(identity, allCandidates) {
       continue;
     }
 
-    if (candidatesSuitableForEnrichment(identity, candidate)) {
+    if (candidatesSuitableForEnrichment(identity, candidate, context)) {
       merged.push(candidate);
     }
   }
 
   return merged;
+}
+
+function candidateMatchesLocalRecording(candidate, context) {
+  const referenceTitle = context.local.title || context.filename.title;
+  const referenceArtist =
+    context.local.artist ||
+    context.local.albumArtist ||
+    context.filename.artist;
+  const titleScore = trackTitleSimilarity(candidate.title, referenceTitle);
+  const artistScore = referenceArtist
+    ? artistSimilarity(candidate.artist, referenceArtist)
+    : 1;
+  const durationScore = durationSimilarity(
+    candidate.duration,
+    context.duration,
+  );
+
+  return (
+    titleScore >= 0.86 &&
+    artistScore >= 0.6 &&
+    (durationScore >= 0.5 || !candidate.duration || !context.duration)
+  );
 }
 
 // ============================================================================
@@ -1934,7 +2229,11 @@ function buildClusterIdentity(members, context) {
   const best = sorted[0];
 
   const providers = [
-    ...new Set(members.flatMap((candidate) => candidate.providers || [candidate.provider]).filter(Boolean)),
+    ...new Set(
+      members
+        .flatMap((candidate) => candidate.providers || [candidate.provider])
+        .filter(Boolean),
+    ),
   ];
 
   const consensus = {
@@ -2220,6 +2519,7 @@ function resolveGenresImproved({
     "itunes",
     "acoustid",
     "musicbrainz_isrc",
+    "deezer",
     "optional",
   ]);
 
@@ -2333,6 +2633,7 @@ function choosePreferredRelease(
   recording,
   preferredReleaseId,
   preferredGroupId,
+  preferredTitle = "",
 ) {
   const releases = Array.isArray(recording?.releases) ? recording.releases : [];
 
@@ -2340,9 +2641,28 @@ function choosePreferredRelease(
     return null;
   }
 
+  const releaseTitleKey = (value) =>
+    safeString(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase()
+      .replace(/[()[\]{}]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const requestedTitle = releaseTitleKey(preferredTitle);
+
   return [...releases].sort((left, right) => {
     const leftGroupId = left?.["release-group"]?.id || "";
     const rightGroupId = right?.["release-group"]?.id || "";
+    const leftTitle = releaseTitleKey(left?.title);
+    const rightTitle = releaseTitleKey(right?.title);
+    const leftTitleMatch = requestedTitle && leftTitle === requestedTitle;
+    const rightTitleMatch = requestedTitle && rightTitle === requestedTitle;
+
+    if (leftTitleMatch !== rightTitleMatch) {
+      return Number(rightTitleMatch) - Number(leftTitleMatch);
+    }
+
     const preferredDifference =
       Number(right?.id === preferredReleaseId) -
       Number(left?.id === preferredReleaseId);
@@ -2359,8 +2679,20 @@ function choosePreferredRelease(
       return groupDifference;
     }
 
-    const typePriority = { album: 1, ep: 2, single: 3, compilation: 4, soundtrack: 5, live: 6, mixtape: 7, other: 8, unknown: 9 };
-    const typeDifference = (typePriority[resolveReleaseType(left)] || 9) - (typePriority[resolveReleaseType(right)] || 9);
+    const typePriority = {
+      album: 1,
+      ep: 2,
+      single: 3,
+      compilation: 4,
+      soundtrack: 5,
+      live: 6,
+      mixtape: 7,
+      other: 8,
+      unknown: 9,
+    };
+    const typeDifference =
+      (typePriority[resolveReleaseType(left)] || 9) -
+      (typePriority[resolveReleaseType(right)] || 9);
     if (typeDifference) return typeDifference;
 
     const mediaDifference =
@@ -2419,26 +2751,29 @@ function normalizeArtworkUrl(value) {
 }
 
 async function getCoverFromMusicBrainz(releaseId, releaseGroupId) {
-  if (releaseId) {
+  const endpoints = [
+    releaseId &&
+      `https://coverartarchive.org/release/${encodeURIComponent(releaseId)}`,
+    releaseGroupId &&
+      `https://coverartarchive.org/release-group/${encodeURIComponent(releaseGroupId)}`,
+  ].filter(Boolean);
+
+  for (const endpoint of endpoints) {
     try {
-      return `https://coverartarchive.org/release/${encodeURIComponent(
-        releaseId,
-      )}/front-500`;
+      const response = await fetch(endpoint, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const image =
+        (payload.images || []).find((item) => item.front) ||
+        payload.images?.[0];
+      const imageUrl = image?.thumbnails?.large || image?.image;
+      if (imageUrl) return imageUrl;
     } catch {
-      // continuar
+      // El artwork es opcional; continuar con las portadas de otros proveedores.
     }
   }
-
-  if (releaseGroupId) {
-    try {
-      return `https://coverartarchive.org/release-group/${encodeURIComponent(
-        releaseGroupId,
-      )}/front-500`;
-    } catch {
-      // continuar
-    }
-  }
-
   return "";
 }
 
@@ -2468,10 +2803,24 @@ function releaseFromEntity(entity, recordingId, fallback = {}) {
     id: releaseId || fallback.id,
     title: entity?.title || fallback.title,
     originalTitle: entity?.title || fallback.title,
-    primaryType: entity?.["release-type"] || fallback.releaseType || fallback["release-type"] || group["primary-type"],
-    secondaryTypes: entity?.["release-types"] || fallback["release-types"] || group["secondary-types"],
+    primaryType:
+      entity?.["release-type"] ||
+      fallback.releaseType ||
+      fallback["release-type"] ||
+      group["primary-type"],
+    secondaryTypes:
+      entity?.["release-types"] ||
+      fallback["release-types"] ||
+      group["secondary-types"],
     collectionType: fallback.collectionType,
-    artists: extractArtistNames(entity).length ? extractArtistNames(entity) : fallback.artists,
+    primaryArtists: extractArtistCredits(entity).length
+      ? extractArtistCredits(entity)
+      : fallback.primaryArtists || [],
+    artists: extractArtistNames(entity).length
+      ? extractArtistNames(entity)
+      : (fallback.primaryArtists || fallback.artists || []).map?.((artist) =>
+          typeof artist === "string" ? artist : artist.name,
+        ),
     albumArtist: extractArtistCredit(entity) || fallback.albumArtist,
     releaseDate: entity?.date || fallback.releaseDate,
     country: entity?.country || fallback.country,
@@ -2481,7 +2830,7 @@ function releaseFromEntity(entity, recordingId, fallback = {}) {
     releaseGroupId: group.id || fallback.releaseGroupId,
     musicBrainzReleaseId: releaseId,
     musicBrainzReleaseGroupId: group.id || fallback.musicBrainzReleaseGroupId,
-    cover: fallback.cover || (releaseId ? `https://coverartarchive.org/release/${encodeURIComponent(releaseId)}/front-500` : null),
+    cover: fallback.cover || null,
     coverUrl: fallback.cover,
     source: fallback.source || "musicbrainz",
     metadataSources: fallback.metadataSources,
@@ -2493,32 +2842,49 @@ function releaseFromEntity(entity, recordingId, fallback = {}) {
     discNumber: fallback.discNumber,
     discTotal: fallback.discTotal,
   });
-  const releaseGroupCover = group.id
-    ? `https://coverartarchive.org/release-group/${encodeURIComponent(group.id)}/front-500`
-    : "";
+  const releaseGroupCover = "";
   release.coverAlternatives = [
-    release.cover ? { url: release.cover, source: "musicbrainz-release" } : null,
-    releaseGroupCover ? { url: releaseGroupCover, source: "musicbrainz-release-group" } : null,
-    fallback.coverUrl ? { url: fallback.coverUrl, source: fallback.source || "provider" } : null,
-  ].filter(Boolean).filter((entry, index, entries) => entries.findIndex((item) => item.url === entry.url) === index);
+    release.cover
+      ? { url: release.cover, source: "musicbrainz-release" }
+      : null,
+    releaseGroupCover
+      ? { url: releaseGroupCover, source: "musicbrainz-release-group" }
+      : null,
+    fallback.coverUrl
+      ? { url: fallback.coverUrl, source: fallback.source || "provider" }
+      : null,
+  ]
+    .filter(Boolean)
+    .filter(
+      (entry, index, entries) =>
+        entries.findIndex((item) => item.url === entry.url) === index,
+    );
 
   const media = Array.isArray(entity?.media) ? entity.media : [];
   for (const medium of media) {
     for (const track of medium?.tracks || []) {
-      if (track?.recording?.id === recordingId || track?.recording?.title === fallback.recordingTitle) {
-        if (!release.trackNumber) release.trackNumber = Number(track.position) || 0;
-        if (!release.trackTotal) release.trackTotal = Number(medium.track_count) || 0;
-        if (!release.discNumber) release.discNumber = Number(medium.position) || 0;
+      if (
+        track?.recording?.id === recordingId ||
+        track?.recording?.title === fallback.recordingTitle
+      ) {
+        if (!release.trackNumber)
+          release.trackNumber = Number(track.position) || 0;
+        if (!release.trackTotal)
+          release.trackTotal = Number(medium.track_count) || 0;
+        if (!release.discNumber)
+          release.discNumber = Number(medium.position) || 0;
         if (!release.discTotal) release.discTotal = media.length;
-        release.tracks.push(createReleaseTrack({
-          recordingId,
-          releaseId: release.id,
-          discNumber: medium.position,
-          trackNumber: track.position,
-          trackTotal: medium.track_count,
-          title: track.title || track.recording?.title,
-          duration: Number(track.length || 0) / 1000,
-        }).id);
+        release.tracks.push(
+          createReleaseTrack({
+            recordingId,
+            releaseId: release.id,
+            discNumber: medium.position,
+            trackNumber: track.position,
+            trackTotal: medium.track_count,
+            title: track.title || track.recording?.title,
+            duration: Number(track.length || 0) / 1000,
+          }).id,
+        );
       }
     }
   }
@@ -2526,18 +2892,37 @@ function releaseFromEntity(entity, recordingId, fallback = {}) {
   return release;
 }
 
-function buildNormalizedIdentification({ identity, recording, release, releaseGroup, candidates, local, genres, cover, discoveredReleases = [] }) {
-  const recordingId = safeString(recording?.id || identity.recordingId || local?.musicBrainzRecordingId);
-  const artistCredits = normalizeArtistCredits(recording?.["artist-credit"], extractArtistCredit(recording) || identity.artist || local?.artist);
+function buildNormalizedIdentification({
+  identity,
+  recording,
+  release,
+  releaseGroup,
+  candidates,
+  local,
+  genres,
+  cover,
+  discoveredReleases = [],
+}) {
+  const recordingId =
+    [recording?.id, identity.recordingId, local?.musicBrainzRecordingId].find(
+      isMusicBrainzId,
+    ) || "";
+  const artistCredits = normalizeArtistCredits(
+    recording?.["artist-credit"],
+    extractArtistCredit(recording) || identity.artist || local?.artist,
+  );
   const artists = artistCredits.map((credit) => credit.name);
   const releaseMap = new Map();
   const groupMap = new Map();
   const releaseCandidates = (candidates || []).filter((candidate) => {
-    if (candidate.provider !== "itunes") return false;
-    const titleMatches = similarity(candidate.title, identity.title) >= 0.78;
+    const titleMatches =
+      trackTitleSimilarity(candidate.title, identity.title) >= 0.65;
     const referenceArtist = local?.artist || local?.albumArtist;
-    const artistMatches = !referenceArtist || !candidate.artist || artistSimilarity(candidate.artist, referenceArtist) >= 0.58;
-    return titleMatches && artistMatches;
+    const artistMatches =
+      !referenceArtist ||
+      !candidate.artist ||
+      artistSimilarity(candidate.artist, referenceArtist) >= 0.58;
+    return titleMatches && artistMatches && Boolean(candidate.album);
   });
 
   const addGroup = (entity) => {
@@ -2548,7 +2933,13 @@ function buildNormalizedIdentification({ identity, recording, release, releaseGr
     const item = releaseFromEntity(entity, recordingId, fallback);
     if (!item) return;
     releaseMap.set(item.id, item);
-    if (item.releaseGroupId) addGroup(entity?.["release-group"] || { id: item.releaseGroupId, title: item.title });
+    if (item.releaseGroupId)
+      addGroup(
+        entity?.["release-group"] || {
+          id: item.releaseGroupId,
+          title: item.title,
+        },
+      );
   };
 
   for (const item of recording?.releases || []) addRelease(item);
@@ -2561,18 +2952,51 @@ function buildNormalizedIdentification({ identity, recording, release, releaseGr
   }
   if (release) addRelease(release);
   for (const candidate of releaseCandidates) {
-    if (candidate.provider !== "itunes") continue;
     const raw = candidate.raw || {};
+    const providerId =
+      raw.collectionId || raw.album?.id || raw.albumId || raw.id;
+    const releaseTitle =
+      raw.collectionName || raw.album?.title || candidate.album;
+    const releaseType =
+      candidate.provider === "itunes"
+        ? inferITunesReleaseType(releaseTitle)
+        : releaseTitle &&
+            trackTitleSimilarity(releaseTitle, candidate.title) >= 0.92
+          ? "single"
+          : "album";
+
     addRelease(null, {
-      id: `itunes:${normalizeComparable(raw.collectionId || raw.collectionName || candidate.album)}`,
-      title: raw.collectionName || candidate.album,
+      id: `${candidate.provider}:${normalizeComparable(providerId || releaseTitle)}`,
+      title: releaseTitle,
       collectionType: raw.collectionType,
-      releaseType: inferITunesReleaseType(raw.collectionName || candidate.album),
-      releaseDate: raw.releaseDate,
-      artists: [raw.artistName || candidate.artist],
-      albumArtist: raw.collectionArtistName || raw.artistName,
-      cover: normalizeArtworkUrl(raw.artworkUrl100 || candidate.cover),
-      source: "itunes",
+      releaseType,
+      releaseDate: raw.releaseDate || raw.release_date,
+      primaryArtists: [
+        raw.collectionArtistName ||
+          raw.collectionArtist ||
+          raw.artistName ||
+          raw.artist?.name ||
+          candidate.artist,
+      ].filter(Boolean),
+      artists: [
+        raw.collectionArtistName ||
+          raw.collectionArtist ||
+          raw.artistName ||
+          raw.artist?.name ||
+          candidate.artist,
+      ].filter(Boolean),
+      albumArtist:
+        raw.collectionArtistName ||
+        raw.collectionArtist ||
+        raw.artistName ||
+        raw.artist?.name,
+      cover: normalizeArtworkUrl(
+        raw.artworkUrl100 ||
+          raw.album?.cover_xl ||
+          raw.album?.cover_big ||
+          candidate.cover,
+      ),
+      source: candidate.provider,
       trackCount: raw.trackCount,
       recordingTitle: raw.trackName || candidate.title,
       trackNumber: raw.trackNumber,
@@ -2580,20 +3004,70 @@ function buildNormalizedIdentification({ identity, recording, release, releaseGr
       discNumber: raw.discNumber,
     });
   }
-  if (!releaseMap.size && (release || identity.album || local?.album)) addRelease(release, { title: release?.title || identity.album || local.album, cover });
+  if (!releaseMap.size && (release || identity.album || local?.album))
+    addRelease(release, {
+      title: release?.title || identity.album || local.album,
+      cover,
+    });
 
   const releaseIds = [...releaseMap.keys()];
   const releaseGroups = [...groupMap.values()].map((group) => ({
     ...group,
-    releases: releaseIds.filter((id) => releaseMap.get(id)?.releaseGroupId === group.id),
+    releases: releaseIds.filter(
+      (id) => releaseMap.get(id)?.releaseGroupId === group.id,
+    ),
   }));
-  const normalizedReleases = rankReleases([...releaseMap.values()], {
-    recordingId,
-    title: identity.title,
-    album: identity.album,
-    artist: identity.artist,
-    artists,
-  });
+  const involvedByReleaseId = new Map();
+  for (const item of releaseMap.values()) {
+    const primaryArtists = item.primaryArtists?.length
+      ? item.primaryArtists
+      : [];
+    const involved = new Map(
+      primaryArtists.map((artist) => [
+        artist.id
+          ? `id:${artist.id}`
+          : `name:${normalizeComparable(artist.name)}`,
+        artist,
+      ]),
+    );
+    for (const candidate of releaseCandidates) {
+      const candidateReleaseTitle =
+        candidate.raw?.collectionName ||
+        candidate.raw?.album?.title ||
+        candidate.album;
+      if (
+        normalizeComparable(candidateReleaseTitle) !==
+        normalizeComparable(item.title)
+      )
+        continue;
+      for (const artist of candidate.artistCredits?.length
+        ? candidate.artistCredits
+        : candidate.artists || []) {
+        const entity = typeof artist === "string" ? { name: artist } : artist;
+        const key = entity.id
+          ? `id:${entity.id}`
+          : `name:${normalizeComparable(entity.name)}`;
+        if (entity.name && !involved.has(key)) involved.set(key, entity);
+      }
+    }
+    involvedByReleaseId.set(item.id, [...involved.values()]);
+  }
+  for (const [id, involvedArtists] of involvedByReleaseId) {
+    const release = releaseMap.get(id);
+    release.involvedArtists = involvedArtists;
+  }
+
+  const normalizedReleases = rankReleases(
+    [...releaseMap.values()],
+    {
+      recordingId,
+      title: identity.title,
+      album: identity.album,
+      artist: identity.artist,
+      artists,
+    },
+    { limit: Infinity },
+  );
   const normalizedRecording = createRecording({
     id: recordingId || local?.fileId,
     fileId: local?.fileId,
@@ -2611,7 +3085,11 @@ function buildNormalizedIdentification({ identity, recording, release, releaseGr
     musicBrainzRecordingId: recordingId,
     acoustid: findAcoustID(identity.candidates),
     localMetadata: local,
-    identifiedMetadata: { recording, releases: normalizedReleases, releaseGroups },
+    identifiedMetadata: {
+      recording,
+      releases: normalizedReleases,
+      releaseGroups,
+    },
     identification: {
       artistCredits,
       recordingConfidence: identity.confidence,
@@ -2661,7 +3139,9 @@ function discoverNormalizedReleases(recordings, recordingContext) {
     }
   }
 
-  return rankReleases([...releaseMap.values()], recordingContext, { limit: Infinity });
+  return rankReleases([...releaseMap.values()], recordingContext, {
+    limit: Infinity,
+  });
 }
 
 function recordingCandidateView(identity, recording, relatedReleases) {
@@ -2675,14 +3155,21 @@ function recordingCandidateView(identity, recording, relatedReleases) {
       source: candidate.provider || "candidate",
       releaseTitle: candidate.album || identity.album || identity.title,
     }))
-    .filter((cover, index, covers) => covers.findIndex((item) => item.url === cover.url) === index);
+    .filter(
+      (cover, index, covers) =>
+        covers.findIndex((item) => item.url === cover.url) === index,
+    );
   return {
     id: identity.recordingId || identity.identityKey,
     title: identity.title,
     artist: identity.artistCredits?.length
       ? identity.artistCredits.map((credit) => credit.name).join(", ")
       : identity.artist,
-    artists: artistCredits.length ? artistCredits : identity.artist ? [{ id: "", name: identity.artist }] : [],
+    artists: artistCredits.length
+      ? artistCredits
+      : identity.artist
+        ? [{ id: "", name: identity.artist }]
+        : [],
     artistCredits,
     cover: candidateCovers[0]?.url || identity.cover || "",
     coverAlternatives: candidateCovers,
@@ -2699,7 +3186,13 @@ function recordingCandidateView(identity, recording, relatedReleases) {
 function genreResolutionSources(candidates, genres) {
   const sources = {};
   for (const genre of genres || []) {
-    sources[genre] = [...new Set((candidates || []).filter((candidate) => candidate.genres?.includes(genre)).map((candidate) => candidate.provider))];
+    sources[genre] = [
+      ...new Set(
+        (candidates || [])
+          .filter((candidate) => candidate.genres?.includes(genre))
+          .map((candidate) => candidate.provider),
+      ),
+    ];
   }
   return sources;
 }
@@ -2752,7 +3245,15 @@ function validateIdentity(identity, context) {
     problems.push("artist-mismatch");
   }
 
-  if (context.duration > 0 && identity.duration > 0 && durationScore < 0.35) {
+  const hasAcousticProvider = identity.providers.some((provider) =>
+    ["acoustid", "optional"].includes(provider),
+  );
+  if (
+    !hasAcousticProvider &&
+    context.duration > 0 &&
+    identity.duration > 0 &&
+    durationScore < 0.35
+  ) {
     problems.push("duration-mismatch");
   }
 
@@ -2772,30 +3273,63 @@ function validateIdentity(identity, context) {
 }
 
 function selectBestIdentity(identities, context) {
-  return [...(identities || [])].sort((left, right) => {
-    const leftValidation = validateIdentity(left, context);
-    const rightValidation = validateIdentity(right, context);
-    const leftStrong = leftValidation.artistScore >= 0.82 && leftValidation.titleScore >= 0.82;
-    const rightStrong = rightValidation.artistScore >= 0.82 && rightValidation.titleScore >= 0.82;
+  const fingerprintIdentities = (identities || []).filter((identity) =>
+    (identity.candidates || []).some(
+      (candidate) =>
+        ["acoustid", "optional"].includes(candidate.provider) &&
+        Number(candidate.providerScore || 0) >= MIN_FINGERPRINT_MATCH_SCORE,
+    ),
+  );
+  const pool = fingerprintIdentities.length
+    ? fingerprintIdentities
+    : identities;
 
-    if (leftStrong !== rightStrong) return Number(rightStrong) - Number(leftStrong);
-    if (leftValidation.valid !== rightValidation.valid) {
-      return Number(rightValidation.valid) - Number(leftValidation.valid);
-    }
+  return (
+    [...(pool || [])].sort((left, right) => {
+      const leftValidation = validateIdentity(left, context);
+      const rightValidation = validateIdentity(right, context);
+      const leftStrong =
+        leftValidation.artistScore >= 0.82 && leftValidation.titleScore >= 0.82;
+      const rightStrong =
+        rightValidation.artistScore >= 0.82 &&
+        rightValidation.titleScore >= 0.82;
 
-    const leftRank = leftValidation.artistScore * 0.45 +
-      leftValidation.titleScore * 0.3 + left.confidence * 0.25;
-    const rightRank = rightValidation.artistScore * 0.45 +
-      rightValidation.titleScore * 0.3 + right.confidence * 0.25;
-    return rightRank - leftRank;
-  })[0] || null;
+      if (leftStrong !== rightStrong)
+        return Number(rightStrong) - Number(leftStrong);
+      if (leftValidation.valid !== rightValidation.valid) {
+        return Number(rightValidation.valid) - Number(leftValidation.valid);
+      }
+
+      const leftRank =
+        leftValidation.artistScore * 0.45 +
+        leftValidation.titleScore * 0.3 +
+        left.confidence * 0.25;
+      const rightRank =
+        rightValidation.artistScore * 0.45 +
+        rightValidation.titleScore * 0.3 +
+        right.confidence * 0.25;
+      return rightRank - leftRank;
+    })[0] || null
+  );
+}
+
+function hasReliableFingerprintEvidence(identity) {
+  return (identity?.candidates || []).some(
+    (candidate) =>
+      ["acoustid", "optional"].includes(candidate.provider) &&
+      Number(candidate.providerScore || 0) >= MIN_FINGERPRINT_MATCH_SCORE,
+  );
 }
 
 function isStrongIdentity(identity) {
   return identity.providers.some((provider) =>
-    ["acoustid", "musicbrainz_isrc", "musicbrainz", "itunes", "optional"].includes(
-      provider,
-    ),
+    [
+      "acoustid",
+      "musicbrainz_isrc",
+      "musicbrainz",
+      "itunes",
+      "optional",
+    ].includes(provider),
   );
 }
 
@@ -2855,10 +3389,14 @@ function buildMetadata({
   // Detectar tipo de lanzamiento (single, album, ep, etc)
   const releaseType = detectReleaseType(release || releaseGroup);
 
+  // El release enriquecido representa la publicación elegida para esta
+  // grabación. Debe tener prioridad sobre el álbum obtenido de un candidato
+  // textual, porque una misma pista puede existir en un álbum y en un single.
+  // De lo contrario se mezclan los datos del álbum con los del sencillo.
   let album = cleanText(
-    consensus?.album?.value ||
+    release?.title ||
       releaseGroup?.title ||
-      release?.title ||
+      consensus?.album?.value ||
       identity.album ||
       local?.album,
   );
@@ -2940,7 +3478,8 @@ function buildMetadata({
 
     confidence: identity.confidence,
 
-    musicBrainzRecordingId: safeString(recording?.id || identity.recordingId),
+    musicBrainzRecordingId:
+      [recording?.id, identity.recordingId].find(isMusicBrainzId) || "",
 
     musicBrainzReleaseId: safeString(release?.id || identity.releaseId),
 
@@ -3075,7 +3614,7 @@ export async function identifyAudio(file) {
   // --------------------------------------------------------------------------
 
   if (fingerprintData?.fingerprint) {
-    const result = await runProvider(diagnostics, "acoustid", async () => {
+    await runProvider(diagnostics, "acoustid", async () => {
       acoustidCandidates = await queryAcoustID(
         fingerprintData.fingerprint,
         fingerprintData.duration,
@@ -3120,6 +3659,7 @@ export async function identifyAudio(file) {
   const [
     musicBrainzCandidates,
     itunesCandidates,
+    deezerCandidates,
     lrclibCandidates,
     optionalCandidates,
   ] = await Promise.all([
@@ -3129,6 +3669,10 @@ export async function identifyAudio(file) {
 
     runProvider(diagnostics, "itunes", async () =>
       queryITunes(local, filename),
+    ),
+
+    runProvider(diagnostics, "deezer", async () =>
+      queryDeezer(local, filename),
     ),
 
     runProvider(diagnostics, "lrclib", async () =>
@@ -3151,9 +3695,14 @@ export async function identifyAudio(file) {
     ...(isrcCandidates || []),
     ...(musicBrainzCandidates || []),
     ...(itunesCandidates || []),
+    ...(deezerCandidates || []),
     ...(lrclibCandidates || []),
     ...(optionalCandidates || []),
   ];
+
+  console.log("[Calliope] Acoustic providers:", {
+    acoustid: acoustidCandidates.length,
+  });
 
   for (const candidate of allCandidates) {
     candidate.rawScore = scoreCandidate(candidate, context);
@@ -3181,13 +3730,21 @@ export async function identifyAudio(file) {
   diagnostics.evidence.finalRecordingCandidates = rankedRecordingCandidates;
   diagnostics.evidence.recordingStages = {
     raw: allCandidates.length,
-    afterDedupe: deduplicateRecordingCandidates(allCandidates, recordingContext).length,
+    afterDedupe: deduplicateRecordingCandidates(allCandidates, recordingContext)
+      .length,
     afterSimilarity: rankedRecordingCandidates.length,
-    final: Math.min(rankedRecordingCandidates.length, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
+    final: Math.min(
+      rankedRecordingCandidates.length,
+      IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
+    ),
   };
-  diagnostics.evidence.recordingCandidateLimit = IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS;
+  diagnostics.evidence.recordingCandidateLimit =
+    IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS;
 
-  console.log("[Calliope] Recording stages:", diagnostics.evidence.recordingStages);
+  console.log(
+    "[Calliope] Recording stages:",
+    diagnostics.evidence.recordingStages,
+  );
 
   console.log("[Calliope] Candidatos totales:", allCandidates.length);
 
@@ -3222,6 +3779,7 @@ export async function identifyAudio(file) {
         "musicbrainz_isrc",
         "musicbrainz",
         "itunes",
+        "deezer",
         "optional",
       ];
       const aHasStrongProvider = a.providers.some((provider) =>
@@ -3270,21 +3828,77 @@ export async function identifyAudio(file) {
       musicBrainzRecordingId: "",
       diagnostics,
       candidates: [],
-      recordingCandidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
+      recordingCandidates: identities.slice(
+        0,
+        IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
+      ),
+    };
+  }
+
+  const fingerprintAvailable = Boolean(fingerprintData?.fingerprint);
+  const acousticCandidates = allCandidates.filter(
+    (candidate) =>
+      ["acoustid", "optional"].includes(candidate.provider) &&
+      Number(candidate.providerScore || 0) >= MIN_FINGERPRINT_MATCH_SCORE,
+  );
+  const audioIdentities = identities.filter(hasReliableFingerprintEvidence);
+  const hasAcousticIdentity =
+    audioIdentities.length > 0 || acousticCandidates.length > 0;
+  const winnerValidationBeforeFingerprintFallback = validateIdentity(
+    winner,
+    context,
+  );
+  if (
+    fingerprintAvailable &&
+    !hasAcousticIdentity &&
+    !winnerValidationBeforeFingerprintFallback.valid
+  ) {
+    const reviewCandidates = rankedRecordingCandidates
+      .slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS)
+      .map((candidate, index) => ({
+        ...candidate,
+        id: candidate.recordingId || candidate.isrc || `text:${index}`,
+        identityKey: candidate.recordingId
+          ? `recording:${candidate.recordingId}`
+          : candidate.isrc
+            ? `isrc:${candidate.isrc}`
+            : `text:${index}:${candidate.title || "unknown"}`,
+        providers: candidate.providers || [candidate.provider].filter(Boolean),
+      }));
+    diagnostics.warnings.push("no-reliable-fingerprint-match");
+    diagnostics.finishedAt = new Date().toISOString();
+    return {
+      status: "ambiguous",
+      metadata: null,
+      confidence: winner.confidence,
+      identificationSource: winner.providers.join("+"),
+      musicBrainzRecordingId: "",
+      diagnostics,
+      candidates: reviewCandidates,
+      recordingCandidates: reviewCandidates,
+      fieldChoices: buildFieldChoices(reviewCandidates),
     };
   }
 
   const mergedWinnerCandidates = mergeCompatibleCandidates(
     winner,
     allCandidates,
+    context,
   );
 
-  const enrichmentCandidates = mergedWinnerCandidates;
+  const enrichmentCandidates = [
+    ...new Set([
+      ...mergedWinnerCandidates,
+      ...allCandidates.filter((candidate) =>
+        candidateMatchesLocalRecording(candidate, context),
+      ),
+    ]),
+  ];
 
-  if (mergedWinnerCandidates.length > winner.candidates.length) {
-    winner = buildClusterIdentity(mergedWinnerCandidates, context);
+  if (enrichmentCandidates.length > winner.candidates.length) {
+    winner = buildClusterIdentity(enrichmentCandidates, context);
     winner.enrichedFromProviders = [
-      ...new Set(mergedWinnerCandidates.map((candidate) => candidate.provider)),
+      ...new Set(enrichmentCandidates.map((candidate) => candidate.provider)),
     ];
   }
 
@@ -3300,20 +3914,24 @@ export async function identifyAudio(file) {
   // Solo la validación de identidad decide si el resultado es utilizable.
   const second = identities.find(
     (identity) =>
-      identity.identityKey !== winner.identityKey &&
-      isStrongIdentity(identity),
+      identity.identityKey !== winner.identityKey && isStrongIdentity(identity),
   );
-  const competingEvidence = second &&
-    winner.confidence - second.confidence < CONFIG.identification.ambiguityMargin &&
+  const competingEvidence =
+    second &&
+    winner.confidence - second.confidence <
+      CONFIG.identification.ambiguityMargin &&
     identitiesHaveDifferentEvidence(winner, second);
 
   if (competingEvidence) {
     diagnostics.warnings.push("competing-candidates-reviewable");
     diagnostics.competingCandidates = identities.slice(0, 10);
-    console.warn("[Calliope] Evidencia competida; se devuelve propuesta revisable", {
-      winner: winner.confidence,
-      second: second.confidence,
-    });
+    console.warn(
+      "[Calliope] Evidencia competida; se devuelve propuesta revisable",
+      {
+        winner: winner.confidence,
+        second: second.confidence,
+      },
+    );
   }
 
   if (!validation.valid) {
@@ -3329,7 +3947,10 @@ export async function identifyAudio(file) {
       musicBrainzRecordingId: winner.recordingId || "",
       diagnostics,
       candidates: identities.slice(0, 10),
-      recordingCandidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
+      recordingCandidates: identities.slice(
+        0,
+        IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
+      ),
     };
   }
 
@@ -3355,7 +3976,7 @@ export async function identifyAudio(file) {
     const fallbackCandidate = winner.candidates.find(
       (candidate) =>
         candidate.recordingId === winner.recordingId ||
-        candidate.provider === "acoustid",
+        ["acoustid"].includes(candidate.provider),
     );
 
     recording =
@@ -3373,11 +3994,13 @@ export async function identifyAudio(file) {
       "musicbrainz-recording-discovery",
       async () => lookupMusicBrainzRecording(identity.recordingId),
     );
-    if (candidateRecording) recordingLookupById.set(identity.recordingId, candidateRecording);
+    if (candidateRecording)
+      recordingLookupById.set(identity.recordingId, candidateRecording);
   }
 
   const discoveredRecordingEntries = recordingIdentities.map((identity) => {
-    const candidateRecording = recordingLookupById.get(identity.recordingId) || null;
+    const candidateRecording =
+      recordingLookupById.get(identity.recordingId) || null;
     const relatedReleases = discoverNormalizedReleases(
       candidateRecording ? [candidateRecording] : [],
       {
@@ -3385,30 +4008,43 @@ export async function identifyAudio(file) {
         title: identity.title,
         album: identity.album,
         artist: identity.artist,
-        artists: candidateRecording ? extractArtistNames(candidateRecording) : [identity.artist],
+        artists: candidateRecording
+          ? extractArtistNames(candidateRecording)
+          : [identity.artist],
       },
     );
-    return recordingCandidateView(identity, candidateRecording, relatedReleases);
+    return recordingCandidateView(
+      identity,
+      candidateRecording,
+      relatedReleases,
+    );
   });
 
-  const winnerDiscoveredReleases = discoveredRecordingEntries.find(
-    (entry) => entry.id === (winner.recordingId || winner.identityKey),
-  )?.releases || [];
+  const winnerDiscoveredReleases =
+    discoveredRecordingEntries.find(
+      (entry) => entry.id === (winner.recordingId || winner.identityKey),
+    )?.releases || [];
 
-  diagnostics.evidence.rawReleases = discoveredRecordingEntries.flatMap((entry) => entry.releases || []);
+  diagnostics.evidence.rawReleases = discoveredRecordingEntries.flatMap(
+    (entry) => entry.releases || [],
+  );
   diagnostics.evidence.finalReleases = winnerDiscoveredReleases;
   diagnostics.evidence.releaseStages = {
     raw: diagnostics.evidence.rawReleases.length,
     afterDedupe: deduplicateReleases(diagnostics.evidence.rawReleases).length,
     final: winnerDiscoveredReleases.length,
   };
-  console.log("[Calliope] Release discovery for:", `${winner.title} — ${winner.artist}`);
+  console.log(
+    "[Calliope] Release discovery for:",
+    `${winner.title} — ${winner.artist}`,
+  );
   console.log("[Calliope] Final releases:", winnerDiscoveredReleases.length);
 
   const preferredRelease = choosePreferredRelease(
     recording,
     winner.releaseId,
     winner.releaseGroupId,
+    local.album,
   );
 
   const releaseId =
@@ -3484,8 +4120,22 @@ export async function identifyAudio(file) {
     releaseGroup?.id || winner.releaseGroupId,
   );
 
-  const cover =
-    chooseBestCover(enrichmentCandidates, winner.album) || mbCover || "";
+  // La portada del release exacto tiene prioridad absoluta. Los proveedores
+  // textuales suelen devolver la portada del álbum padre incluso cuando la
+  // grabación también tiene un single con otra portada.
+  const releaseCandidateCover = chooseBestCover(
+    enrichmentCandidates,
+    release?.title || winner.album,
+  );
+  const cover = mbCover || releaseCandidateCover || "";
+
+  if (release && cover) {
+    release.cover = cover;
+    release.coverUrl = cover;
+    release.coverAlternatives = [
+      { url: cover, source: mbCover ? "musicbrainz-cover-art" : "provider" },
+    ];
+  }
 
   // --------------------------------------------------------------------------
   // 15. Metadata final
@@ -3528,9 +4178,7 @@ export async function identifyAudio(file) {
 
   diagnostics.finishedAt = new Date().toISOString();
 
-
   console.log("[Calliope] IDENTIFICACIÓN CONSENSUADA");
-
 
   console.log("[Calliope] Título:", metadata.title);
 
@@ -3542,9 +4190,7 @@ export async function identifyAudio(file) {
 
   console.log("[Calliope] Géneros:", metadata.genre);
 
-
   console.log("[Calliope] CANCIÓN IDENTIFICADA");
-
 
   console.log("[Calliope] Resultado final:", metadata);
 
@@ -3571,15 +4217,21 @@ export async function identifyAudio(file) {
 
     diagnostics,
 
-    candidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
+    candidates: identities.slice(
+      0,
+      IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
+    ),
 
     recordingCandidates: discoveredRecordingEntries,
 
-    selectedRecording: discoveredRecordingEntries.find(
-      (candidate) => candidate.id === (winner.recordingId || winner.identityKey),
-    ) || null,
+    selectedRecording:
+      discoveredRecordingEntries.find(
+        (candidate) =>
+          candidate.id === (winner.recordingId || winner.identityKey),
+      ) || null,
 
     allCandidates,
+    fieldChoices: buildFieldChoices(enrichmentCandidates, winner),
   };
 }
 

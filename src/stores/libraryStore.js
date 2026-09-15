@@ -34,6 +34,7 @@ import {
   createReleaseTrack,
   cleanGenres,
   normalizeComparable,
+  createStableFileId,
 } from "../models/musicEntities.js";
 import {
   buildReleaseRelations,
@@ -70,27 +71,106 @@ function cloneForIndexedDB(value) {
   return JSON.parse(JSON.stringify(plainValue));
 }
 
+function releaseCoverValue(release) {
+  const direct = release?.cover || release?.coverUrl;
+  if (direct) return direct;
+
+  const alternatives = release?.coverAlternatives || release?.artworks || [];
+  return alternatives
+    .map((item) => typeof item === "string" ? item : item?.url)
+    .find(Boolean) || null;
+}
+
 function releaseDisplayScore(release) {
-  return Number(Boolean(release.cover || release.coverUrl)) * 100
+  return Number(Boolean(releaseCoverValue(release))) * 100
     + Number(release.source === "musicbrainz") * 20
     + Number(Boolean(release.year)) * 5
     + Number(release.trackCount || 0) * 0.01;
+}
+
+function mergeReleaseDisplayData(current, duplicate) {
+  const primaryArtists = current.primaryArtists?.length
+    ? current.primaryArtists
+    : duplicate.primaryArtists?.length
+      ? duplicate.primaryArtists
+      : current.artists || duplicate.artists || current.artist || duplicate.artist;
+  const uniqueArtists = [...new Map(
+    (Array.isArray(primaryArtists) ? primaryArtists : [primaryArtists])
+      .map((artist) => typeof artist === "string" ? { name: artist } : artist)
+      .filter((artist) => artist?.name)
+      .map((artist) => [
+        artist.id ? `id:${artist.id}` : `name:${normalizeComparable(artist.name)}`,
+        artist,
+      ]),
+  ).values()];
+
+  return {
+    ...current,
+    primaryArtists: uniqueArtists,
+    artists: uniqueArtists.map((artist) => artist.name),
+    artist: uniqueArtists.map((artist) => artist.name).join(", ") || current.artist || duplicate.artist || "",
+    albumArtist: current.albumArtist || duplicate.albumArtist || "",
+    relatedReleaseIds: [
+      ...new Set([
+        ...(current.relatedReleaseIds || [current.id]),
+        ...(duplicate.relatedReleaseIds || [duplicate.id]),
+      ].filter(Boolean)),
+    ],
+  };
 }
 
 function uniqueReleaseCards(releaseList) {
   const grouped = new Map();
 
   for (const release of releaseList || []) {
-    const key = [
-      normalizeComparable(release.title),
-      normalizeComparable(release.artist || release.albumArtist),
-      release.type || "unknown",
-    ].join("|");
+    if (!release?.id) continue;
+
+    // El título y el tipo definen la tarjeta visible. Los artistas pueden ser
+    // varios colaboradores del mismo lanzamiento y no deben crear otra tarjeta.
+    const title = normalizeComparable(release.title || release.name);
+    const type = release.type || "unknown";
+    const key = title ? `${title}|${type}` : `id:${release.id}`;
     const previous = grouped.get(key);
 
-    if (!previous || releaseDisplayScore(release) > releaseDisplayScore(previous)) {
-      grouped.set(key, release);
+    if (!previous) {
+      grouped.set(key, mergeReleaseDisplayData({
+        ...release,
+        relatedReleaseIds: [...new Set(release.relatedReleaseIds || [release.id])],
+      }, {}));
+      continue;
     }
+
+    const preferred = releaseDisplayScore(release) > releaseDisplayScore(previous)
+      ? release
+      : previous;
+    const other = preferred === release ? previous : release;
+    grouped.set(key, mergeReleaseDisplayData(preferred, other));
+  }
+
+  return [...grouped.values()];
+}
+
+function uniqueAlbumCards(albumList) {
+  const grouped = new Map();
+
+  for (const album of albumList || []) {
+    if (!album) continue;
+    const title = normalizeComparable(album.name || album.title);
+    if (!title) continue;
+
+    // En la vista de álbumes el nombre es la identidad visible. No se crean
+    // tarjetas adicionales por artista principal o colaboradores.
+    const previous = grouped.get(title);
+    if (!previous) {
+      grouped.set(title, mergeReleaseDisplayData(album, {}));
+      continue;
+    }
+
+    const preferred = releaseDisplayScore(album) > releaseDisplayScore(previous)
+      ? album
+      : previous;
+    const other = preferred === album ? previous : album;
+    grouped.set(title, mergeReleaseDisplayData(preferred, other));
   }
 
   return [...grouped.values()];
@@ -117,7 +197,9 @@ export const useLibraryStore = defineStore("library", () => {
     releases.value.filter((release) => release.type === "ep"),
   ));
   const singlesAndEps = computed(() => [...singles.value, ...eps.value]);
-  const releaseAlbums = computed(() => releases.value.filter((release) => release.type === "album"));
+  const releaseAlbums = computed(() => uniqueReleaseCards(
+    releases.value.filter((release) => release.type === "album"),
+ ));
   const releaseGroupsView = computed(() => releaseGroups.value);
   const playlists = ref([]);
 
@@ -252,15 +334,20 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (typeof rawString !== "string") return [];
 
-    // Al leer los metadatos los artistas SOLAMENTE están separados por comas
+    // La biblioteca muestra artistas individuales, no el texto completo del
+    // crédito. Algunas fuentes mezclan separadores de colaboración: &, /, ;,
+    // • y +. "y" no se separa porque forma parte de nombres como
+    // "Cali y El Dandee". Los acentos, mayúsculas y signos se normalizan
+    // después al crear la clave para evitar duplicados como Alvaro/Álvaro.
     return rawString
-      .split(",")
+      .split(/\s*,\s*/)
+      .flatMap((part) =>
+        part.split(/\s*(?:feat\.?|ft\.?|featuring|con|&|\/|;|•|\+)\s*/i),
+      )
       .map((name) => name.trim())
       .filter((name) => {
         if (!name) return false;
-
-        const lower = name.toLowerCase();
-
+        const lower = name.toLocaleLowerCase();
         return (
           lower !== "unknown" &&
           lower !== "varios artistas" &&
@@ -270,7 +357,7 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function normalizeArtistKey(name) {
-    return (name || "").trim().toLowerCase();
+    return normalizeComparable(name);
   }
 
   const customArtistCovers = ref({});
@@ -343,7 +430,18 @@ export const useLibraryStore = defineStore("library", () => {
       // -------------------------------------------------------
 
       const songArtistEntries = names
-        .map((name, index) => getOrCreateArtist(name, Array.isArray(structuredArtists) ? structuredArtists[index] : null))
+        .map((name, index) => {
+          const source = Array.isArray(structuredArtists)
+            ? structuredArtists[index]
+            : null;
+          const sourceName = typeof source === "string"
+            ? source
+            : source?.name || source?.artist?.name || "";
+          // No reutilizar el ID de un crédito combinado después de separarlo:
+          // ese ID representa "Aitana & Otro", no necesariamente a Aitana.
+          const entity = sourceName.trim() === name ? source : null;
+          return getOrCreateArtist(name, entity);
+        })
         .filter(Boolean);
 
       for (const artistEntry of songArtistEntries) {
@@ -2371,7 +2469,17 @@ export const useLibraryStore = defineStore("library", () => {
   // =========================
 
   function songIdForFile(file) {
-    return file.name;
+    return createStableFileId(file);
+  }
+
+  function legacySongIdForFile(file) {
+    const name = normalizeComparable(file?.name || file?.filename);
+    const size = Number.isFinite(file?.size) ? String(file.size) : "";
+    const lastModified = Number.isFinite(file?.lastModified)
+      ? String(file.lastModified)
+      : "";
+
+    return [name, size, lastModified].filter(Boolean).join("::");
   }
 
   async function init() {
@@ -2483,14 +2591,41 @@ export const useLibraryStore = defineStore("library", () => {
 
   async function loadNormalizedEntities() {
     const db = await dbPromise;
-    releases.value = (await db.getAll("releases")).map((release) => ({
-      ...release,
-      cover: isBlobUrl(release.cover || release.coverUrl)
-        ? null
-        : toDisplayUrl(release.cover || release.coverUrl),
-    }));
+    releases.value = (await db.getAll("releases")).map((release) => {
+      const rawPrimaryArtists = Array.isArray(release.primaryArtists)
+        ? release.primaryArtists
+        : release.albumArtist || release.artist || release.artists || [];
+      const primaryArtists = (Array.isArray(rawPrimaryArtists) ? rawPrimaryArtists : [rawPrimaryArtists])
+        .map((artist) => typeof artist === "string" ? { name: artist } : artist)
+        .filter((artist) => artist?.name);
+      const involvedArtists = Array.isArray(release.involvedArtists)
+        ? release.involvedArtists
+        : primaryArtists;
+      const normalized = {
+        ...release,
+        primaryArtists,
+        involvedArtists,
+        artists: primaryArtists.map((artist) => artist.name),
+        artist: primaryArtists.map((artist) => artist.name).join(", "),
+        cover: isBlobUrl(releaseCoverValue(release))
+          ? null
+          : toDisplayUrl(releaseCoverValue(release)),
+      };
+      return normalized;
+    });
     releaseGroups.value = await db.getAll("releaseGroups");
     releaseTracks.value = await db.getAll("releaseTracks");
+  }
+
+  function refreshSongReleaseRelations(song) {
+    if (!song?.id) return song;
+    const related = buildReleaseRelations(
+      [song],
+      releases.value,
+      releaseTracks.value,
+    )[0];
+    if (related) Object.assign(song, related);
+    return song;
   }
 
   async function persistLocalRelations(db, song, metadata, coverBlob) {
@@ -2501,12 +2636,14 @@ export const useLibraryStore = defineStore("library", () => {
       : [metadata.musicBrainzReleaseId || metadata.albumId];
     const releaseChoices = Array.isArray(storedReleases) ? storedReleases : [];
     const primaryReleaseId = metadata.primaryReleaseId || releaseIds[0];
+    const coverReleaseId = metadata.coverReleaseId || primaryReleaseId;
     const knownReleases = new Map([
       ...releases.value.map((release) => [release.id, release]),
       ...releaseChoices.map((release) => [release.id, release]),
     ]);
     const primarySource = knownReleases.get(primaryReleaseId) || {};
     const releaseGroupId = metadata.musicBrainzReleaseGroupId || `local-group:${metadata.albumId}`;
+    const selectedCoverRelease = knownReleases.get(coverReleaseId) || knownReleases.get(primaryReleaseId) || {};
     const recording = createRecording({
       id: song.id,
       fileId: song.id,
@@ -2525,23 +2662,40 @@ export const useLibraryStore = defineStore("library", () => {
       identifiedMetadata,
       cover: coverBlob,
     });
+    const primaryCover = sanitizeCoverForStorage(
+      metadata.cover ?? song.cover ?? coverBlob ?? null,
+    );
+
     const releaseRecords = releaseIds.map((id) => {
       const source = knownReleases.get(id) || {};
+      const selectedCover = releaseCoverValue(source);
+      const releaseCover = sanitizeCoverForStorage(
+        id === coverReleaseId
+          ? (selectedCover || primaryCover)
+          : selectedCover,
+      );
+      const artworks = releaseCover
+        ? [{ url: releaseCover, source: source.source || "local" }]
+        : [];
+
       return createRelease({
         ...source,
         id,
         title: source.title || (id === primaryReleaseId ? metadata.album : ""),
-        artists: source.artists || metadata.artists || [metadata.artist],
+        primaryArtists: source.primaryArtists || source.artists || metadata.artists || [metadata.artist],
+        involvedArtists: source.involvedArtists || source.primaryArtists || source.artists || metadata.artists || [metadata.artist],
+        artists: source.primaryArtists || source.artists || metadata.artists || [metadata.artist],
         artist: source.artist || metadata.artist,
-        albumArtist: source.albumArtist || metadata.albumArtist,
+        albumArtist: source.albumArtist || source.artist || metadata.albumArtist || metadata.artist,
         year: source.year || metadata.year,
         primaryType: source.type || (id === primaryReleaseId ? metadata.releaseType : "other"),
         releaseGroupId: source.releaseGroupId || releaseGroupId,
         musicBrainzReleaseId: source.musicBrainzReleaseId || (id === primaryReleaseId ? metadata.musicBrainzReleaseId : ""),
         musicBrainzReleaseGroupId: source.musicBrainzReleaseGroupId || metadata.musicBrainzReleaseGroupId,
-        cover: id === primaryReleaseId && metadata.cover !== undefined
-          ? sanitizeCoverForStorage(metadata.cover)
-          : source.cover || (id === primaryReleaseId ? coverBlob : null),
+        cover: releaseCover,
+        coverUrl: typeof releaseCover === "string" ? releaseCover : "",
+        artworks,
+        coverAlternatives: artworks.map((artwork) => ({ ...artwork })),
         source: source.source || "local",
       });
     });
@@ -2564,15 +2718,10 @@ export const useLibraryStore = defineStore("library", () => {
       duration: metadata.duration,
     }));
 
-    const identifiedReleases = Array.isArray(identifiedMetadata?.releases)
-      ? identifiedMetadata.releases
-        .filter((item) => releaseIds.includes(item.id))
-        .map((item) => ({ ...item, cover: sanitizeCoverForStorage(item.cover || item.coverUrl) }))
-      : Array.isArray(storedReleases)
-        ? storedReleases
-          .filter((item) => releaseIds.includes(item.id))
-          .map((item) => ({ ...item, cover: sanitizeCoverForStorage(item.cover || item.coverUrl) }))
-        : [];
+    const releaseRecordIds = new Set(releaseRecords.map((r) => r.id));
+    const extraIdentifiedReleases = (Array.isArray(identifiedMetadata?.releases) ? identifiedMetadata.releases : [])
+      .filter((item) => item?.id && !releaseRecordIds.has(item.id))
+      .map((item) => ({ ...item, cover: sanitizeCoverForStorage(item.cover || item.coverUrl) }));
     const identifiedGroups = Array.isArray(identifiedMetadata?.releaseGroups)
       ? identifiedMetadata.releaseGroups
       : [];
@@ -2582,7 +2731,7 @@ export const useLibraryStore = defineStore("library", () => {
       ...releaseRecords.map((release) => db.put("releases", cloneForIndexedDB(release))),
       db.put("releaseGroups", cloneForIndexedDB(group)),
       ...tracks.map((track) => db.put("releaseTracks", cloneForIndexedDB(track))),
-      ...identifiedReleases.map((item) => db.put("releases", cloneForIndexedDB(item))),
+      ...extraIdentifiedReleases.map((item) => db.put("releases", cloneForIndexedDB(item))),
       ...identifiedGroups.map((item) => db.put("releaseGroups", cloneForIndexedDB(item))),
     ]);
 
@@ -2590,6 +2739,7 @@ export const useLibraryStore = defineStore("library", () => {
       ...metadata,
       releaseIds,
       primaryReleaseId,
+      coverReleaseId,
       releases: releaseRecords,
     }));
 
@@ -2599,7 +2749,7 @@ export const useLibraryStore = defineStore("library", () => {
       if (existingRelease) Object.assign(existingRelease, { ...release, cover: displayCover });
       else releases.value.push({ ...release, cover: displayCover });
     }
-    for (const item of identifiedReleases) {
+    for (const item of extraIdentifiedReleases) {
       const existing = releases.value.find((releaseItem) => releaseItem.id === item.id);
       const displayCover = isBlobUrl(item.cover) ? null : toDisplayUrl(item.cover);
       if (existing) Object.assign(existing, { ...item, cover: displayCover });
@@ -2614,7 +2764,7 @@ export const useLibraryStore = defineStore("library", () => {
       else releaseTracks.value.push(track);
     }
 
-    const relationReleases = [...releaseRecords, ...identifiedReleases.filter((item) => !releaseIds.includes(item.id))];
+    const relationReleases = [...releaseRecords, ...extraIdentifiedReleases];
     const related = buildReleaseRelations([recording], relationReleases, tracks)[0];
     Object.assign(song, related, {
       recordingId: recording.id,
@@ -2626,96 +2776,18 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function reconcileReleaseLibrary(db) {
-    const activeSongIds = new Set(songs.value.map((song) => song.id));
-    const activeReleaseIds = new Set(
-      songs.value.flatMap((song) => Array.isArray(song.releaseIds) ? song.releaseIds : []),
-    );
-    const sourceReleases = releases.value.filter((release) => activeReleaseIds.has(release.id));
-    const canonicalReleases = [];
-    const releaseIdMap = new Map();
-    const releaseKey = (release) => [
-      normalizeComparable(release.title),
-      normalizeComparable(release.artist || release.albumArtist),
-      normalizeComparable(release.type),
-    ].join("|");
-    const releaseYear = (release) => String(release.year || release.releaseDate || "").slice(0, 4);
-    const releaseIdIsSynthetic = (release) => {
-      const id = String(release.id || "");
-      return !id || id.startsWith("local:") || id.startsWith("release_") || id.startsWith("itunes:");
-    };
-    const hasArtwork = (release) => Boolean(release.cover || release.coverUrl);
-
-    for (const release of sourceReleases) {
-      const key = releaseKey(release);
-      let canonical = canonicalReleases.find((item) =>
-        item._releaseKey === key &&
-        (!releaseYear(item) || !releaseYear(release) || releaseYear(item) === releaseYear(release) ||
-          (releaseIdIsSynthetic(item) && releaseIdIsSynthetic(release))) &&
-        (!item.releaseGroupId || !release.releaseGroupId || item.releaseGroupId === release.releaseGroupId),
-      );
-      if (!canonical) {
-        canonical = { ...release, _releaseKey: key };
-        canonicalReleases.push(canonical);
-      } else {
-        if (!hasArtwork(canonical) && hasArtwork(release)) {
-          canonical.cover = release.cover;
-          canonical.coverUrl = release.coverUrl;
-        }
-        canonical.providers = [...new Set([...(canonical.providers || []), ...(release.providers || []), release.provider].filter(Boolean))];
-        canonical.artwork = [...new Map([...(canonical.artwork || []), ...(release.artwork || [])].map((item) => [item.url, item])).values()];
-      }
-      releaseIdMap.set(release.id, canonical.id);
-    }
-
-    const activeReleases = canonicalReleases.map(({ _releaseKey, ...release }) => release);
-    const releaseById = new Map(activeReleases.map((release) => [release.id, release]));
-    const seenTracks = new Set();
-    const activeTracks = [];
-
-    for (const song of songs.value) {
-      song.releaseIds = [...new Set((song.releaseIds || []).map((id) => releaseIdMap.get(id) || id).filter((id) => releaseById.has(id)))];
-      song.primaryReleaseId = releaseIdMap.get(song.primaryReleaseId) || song.primaryReleaseId;
-      const storedMetadata = await db.get("metadata", song.id);
-      if (storedMetadata) {
-        await db.put("metadata", cloneForIndexedDB({
-          ...storedMetadata,
-          releaseIds: song.releaseIds,
-          primaryReleaseId: song.primaryReleaseId,
-        }));
+    // Preserve all release records and tracks.
+    // Do NOT delete releases from DB just because they belong to another folder or song.
+    // Do NOT fuse different release entities by title/type.
+    // In-memory deduplicate ONLY exact duplicate release IDs.
+    const unique = new Map();
+    for (const release of releases.value) {
+      if (!release?.id) continue;
+      if (!unique.has(release.id)) {
+        unique.set(release.id, release);
       }
     }
-
-    for (const track of releaseTracks.value) {
-      const releaseId = releaseIdMap.get(track.releaseId) || track.releaseId;
-      const key = `${track.recordingId}:${releaseId}`;
-      if (!activeSongIds.has(track.recordingId) || !releaseById.has(releaseId) || seenTracks.has(key)) continue;
-      seenTracks.add(key);
-      activeTracks.push({ ...track, id: `${track.recordingId}:${releaseId}`, releaseId });
-    }
-
-    await Promise.all([
-      ...releases.value.filter((release) => !releaseById.has(release.id)).map((release) => db.delete("releases", release.id)),
-      ...releaseTracks.value.filter((track) => !activeTracks.some((item) => item.id === track.id)).map((track) => db.delete("releaseTracks", track.id)),
-      ...activeReleases.map((release) => db.put("releases", cloneForIndexedDB(release))),
-      ...activeTracks.map((track) => db.put("releaseTracks", cloneForIndexedDB(track))),
-    ]);
-
-    releases.value = activeReleases;
-    releaseTracks.value = activeTracks;
-
-    const relatedSongs = buildReleaseRelations(songs.value, activeReleases, activeTracks);
-    const songsById = new Map(relatedSongs.map((song) => [song.id, song]));
-    for (const song of songs.value) {
-      const related = songsById.get(song.id);
-      if (!related) continue;
-      Object.assign(song, related);
-      await db.put("recordings", cloneForIndexedDB(createRecording({
-        ...song,
-        id: song.id,
-        releaseIds: song.releaseIds,
-        primaryReleaseId: song.primaryReleaseId,
-      })));
-    }
+    releases.value = [...unique.values()];
   }
 
   async function loadAlbums() {
@@ -2728,11 +2800,14 @@ export const useLibraryStore = defineStore("library", () => {
         .flatMap((release) => [release.id, release.title]),
     );
 
-    albums.value = data.filter((album) => !["single", "ep"].includes(album.type) && !nonAlbumIds.has(album.id) && !nonAlbumIds.has(album.name)).map((album) => ({
-      ...album,
-
-      cover: isBlobUrl(album.cover) ? null : toDisplayUrl(album.cover),
-    }));
+    albums.value = uniqueAlbumCards(
+      data
+        .filter((album) => !["single", "ep"].includes(album.type) && !nonAlbumIds.has(album.id) && !nonAlbumIds.has(album.name))
+        .map((album) => ({
+          ...album,
+          cover: isBlobUrl(album.cover) ? null : toDisplayUrl(album.cover),
+        })),
+    );
 
     sortAlbums();
   }
@@ -2740,21 +2815,12 @@ export const useLibraryStore = defineStore("library", () => {
   async function syncAlbumsFromReleases() {
     const db = await dbPromise;
     const albumReleases = releases.value.filter((release) => release.type === "album");
-    const nonAlbumReleases = releases.value.filter((release) => release.type === "single" || release.type === "ep");
-
-    for (const release of nonAlbumReleases) {
-      const staleAlbums = albums.value.filter((album) => album.id === release.id || album.name === release.title);
-      for (const staleAlbum of staleAlbums) {
-        albums.value = albums.value.filter((album) => album.id !== staleAlbum.id);
-        await db.delete("albums", staleAlbum.id);
-      }
-    }
 
     for (const release of albumReleases) {
       const existing = albums.value.find(
-        (album) => album.id === release.id || album.name === release.title,
+        (album) => album.id === release.id,
       );
-      const cover = release.cover || release.coverUrl || existing?.cover || null;
+      const cover = releaseCoverValue(release) || existing?.cover || null;
       const album = {
         id: existing?.id || release.id,
         name: existing?.name || release.title,
@@ -2775,6 +2841,7 @@ export const useLibraryStore = defineStore("library", () => {
       });
     }
 
+    albums.value = uniqueAlbumCards(albums.value);
     sortAlbums();
   }
 
@@ -4019,22 +4086,32 @@ export const useLibraryStore = defineStore("library", () => {
         // Metadata cache
         // -------------------------
 
-        const cached = await db.get("metadata", song.id);
+        let cached = await db.get("metadata", song.id);
+
+        if (!cached && song.file) {
+          const legacyId = legacySongIdForFile(song.file);
+          if (legacyId && legacyId !== song.id) {
+            cached = await db.get("metadata", legacyId);
+            if (cached) {
+              cached = { ...cached, id: song.id };
+              await db.put("metadata", cloneForIndexedDB(cached));
+              await db.delete("metadata", legacyId);
+            }
+          }
+        }
 
         if (!forceRescan && cached?.cacheVersion === metadataCacheVersion) {
           Object.assign(song, cached);
+          refreshSongReleaseRelations(song);
 
           const albumData =
             cached.hasMetadata && cached.albumId
               ? albums.value.find((album) => album.id === cached.albumId)
               : null;
-
-          const primaryRelease = cached.primaryReleaseId
-            ? releases.value.find((release) => release.id === cached.primaryReleaseId)
-            : releases.value.find((release) => cached.releaseIds?.includes(release.id));
-          song.cover = cached.cover && !isBlobUrl(cached.cover)
-            ? cached.cover
-            : primaryRelease?.cover ?? albumData?.cover ?? null;
+          const cachedCover = sanitizeCoverForStorage(cached.cover);
+          song.cover = cachedCover
+            ? toDisplayUrl(cachedCover)
+            : song.cover || albumData?.cover || null;
 
           song.metadataLoaded = true;
 
@@ -4122,20 +4199,18 @@ export const useLibraryStore = defineStore("library", () => {
         let albumData = belongsToAlbumCollection && albumId
           ? albums.value.find((item) => item.id === albumId)
           : null;
+        const storedAlbum = belongsToAlbumCollection && albumId
+          ? await db.get("albums", albumId)
+          : null;
+        const storedAlbumCover = sanitizeCoverForStorage(storedAlbum?.cover);
+        const cachedCover = sanitizeCoverForStorage(cached?.cover);
 
-        let coverBlob = null;
+        const picture = hasAlbumMetadata ? metadata.common.picture?.[0] : null;
+        const coverBlob = picture?.data
+          ? new Blob([picture.data], { type: picture.format || "image/jpeg" })
+          : null;
 
         if (!albumData && belongsToAlbumCollection) {
-          const picture = hasAlbumMetadata
-            ? metadata.common.picture?.[0]
-            : null;
-
-          if (picture) {
-            coverBlob = new Blob([picture.data], {
-              type: picture.format,
-            });
-          }
-
           const newAlbum = {
             id: albumId,
 
@@ -4157,11 +4232,24 @@ export const useLibraryStore = defineStore("library", () => {
           albums.value.push(albumData);
 
           sortAlbums();
+        } else if (albumData && coverBlob && !storedAlbumCover) {
+          albumData.cover = toDisplayUrl(coverBlob);
+          await db.put("albums", {
+            id: albumData.id,
+            name: albumData.name,
+            artist: albumData.artist,
+            type: albumData.type || "album",
+            cover: coverBlob,
+          });
         }
 
         // -------------------------
         // Metadata object
         // -------------------------
+
+        const persistedCover = sanitizeCoverForStorage(
+          coverBlob || cachedCover || storedAlbumCover || song.cover || albumData?.cover || null,
+        );
 
         const data = {
           id: song.id,
@@ -4179,6 +4267,8 @@ export const useLibraryStore = defineStore("library", () => {
           albumArtist,
 
           albumId,
+
+          cover: persistedCover,
 
           genre: [...(metadata.common.genre ?? [])],
 
@@ -4250,7 +4340,9 @@ export const useLibraryStore = defineStore("library", () => {
 
         song.favorite = song.favorite ?? false;
 
-        song.cover = hasAlbumMetadata ? (albumData?.cover ?? null) : null;
+        song.cover = hasAlbumMetadata
+          ? toDisplayUrl(persistedCover || storedAlbumCover || albumData?.cover)
+          : null;
 
         await persistLocalRelations(db, song, data, coverBlob);
 
@@ -4266,6 +4358,10 @@ export const useLibraryStore = defineStore("library", () => {
 
         song.favorite = song.favorite ?? false;
       }
+    }
+
+    for (const song of songs.value) {
+      refreshSongReleaseRelations(song);
     }
 
     await syncFavoritesPlaylistFromSongs();
@@ -4285,10 +4381,11 @@ export const useLibraryStore = defineStore("library", () => {
       songs.value.flatMap((song) => {
         const relatedIds = Array.isArray(song.releaseIds) ? song.releaseIds : [];
         const relatedAlbumIds = relatedIds.filter((releaseId) => albumReleaseIds.has(releaseId));
-        if (relatedAlbumIds.length) return relatedAlbumIds;
-        return song.releaseType === "single" || song.releaseType === "ep"
-          ? []
-          : [song.albumId].filter(Boolean);
+        if (song.releaseType === "single" || song.releaseType === "ep") {
+          return [];
+        }
+
+        return [song.albumId, ...relatedAlbumIds].filter(Boolean);
       }),
     );
 
@@ -4361,21 +4458,26 @@ export const useLibraryStore = defineStore("library", () => {
 
     const artist = updatedData.artist?.trim() || "Unknown";
 
-    const albumArtist = updatedData.albumArtist?.trim() || null;
-
     const selectedReleaseIds = [...new Set(
       (Array.isArray(updatedData.releaseIds) ? updatedData.releaseIds : [])
         .map((id) => String(id).trim())
         .filter(Boolean),
     )];
+    // Los releases enviados por el modal contienen los cambios manuales más
+    // recientes (incluida una portada recién seleccionada). Deben sobrescribir
+    // la copia antigua de la biblioteca, no al revés.
     const availableReleases = [
       ...releases.value,
-      ...(Array.isArray(updatedData.releases) ? updatedData.releases : []),
       ...(Array.isArray(updatedData.identifiedMetadata?.releases)
         ? updatedData.identifiedMetadata.releases
         : []),
+      ...(Array.isArray(updatedData.releases) ? updatedData.releases : []),
     ];
-    const releaseById = new Map(availableReleases.map((release) => [release.id, release]));
+    const releaseById = new Map(
+      availableReleases
+        .filter((release) => release?.id)
+        .map((release) => [release.id, release]),
+    );
     const selectedReleases = selectedReleaseIds
       .map((id) => releaseById.get(id))
       .filter(Boolean);
@@ -4386,6 +4488,17 @@ export const useLibraryStore = defineStore("library", () => {
       : releaseIds[0];
     const primaryRelease = releaseById.get(primaryReleaseId);
     const albumName = primaryRelease?.title?.trim() || song.album?.trim() || title;
+    const releaseArtists = primaryRelease?.involvedArtists?.length
+      ? primaryRelease.involvedArtists
+      : primaryRelease?.primaryArtists?.length
+        ? primaryRelease.primaryArtists
+        : primaryRelease?.artists?.length
+          ? primaryRelease.artists
+          : primaryRelease?.artist;
+    const albumArtist = (Array.isArray(releaseArtists) ? releaseArtists : [releaseArtists])
+      .map((value) => typeof value === "string" ? value : value?.name)
+      .filter(Boolean)
+      .join(", ") || artist;
 
     let genre = [];
 
@@ -4484,7 +4597,7 @@ export const useLibraryStore = defineStore("library", () => {
       directoryHandle: song.directoryHandle,
     });
 
-    const nextSongId = updatedFile.name;
+    const nextSongId = songIdForFile(updatedFile);
 
     // -------------------------
     // Cover
@@ -4520,9 +4633,7 @@ export const useLibraryStore = defineStore("library", () => {
 
         cover:
           coverBlob ||
-          (typeof cover === "string" && !cover.startsWith("blob:")
-            ? cover
-            : null),
+          sanitizeCoverForStorage(releaseCoverValue(primaryRelease) || cover),
       };
 
       await db.put("albums", newAlbum);
@@ -4537,14 +4648,16 @@ export const useLibraryStore = defineStore("library", () => {
 
       sortAlbums();
     } else if (albumData && updatedData.cover !== undefined) {
-      albumData.cover = cover || null;
+      if (primaryRelease?.type !== "single" && primaryRelease?.type !== "ep" && updatedData.releaseType !== "single" && updatedData.releaseType !== "ep") {
+        albumData.cover = releaseCoverValue(primaryRelease) || cover || null;
 
-      await db.put("albums", {
-        id: albumData.id,
-        name: albumData.name,
-        artist: albumData.artist,
-        cover: coverBlob || sanitizeCoverForStorage(cover),
-      });
+        await db.put("albums", {
+          id: albumData.id,
+          name: albumData.name,
+          artist: albumData.artist,
+          cover: coverBlob || sanitizeCoverForStorage(releaseCoverValue(primaryRelease) || cover),
+        });
+      }
     }
 
     // -------------------------
@@ -4576,13 +4689,17 @@ export const useLibraryStore = defineStore("library", () => {
 
       primaryReleaseId,
 
+      coverReleaseId: updatedData.coverReleaseId || primaryReleaseId,
+
       releaseType: primaryRelease?.type || updatedData.releaseType || "album",
 
-      artists: Array.isArray(updatedData.artists) ? updatedData.artists : artist.split(",").map((item) => item.trim()).filter(Boolean),
+      artists: Array.isArray(updatedData.artists) && updatedData.artists.length
+        ? updatedData.artists
+        : (typeof updatedData.artist === "string" && updatedData.artist.trim() ? [updatedData.artist.trim()] : []),
 
-      artistCredits: Array.isArray(updatedData.artistCredits)
+      artistCredits: Array.isArray(updatedData.artistCredits) && updatedData.artistCredits.length
         ? updatedData.artistCredits
-        : existingMetadata?.artistCredits || [],
+        : (existingMetadata?.artistCredits?.length ? existingMetadata.artistCredits : []),
 
       genres: Array.isArray(updatedData.genres) ? cleanGenres(updatedData.genres) : cleanGenres(genre),
 
@@ -4590,9 +4707,11 @@ export const useLibraryStore = defineStore("library", () => {
 
       releases: cloneForIndexedDB(
         selectedReleases.length
-          ? selectedReleases.map((release) => release.id === primaryReleaseId
-            ? { ...release, cover: sanitizeCoverForStorage(cover) }
-            : release)
+          ? selectedReleases.map((release) => ({
+              ...release,
+              cover: sanitizeCoverForStorage(releaseCoverValue(release)),
+              coverUrl: sanitizeCoverForStorage(releaseCoverValue(release)) || '',
+            }))
           : updatedData.identifiedMetadata?.releases || existingMetadata?.releases || [],
       ),
 
@@ -4655,7 +4774,7 @@ export const useLibraryStore = defineStore("library", () => {
     // Update reactive song
     // -------------------------
 
-    const newName = cleanFileName(nextSongId);
+    const newName = cleanFileName(updatedFile.name);
 
     Object.assign(song, {
       id: nextSongId,
@@ -4700,6 +4819,12 @@ export const useLibraryStore = defineStore("library", () => {
     });
 
     await persistLocalRelations(db, song, metadataToSave, coverBlob);
+
+    // persistLocalRelations reconstruye las relaciones del release y puede
+    // recalcular la portada desde una copia anterior. La portada elegida en
+    // el modal es la última decisión del usuario y debe prevalecer también en
+    // el objeto reactivo que usa la biblioteca.
+    song.cover = cover || null;
 
     if (playingSong.value && playingSong.value.id === song.id) {
       Object.assign(playingSong.value, {

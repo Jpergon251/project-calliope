@@ -7,7 +7,7 @@
     <PlayListSongs
       :songs="playlistSongs || []"
       :playlist="playlist"
-      :cover="playlist?.cover"
+      :cover="playlistMainCover"
       :is-sortable="isSortablePlaylist"
       @reorder="handleReorder"
       @edit="openEditModal"
@@ -64,6 +64,11 @@ const playlistSongs = computed(() => {
   const songsById = new Map(library.songs.map((song) => [song.id, song]));
 
   return orderedIds.map((id) => songsById.get(id)).filter(Boolean);
+});
+
+const playlistMainCover = computed(() => {
+  const firstSong = playlistSongs.value[0];
+  return firstSong?.cover || null;
 });
 
 watch(

@@ -172,26 +172,25 @@
 
             <!-- Artista -->
             <div class="form-group">
-              <label for="meta-artist">
-                Artista principal <span class="required-tag">* Necesario</span>
-              </label>
+              <div class="artist-label-row">
+                <label for="meta-artist">
+                  Artista principal <span class="required-tag">* Necesario</span>
+                </label>
+                <button
+                  type="button"
+                  class="btn-separate-artists"
+                  @click="openArtistSeparator"
+                >
+                  <Users :size="13" />
+                  <span>Separar artistas</span>
+                </button>
+              </div>
               <input
                 id="meta-artist"
                 v-model="form.artist"
                 type="text"
                 placeholder="Artista o banda"
-                required
-              />
-            </div>
-
-            <!-- Artista del álbum -->
-            <div class="form-group">
-              <label for="meta-album-artist">Artista del álbum <span class="label-hint">(Opcional)</span></label>
-              <input
-                id="meta-album-artist"
-                v-model="form.albumArtist"
-                type="text"
-                placeholder="Artista del álbum"
+                @input="syncManualArtist"
               />
             </div>
 
@@ -199,24 +198,16 @@
             <div class="form-group span-full release-selection-group">
               <label>Lanzamientos a los que pertenece <span class="required-tag">* Necesario</span></label>
               <p class="field-help">Selecciona los álbumes, sencillos y EPs a los que pertenece esta canción.</p>
-              <div v-if="releaseChoices.length" class="release-choice-list">
-                <label
-                  v-for="release in releaseChoices"
+              <div v-if="selectedReleaseChoices.length" class="release-choice-list">
+                <div
+                  v-for="release in selectedReleaseChoices"
                   :key="`form-release-${release.id}`"
-                  class="release-choice"
-                  :class="{ selected: selectedReleaseIds.includes(release.id) }"
+                  class="release-choice selected"
                 >
-                  <input
-                    v-model="selectedReleaseIds"
-                    type="checkbox"
-                    :value="release.id"
-                    @change="handleReleaseToggle(release)"
-                    :aria-label="`Pertenecer a ${release.title}`"
-                  />
                   <div class="release-choice-cover">
                     <img
-                      v-if="release.cover || release.coverUrl"
-                      :src="release.cover || release.coverUrl"
+                      v-if="getReleaseCover(release)"
+                      :src="getReleaseCover(release)"
                       :alt="release.title"
                       @error="handleReleaseThumbError"
                     />
@@ -230,7 +221,16 @@
                       <template v-if="release.trackNumber"> · Pista {{ release.trackNumber }}<template v-if="release.trackTotal">/{{ release.trackTotal }}</template></template>
                     </small>
                   </span>
-                </label>
+                  <button
+                    type="button"
+                    class="btn-remove-release"
+                    :aria-label="`Eliminar lanzamiento ${release.title}`"
+                    title="Eliminar lanzamiento"
+                    @click.prevent="removeRelease(release)"
+                  >
+                    <Trash2 :size="14" />
+                  </button>
+                </div>
               </div>
               <p v-else class="field-help">Analiza el audio para encontrar álbumes, sencillos y EPs relacionados.</p>
             </div>
@@ -310,7 +310,7 @@
                 Portada de la canción y playlists <span class="required-tag">* Necesario</span>
               </label>
               <p class="field-help">
-                Esta portada se mostrará en playlists y en la canción individual. Elige una portada de sus lanzamientos o añade más fotos por enlace.
+                Esta portada se mostrará en playlists y en la canción individual. Solo puedes elegir portadas de los lanzamientos seleccionados.
               </p>
               <div class="cover-editor">
                 <!-- Preview destacada de la portada -->
@@ -341,73 +341,41 @@
                   </div>
                 </div>
 
-                <!-- Selección de portadas y añadir por enlace -->
+                <!-- Selección de portadas de los lanzamientos -->
                 <div class="cover-selection-column">
-                  <!-- Añadir foto por enlace -->
-                  <div class="cover-add-panel">
-                    <span class="cover-panel-title">Añadir otra portada por enlace</span>
-                    <div class="cover-add-form">
-                      <div class="url-input-wrapper">
-                        <Link class="url-icon" />
-                        <input
-                          v-model="newCoverInput"
-                          type="url"
-                          placeholder="https://ejemplo.com/portada.jpg"
-                          class="cover-url-input"
-                          @keyup.enter.prevent="addCoverFromUrl"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        class="btn-add-cover"
-                        :disabled="!newCoverInput.trim()"
-                        @click="addCoverFromUrl"
-                      >
-                        <Plus class="icon-sm" />
-                        <span>Añadir</span>
-                      </button>
-                    </div>
-                  </div>
-
                   <!-- Galería de portadas para elegir -->
                   <div class="cover-gallery-panel">
                     <div class="gallery-header">
-                      <span class="cover-panel-title">Portadas disponibles ({{ availableCovers.length }})</span>
+                      <span class="cover-panel-title">Portadas de los lanzamientos ({{ availableCovers.length }})</span>
                       <small class="gallery-hint">Haz clic en una para usarla</small>
                     </div>
 
                     <div v-if="availableCovers.length" class="cover-choices-grid">
-                      <button
+                      <div
                         v-for="choice in availableCovers"
                         :key="choice.id"
-                        type="button"
                         class="cover-choice-card"
                         :class="{ selected: form.cover === choice.url }"
+                        role="button"
+                        tabindex="0"
                         @click="selectCover(choice)"
+                        @keydown.enter.prevent="selectCover(choice)"
+                        @keydown.space.prevent="selectCover(choice)"
                       >
                         <div class="choice-img-wrapper">
                           <img :src="choice.url" :alt="choice.title" @error="handleCoverChoiceError" />
                           <div v-if="form.cover === choice.url" class="selected-badge">
                             <Check class="icon-xs" />
                           </div>
-                          <button
-                            v-if="choice.source === 'Personalizada'"
-                            type="button"
-                            class="btn-delete-custom-cover"
-                            title="Eliminar portada añadida"
-                            @click="removeCustomCover(choice.url, $event)"
-                          >
-                            <X class="icon-xs" />
-                          </button>
                         </div>
                         <div class="choice-info">
                           <strong :title="choice.title">{{ choice.title }}</strong>
                           <small :title="choice.source">{{ choice.source }}</small>
                         </div>
-                      </button>
+                      </div>
                     </div>
                     <div v-else class="cover-choices-empty">
-                      <p>No hay portadas disponibles todavía. Puedes añadir fotos pegando su enlace arriba o analizando el audio.</p>
+                      <p>No hay portadas disponibles para los lanzamientos seleccionados.</p>
                     </div>
                   </div>
                 </div>
@@ -475,30 +443,71 @@
         </section>
 
         <template v-else>
-          <section v-if="candidateChoices.length" class="drawer-section">
-            <div class="drawer-section-heading"><div><span class="drawer-kicker">Identidad</span><h3>Coincidencias</h3></div><span class="drawer-count">{{ candidateChoices.length }}</span></div>
-            <div class="drawer-candidates">
-              <article v-for="candidate in candidateChoices" :key="candidate.identityKey" class="drawer-candidate" :class="{ selected: candidate.identityKey === selectedCandidateKey }">
-                <div class="drawer-candidate-copy"><strong class="drawer-candidate-title"><span>{{ candidate.title || 'Sin título' }}</span></strong><span class="drawer-candidate-artist"><span>{{ candidate.artist || 'Artista desconocido' }}</span></span><small>{{ (candidate.providers || [candidate.provider || 'Fuente desconocida']).join(' + ') }} · {{ Math.round((candidate.similarity ?? candidate.confidence ?? 0) * 100) }}% coincidencia</small></div>
-                <button type="button" class="drawer-action" @click="selectCandidate(candidate)">{{ candidate.identityKey === selectedCandidateKey ? 'Seleccionada' : 'Usar' }}</button>
-              </article>
+          <section v-if="fieldChoiceSections.length" class="drawer-section">
+            <div class="drawer-section-heading"><div><span class="drawer-kicker">Propuesta comparada</span><h3>Elige cada dato</h3></div></div>
+            <p class="drawer-help">AudD, AcoustID y las fuentes compatibles se comparan por campo. Selecciona solo los valores que quieras aplicar.</p>
+            <div class="drawer-field-choices">
+              <div v-for="field in fieldChoiceSections" :key="field.key" class="drawer-field-choice">
+                <div class="drawer-field-choice-heading"><span>{{ field.label }}</span><small>{{ field.choices.length }} opciones</small></div>
+                <div class="drawer-field-choice-list">
+                  <button
+                    v-for="choice in field.choices"
+                    :key="`${field.key}-${choice.value}`"
+                    type="button"
+                    class="drawer-field-option"
+                    :class="{ selected: field.isMulti ? field.current.includes(choice.value) : field.current === choice.value, 'is-cover': field.key === 'cover' }"
+                    @click="selectFieldChoice(field.key, choice)"
+                  >
+                    <img v-if="field.key === 'cover' && choice.value" :src="choice.value" alt="" @error="handleDrawerCoverError" />
+                    <span class="drawer-field-option-copy"><strong>{{ choice.value }}</strong><small>{{ choice.sources.join(' + ') }}</small></span>
+                    <Check v-if="field.isMulti ? field.current.includes(choice.value) : field.current === choice.value" :size="15" />
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section v-if="releaseChoices.length" class="drawer-section">
-            <div class="drawer-section-heading"><div><span class="drawer-kicker">Publicaciones</span><h3>Lanzamientos relacionados</h3></div><span class="drawer-count">{{ selectedReleaseIds.length }}/{{ releaseChoices.length }}</span></div>
-            <p class="drawer-help">Marca todos los lanzamientos a los que pertenece esta canción.</p>
+          <section v-if="selectedReleaseChoices.length" class="drawer-section">
+            <div class="drawer-section-heading"><div><span class="drawer-kicker">Publicaciones</span><h3>Lanzamientos seleccionados</h3></div><span class="drawer-count">{{ selectedReleaseChoices.length }}</span></div>
+            <p class="drawer-help">Elimina los lanzamientos que no correspondan a esta canción.</p>
             <div class="drawer-releases">
-              <label v-for="release in releaseChoices" :key="`drawer-${release.id}`" class="drawer-release" :class="{ selected: selectedReleaseIds.includes(release.id) }">
-                <input v-model="selectedReleaseIds" type="checkbox" :value="release.id" @change="ensureAtLeastOneRelease(release)" />
+              <div v-for="release in selectedReleaseChoices" :key="`drawer-${release.id}`" class="drawer-release selected">
                 <img v-if="release.cover || release.coverUrl" :src="release.cover || release.coverUrl" :alt="release.title" @error="handleReleaseCoverError($event, release)" />
                 <SongIconCover v-else />
                 <span><strong class="release-title" :class="{ 'is-long': release.title.length > 28 }"><span class="release-title-text">{{ release.title }}</span></strong><small>{{ releaseTypeLabel(release.type) }}<template v-if="release.year"> · {{ release.year }}</template><template v-if="release.trackNumber"> · Pista {{ release.trackNumber }}<template v-if="release.trackTotal">/{{ release.trackTotal }}</template></template></small><em>{{ release.source || 'MusicBrainz' }}</em></span>
-              </label>
+                <button type="button" class="drawer-action" @click="removeRelease(release)"><Trash2 :size="14" /> Eliminar</button>
+              </div>
             </div>
           </section>
 
-          <section v-if="artistChoices.length || canSuggestArtistSplit" class="drawer-section"><div class="drawer-section-heading"><div><span class="drawer-kicker">Créditos</span><h3>Artistas</h3></div></div><div v-if="artistChoices.length" class="drawer-chips"><label v-for="artist in artistChoices" :key="`drawer-artist-${artist}`" :class="{ selected: selectedArtists.includes(artist) }"><input v-model="selectedArtists" type="checkbox" :value="artist" @change="applyArtistSelection" /><span>{{ artist }}</span></label></div><button v-if="canSuggestArtistSplit" type="button" class="drawer-artist-split" @click="suggestArtistSplit">Probar separar colaboración</button></section>
+          <section v-if="availableReleaseChoices.length" class="drawer-section">
+            <div class="drawer-section-heading"><div><span class="drawer-kicker">Publicaciones</span><h3>Lanzamientos disponibles</h3></div><span class="drawer-count">{{ availableReleaseChoices.length }}</span></div>
+            <p class="drawer-help">Añade todos los lanzamientos a los que pertenezca esta canción.</p>
+            <div class="drawer-releases">
+              <div v-for="release in availableReleaseChoices" :key="`available-drawer-${release.id}`" class="drawer-release">
+                <img v-if="release.cover || release.coverUrl" :src="release.cover || release.coverUrl" :alt="release.title" @error="handleReleaseCoverError($event, release)" />
+                <SongIconCover v-else />
+                <span><strong class="release-title">{{ release.title }}</strong><small>{{ releaseTypeLabel(release.type) }}<template v-if="release.year"> · {{ release.year }}</template></small><em>{{ release.source || 'Fuente' }}</em></span>
+                <button type="button" class="drawer-action" @click="addRelease(release)">Añadir</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="drawer-section">
+            <div class="drawer-section-heading">
+              <div><span class="drawer-kicker">Créditos</span><h3>Artistas</h3></div>
+            </div>
+            <div v-if="artistChoices.length" class="drawer-chips">
+              <label v-for="artist in artistChoices" :key="`drawer-artist-${artist}`" :class="{ selected: selectedArtists.includes(artist) }">
+                <input v-model="selectedArtists" type="checkbox" :value="artist" @change="applyArtistSelection" />
+                <span>{{ artist }}</span>
+              </label>
+            </div>
+            <button type="button" class="drawer-artist-split" @click="openArtistSeparator">
+              <Users :size="13" />
+              <span>Separar artistas</span>
+            </button>
+          </section>
 
           <section v-if="genreChoices.length" class="drawer-section"><div class="drawer-section-heading"><div><span class="drawer-kicker">Clasificación</span><h3>Géneros</h3></div></div><div class="drawer-chips"><label v-for="genre in genreChoices" :key="`drawer-genre-${genre}`" :class="{ selected: selectedGenres.includes(genre) }"><input v-model="selectedGenres" type="checkbox" :value="genre" @change="applyGenreSelection" /><span>{{ genre }}</span></label></div></section>
 
@@ -509,6 +518,55 @@
         </template>
       </div>
     </aside>
+    </div>
+
+    <!-- Mini-interfaz modal para separar artistas manualmente -->
+    <div v-if="isSeparatingArtists" class="artist-separator-backdrop" @click.self="cancelArtistSeparation">
+      <div class="artist-separator-card">
+        <div class="artist-separator-header">
+          <div class="title-with-icon">
+            <Users :size="18" />
+            <h4>Separar artistas</h4>
+          </div>
+          <button type="button" class="btn-close-separator" @click="cancelArtistSeparation" aria-label="Cerrar">
+            <X :size="16" />
+          </button>
+        </div>
+        <p class="artist-separator-desc">
+          Edita cada artista de forma individual. Cada uno se guardará como una entidad independiente.
+        </p>
+        <div class="artist-separator-list">
+          <div v-for="(_, index) in editableArtists" :key="index" class="artist-separator-item">
+            <input
+              v-model="editableArtists[index]"
+              type="text"
+              placeholder="Nombre del artista"
+              class="artist-separator-input"
+            />
+            <button
+              type="button"
+              class="btn-remove-separated-artist"
+              :disabled="editableArtists.length <= 1"
+              @click="removeArtistFromSeparation(index)"
+              title="Eliminar artista"
+            >
+              <Trash2 :size="14" />
+            </button>
+          </div>
+        </div>
+        <button type="button" class="btn-add-separated-artist" @click="addArtistToSeparation">
+          <Plus :size="14" />
+          <span>Añadir artista</span>
+        </button>
+        <div class="artist-separator-footer">
+          <button type="button" class="btn-cancel-separation" @click="cancelArtistSeparation">
+            Cancelar
+          </button>
+          <button type="button" class="btn-confirm-separation" @click="confirmArtistSeparation">
+            Guardar
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -527,17 +585,18 @@ import {
   Image,
   Trash2,
   Check,
-  Link,
   CheckCheck,
   ChevronLeft,
   ChevronRight,
   X,
-  Plus
+  Plus,
+  Users
 } from 'lucide-vue-next';
 import SongIconCover from '../common/SongIconCover.vue';
 import { useLibraryStore } from '../../stores/libraryStore.js';
 import { identifyAudio } from '../../services/audioIdentification.js';
 import { deduplicateReleases } from '../../services/identificationRanking.js';
+import { suggestArtistSplit } from '../../services/artistSeparation.js';
 const props = defineProps({
   song: {
     type: Object,
@@ -554,13 +613,27 @@ const saveMessage = ref('');
 const identifiedResult = ref(null);
 const selectedReleaseIds = ref([]);
 const selectedPrimaryReleaseId = ref('');
+const selectedCoverReleaseId = ref('');
 const selectedReleaseType = ref('album');
 const selectedArtists = ref([]);
 const selectedGenres = ref([]);
 const selectedCandidateKey = ref('');
 const coverPreviewFailed = ref(false);
-const userCustomCovers = ref([]);
-const newCoverInput = ref('');
+const isSeparatingArtists = ref(false);
+const editableArtists = ref([]);
+const releaseCovers = reactive({});
+
+function getReleaseCover(release) {
+  if (!release?.id) return '';
+
+  const stored = releaseCovers[release.id] || {};
+  const artworkUrls = (stored.artworks || release.artworks || release.coverAlternatives || [])
+    .map((artwork) => typeof artwork === 'string' ? artwork : artwork?.url)
+    .map(normalizeCoverValue)
+    .filter(Boolean);
+
+  return normalizeCoverValue(stored.cover || release.cover || release.coverUrl) || artworkUrls[0] || '';
+}
 
 // Estado de Análisis de Audio
 // 'idle' | 'analyzing' | 'identified' | 'no_match' | 'ambiguous' | 'error'
@@ -583,7 +656,6 @@ const analysisSteps = [
 const form = reactive({
   title: '',
   artist: '',
-  albumArtist: '',
   genre: '',
   year: '',
   track: '',
@@ -593,11 +665,17 @@ const form = reactive({
   cover: ''
 });
 
+// Las portadas pueden llegar desde IndexedDB como Blob/File. El formulario
+// trabaja únicamente con URLs para no llamar a métodos de String sobre binarios.
+function normalizeCoverValue(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
 // Inicializar datos del formulario a partir de la canción seleccionada
 function initFormData() {
   form.title = props.song.title || props.song.name || '';
   form.artist = props.song.artist && props.song.artist !== 'Unknown' ? props.song.artist : '';
-  form.albumArtist = props.song.albumArtist || '';
   if (Array.isArray(props.song.genre)) {
     form.genre = props.song.genre.join(', ');
   } else if (typeof props.song.genre === 'string') {
@@ -611,10 +689,26 @@ function initFormData() {
   form.trackTotal = props.song.trackTotal ? String(props.song.trackTotal) : '';
   form.disk = props.song.disk ? String(props.song.disk) : '';
   form.diskTotal = props.song.diskTotal ? String(props.song.diskTotal) : '';
-  form.cover = props.song.cover || '';
+  form.cover = normalizeCoverValue(props.song.cover);
   coverPreviewFailed.value = false;
-  userCustomCovers.value = [];
-  newCoverInput.value = '';
+  isSeparatingArtists.value = false;
+  editableArtists.value = [];
+  Object.keys(releaseCovers).forEach((k) => delete releaseCovers[k]);
+
+  if (Array.isArray(props.song.releases)) {
+    for (const rel of props.song.releases) {
+      if (rel?.id) {
+        const coverVal = rel.cover || rel.coverUrl || '';
+        const alts = (rel.artworks || rel.coverAlternatives || [coverVal].filter(Boolean)).map((a) =>
+          typeof a === 'string' ? { url: a, source: rel.source || 'release' } : { ...a }
+        );
+        releaseCovers[rel.id] = {
+          cover: coverVal,
+          artworks: alts,
+        };
+      }
+    }
+  }
 
   analysisState.value = 'idle';
   analysisErrorMessage.value = '';
@@ -622,7 +716,16 @@ function initFormData() {
   saveMessage.value = '';
   identifiedResult.value = null;
   selectedReleaseIds.value = props.song.releaseIds ? [...props.song.releaseIds] : [];
-  selectedPrimaryReleaseId.value = props.song.primaryReleaseId || '';
+  selectedPrimaryReleaseId.value = props.song.primaryReleaseId || props.song.releaseIds?.[0] || '';
+  selectedCoverReleaseId.value = props.song.coverReleaseId && selectedReleaseIds.value.includes(props.song.coverReleaseId)
+    ? props.song.coverReleaseId
+    : selectedPrimaryReleaseId.value;
+  const selectedCovers = selectedReleaseIds.value
+    .map((releaseId) => releaseCovers[releaseId]?.cover)
+    .filter(Boolean);
+  if (!selectedCovers.includes(form.cover)) {
+    form.cover = selectedCovers[0] || '';
+  }
   selectedArtists.value = expandArtistNames(props.song.artists || (props.song.artist ? [props.song.artist] : []));
   selectedGenres.value = Array.isArray(props.song.genre) ? [...props.song.genre] : [];
   selectedReleaseType.value = props.song.primaryRelease?.type || 'album';
@@ -632,16 +735,83 @@ function initFormData() {
 watch(() => props.song, initFormData, { immediate: true });
 
 const relatedReleases = computed(() => {
+  const analyzedCandidates = identifiedResult.value?.allCandidates || [];
+  const metadataTitle = identifiedResult.value?.metadata?.title || props.song.title;
+  const metadataArtist = identifiedResult.value?.metadata?.artist || props.song.artist;
+  const candidateReleases = analyzedCandidates
+    .filter((candidate) => {
+      const raw = candidate.raw || {};
+      const releaseTitle = raw.collectionName || raw.album?.title || candidate.album;
+      const titleScore = Math.max(
+        textSimilarityForModal(candidate.title, metadataTitle),
+        textSimilarityForModal(releaseTitle, metadataTitle),
+      );
+      const artistScore = artistSimilarityForModal(candidate.artist, metadataArtist);
+      return releaseTitle && titleScore >= 0.55 && artistScore >= 0.55;
+    })
+    .map((candidate) => {
+      const raw = candidate.raw || {};
+      const releaseTitle = raw.collectionName || raw.album?.title || candidate.album;
+      const providerId = raw.collectionId || raw.album?.id || raw.albumId || releaseTitle;
+      const typeText = String(releaseTitle || '').toLowerCase();
+      const type = /single/.test(typeText) || textSimilarityForModal(releaseTitle, candidate.title) >= 0.92
+        ? 'single'
+        : /ep/.test(typeText) ? 'ep' : 'album';
+      return {
+        ...candidate,
+        id: `${candidate.provider || 'candidate'}:${String(providerId)}`,
+        title: releaseTitle,
+        type,
+        artist: candidate.artist,
+        year: candidate.year || raw.releaseDate?.slice?.(0, 4) || '',
+        trackNumber: candidate.track || raw.trackNumber || 0,
+        trackTotal: candidate.trackTotal || raw.trackCount || 0,
+        cover: candidate.cover || raw.artworkUrl100 || raw.album?.cover_xl || raw.album?.cover_big || '',
+        source: candidate.provider,
+      };
+    });
   const sources = [
     ...(identifiedResult.value?.selectedRecording?.releases || []),
     ...(identifiedResult.value?.releases || []),
+    ...(identifiedResult.value?.recordingCandidates || []).flatMap((candidate) => candidate.releases || []),
+    ...(identifiedResult.value?.candidates || []).flatMap((candidate) => candidate.releases || []),
+    ...candidateReleases,
     ...(props.song.releases || []),
   ];
   const withArtwork = [...sources].sort((left, right) =>
     Number(Boolean(right?.cover || right?.coverUrl)) - Number(Boolean(left?.cover || left?.coverUrl)),
   );
-  return deduplicateReleases(withArtwork).slice(0, 5);
+  const deduplicated = deduplicateReleases(withArtwork);
+  const uniqueById = [...new Map(deduplicated.filter((release) => release?.id).map((release) => [release.id, release])).values()];
+  const currentIds = new Set(props.song.releaseIds || []);
+  const ordered = uniqueById.sort((left, right) =>
+    Number(currentIds.has(right.id)) - Number(currentIds.has(left.id))
+    || Number(Boolean(right.cover || right.coverUrl)) - Number(Boolean(left.cover || left.coverUrl)),
+  );
+  // El panel debe mostrar solo las mejores opciones, conservando siempre los
+  // releases que ya pertenecen a la canción. No se inventan ni fusionan IDs.
+  const maxAnalyzedReleases = 8;
+  if (!identifiedResult.value || ordered.length <= maxAnalyzedReleases) return ordered;
+  const selected = ordered.filter((release) => currentIds.has(release.id));
+  const remaining = ordered.filter((release) => !currentIds.has(release.id));
+  return [...selected, ...remaining].slice(0, Math.max(maxAnalyzedReleases, selected.length));
 });
+
+function textSimilarityForModal(left, right) {
+  const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s*\([^)]*\)\s*$/g, '').trim();
+  const a = normalize(left);
+  const b = normalize(right);
+  if (!a || !b) return 0;
+  if (a === b || a.includes(b) || b.includes(a)) return 1;
+  return 0;
+}
+
+function artistSimilarityForModal(left, right) {
+  const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s*(?:,|&|\b(?:and|y|con|feat\.?)\b)\s*/g, ' ').trim();
+  const a = normalize(left);
+  const b = normalize(right);
+  return a && b && (a === b || a.includes(b) || b.includes(a)) ? 1 : 0;
+}
 const releaseChoices = computed(() => {
   const currentIds = new Set(props.song.releaseIds || []);
   const choices = identifiedResult.value
@@ -676,14 +846,28 @@ const releaseChoices = computed(() => {
   const ranked = [...unique.values()];
   const selected = ranked.filter((release) => currentIds.has(release.id));
   const remaining = ranked.filter((release) => !currentIds.has(release.id));
-  return [...selected, ...remaining.slice(0, Math.max(0, 20 - selected.length))];
+  return [...selected, ...remaining];
 });
+const selectedReleaseChoices = computed(() => releaseChoices.value.filter((release) => selectedReleaseIds.value.includes(release.id)));
+const availableReleaseChoices = computed(() => releaseChoices.value.filter((release) => !selectedReleaseIds.value.includes(release.id)));
 const candidateChoices = computed(() => (identifiedResult.value?.recordingCandidates
   || identifiedResult.value?.candidates
-  || []).map((candidate) => ({
+  || []).map((candidate, index) => ({
     ...candidate,
-    identityKey: candidate.identityKey || candidate.id,
+    identityKey: candidate.identityKey || candidate.id || `${candidate.provider || 'candidate'}:${candidate.title || 'unknown'}:${index}`,
   })));
+const fieldChoiceSections = computed(() => {
+  const choices = identifiedResult.value?.fieldChoices || {};
+  const fields = [
+    { key: 'title', label: 'Título', current: form.title },
+    { key: 'artists', label: 'Artistas', current: selectedArtists.value, isMulti: true },
+    { key: 'genres', label: 'Géneros', current: selectedGenres.value, isMulti: true },
+    { key: 'cover', label: 'Portada', current: form.cover },
+  ];
+  return fields
+    .map((field) => ({ ...field, choices: choices[field.key] || [] }))
+    .filter((field) => field.choices.length);
+});
 const coverCandidateChoices = computed(() => [
   ...candidateChoices.value,
   ...(identifiedResult.value?.allCandidates || []).filter((candidate) => {
@@ -712,56 +896,20 @@ const artistChoices = computed(() => {
 });
 const canSuggestArtistSplit = computed(() => selectedArtists.value.length <= 1 && /\s*(?:&|\by\b|\b(?:feat\.?|ft\.?|featuring)\b)\s*/i.test(form.artist || ''));
 const genreChoices = computed(() => [...new Set((identifiedResult.value?.recording?.genres || []).concat(relatedReleases.value.flatMap((release) => release.genres || [])))].filter(Boolean));
-const coverChoices = computed(() => {
-  const releaseChoicesWithCovers = relatedReleases.value.flatMap((release) => {
-    const url = release.cover || release.coverUrl;
-    const alternatives = Array.isArray(release.coverAlternatives) ? release.coverAlternatives : [];
-    return [
-      ...(url ? [{ url, source: release.source || 'release' }] : []),
-      ...alternatives,
-    ].filter((choice) => choice.url).map((choice) => ({
-      id: `${release.id}:${choice.url}`,
-      url: choice.url,
-      releaseTitle: release.title,
-      source: choice.source || release.source || 'release',
-    }));
-  });
-  const candidateChoicesWithCovers = coverCandidateChoices.value.flatMap((candidate) => {
-    const raw = candidate.raw || {};
-    const urls = [candidate.cover, ...(candidate.coverAlternatives || []).map((choice) => choice.url), raw.artworkUrl100, raw.artworkUrl60, raw.cover, raw.coverUrl]
-      .filter(Boolean)
-      .map((url) => String(url).replace(/100x100bb/g, '600x600bb'));
-    return [...new Set(urls)].map((url) => ({
-      id: `candidate:${candidate.identityKey}:${url}`,
-      url,
-      releaseTitle: candidate.album || candidate.title,
-      source: candidate.provider || 'candidate',
-    }));
-  });
-  const choices = identifiedResult.value
-    ? releaseChoicesWithCovers
-    : [...releaseChoicesWithCovers, ...candidateChoicesWithCovers];
-  const sourcePriority = {
-    'musicbrainz-release': 5,
-    'musicbrainz-release-group': 4,
-    itunes: 3,
-    acoustid: 2,
-    candidate: 1,
-    release: 1,
-  };
-  const unique = new Map();
-  for (const choice of choices) {
-    const isMusicBrainzCover = /coverartarchive\.org\/release(?:-group)?\//i.test(choice.url);
-    const canonicalUrl = isMusicBrainzCover
-      ? `musicbrainz:${String(choice.releaseTitle || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()}`
-      : choice.url;
-    const previous = unique.get(canonicalUrl);
-    if (!previous || (sourcePriority[choice.source] || 0) > (sourcePriority[previous.source] || 0)) {
-      unique.set(canonicalUrl, choice);
-    }
-  }
-  return [...unique.values()];
-});
+const coverChoices = computed(() => selectedReleaseChoices.value
+  .map((release) => {
+    const url = getReleaseCover(release);
+    return url
+      ? {
+          id: `${release.id}:${url}`,
+          url,
+          releaseId: release.id,
+          releaseTitle: release.title,
+          source: release.source || 'release',
+        }
+      : null;
+  })
+  .filter(Boolean));
 
 const availableCovers = computed(() => {
   const list = [];
@@ -781,51 +929,18 @@ const availableCovers = computed(() => {
     });
   }
 
-  // 1. Portada actual de la pista en la biblioteca
-  if (props.song.cover) {
-    addCover(props.song.cover, props.song.album || props.song.title || 'Actual', 'Biblioteca');
-  }
-
-  // 2. Portadas de los lanzamientos a los que pertenece (priorizando seleccionados)
-  const prioritizedReleases = [...releaseChoices.value].sort((a, b) => {
-    const aSel = selectedReleaseIds.value.includes(a.id) ? 1 : 0;
-    const bSel = selectedReleaseIds.value.includes(b.id) ? 1 : 0;
-    return bSel - aSel;
-  });
-
-  for (const rel of prioritizedReleases) {
-    const coverUrl = rel.cover || rel.coverUrl;
+  // Una canción solo puede usar portadas de sus lanzamientos seleccionados.
+  for (const rel of selectedReleaseChoices.value) {
+    const coverUrl = getReleaseCover(rel);
     if (coverUrl) {
       addCover(coverUrl, rel.title, releaseTypeLabel(rel.type), rel.id);
     }
-    if (Array.isArray(rel.coverAlternatives)) {
-      for (const alt of rel.coverAlternatives) {
-        if (alt?.url) {
-          addCover(alt.url, rel.title, alt.source || 'Alternativa', rel.id);
-        }
-      }
-    }
-  }
-
-  // 3. Portadas descubiertas del reconocimiento de audio
-  for (const choice of coverChoices.value) {
-    addCover(choice.url, choice.releaseTitle, choice.source);
-  }
-
-  // 4. Portadas añadidas manualmente por el usuario mediante enlace
-  for (const url of userCustomCovers.value) {
-    addCover(url, 'Enlace añadido', 'Personalizada');
-  }
-
-  // 5. Portada actualmente activa si no estaba en la lista
-  if (form.cover) {
-    addCover(form.cover, 'Portada elegida', 'URL');
   }
 
   return list;
 });
 
-const currentCoverPreview = computed(() => form.cover || props.song.cover);
+const currentCoverPreview = computed(() => form.cover || normalizeCoverValue(props.song.cover));
 
 function artistName(artist) {
   return typeof artist === 'string' ? artist : artist?.name || '';
@@ -839,7 +954,7 @@ const songMetadataStatus = computed(() => {
   const hasTitle = Boolean(form.title?.trim());
   const hasArtist = Boolean(form.artist?.trim()) && form.artist !== 'Unknown';
   const hasRelease = selectedReleaseIds.value.length > 0;
-  const hasCover = Boolean(form.cover?.trim());
+  const hasCover = Boolean(normalizeCoverValue(form.cover).trim());
 
   const meetsNecessary = hasTitle && hasArtist && hasRelease && hasCover;
 
@@ -916,9 +1031,11 @@ function selectRelease(release) {
   if (!selectedReleaseIds.value.includes(release.id)) selectedReleaseIds.value.push(release.id);
   selectedPrimaryReleaseId.value = release.id;
   selectedReleaseType.value = release.type || 'other';
-  form.albumArtist = release.albumArtist || release.artist || form.albumArtist;
   form.year = release.year || form.year;
-  form.cover = release.cover || release.coverUrl || form.cover;
+  const relCover = getReleaseCover(release);
+  if (relCover) {
+    form.cover = relCover;
+  }
   if (release.trackNumber) form.track = release.trackNumber;
   if (release.trackTotal) form.trackTotal = release.trackTotal;
   if (release.discNumber) form.disk = release.discNumber;
@@ -939,8 +1056,9 @@ function handleReleaseToggle(release) {
     if (!form.year && release.year) {
       form.year = String(release.year);
     }
-    if (!form.cover && (release.cover || release.coverUrl)) {
-      form.cover = release.cover || release.coverUrl;
+    const relCover = getReleaseCover(release);
+    if (!form.cover && relCover) {
+      form.cover = relCover;
     }
   } else {
     if (selectedPrimaryReleaseId.value === release.id) {
@@ -950,6 +1068,28 @@ function handleReleaseToggle(release) {
         selectedReleaseType.value = fallback.type || 'album';
       }
     }
+  }
+}
+
+function removeRelease(release) {
+  selectedReleaseIds.value = selectedReleaseIds.value.filter((id) => id !== release.id);
+  delete releaseCovers[release.id];
+
+  if (selectedPrimaryReleaseId.value === release.id) {
+    selectedPrimaryReleaseId.value = selectedReleaseIds.value[0] || '';
+  }
+  if (selectedCoverReleaseId.value === release.id || !selectedReleaseIds.value.includes(selectedCoverReleaseId.value)) {
+    selectedCoverReleaseId.value = selectedReleaseIds.value[0] || '';
+  }
+
+  const nextCover = selectedReleaseChoices.value.find((item) => item.id === selectedCoverReleaseId.value);
+  form.cover = getReleaseCover(nextCover) || '';
+}
+
+function addRelease(release) {
+  selectRelease(release);
+  if (!form.cover) {
+    form.cover = getReleaseCover(release) || form.cover;
   }
 }
 
@@ -974,37 +1114,95 @@ function selectCandidate(candidate) {
   selectedCandidateKey.value = candidate.identityKey;
   form.title = candidate.title || form.title;
   form.artist = candidate.artist || form.artist;
-  form.albumArtist = candidate.albumArtist || form.albumArtist;
   form.year = candidate.year || form.year;
   form.track = candidate.track || form.track;
   form.trackTotal = candidate.trackTotal || form.trackTotal;
   form.disk = candidate.disk || form.disk;
   form.diskTotal = candidate.diskTotal || form.diskTotal;
-  form.cover = candidate.cover || form.cover;
-  if (Array.isArray(candidate.releases) && candidate.releases.length) {
-    selectedReleaseIds.value = candidate.releases.map((release) => release.id);
-    selectedPrimaryReleaseId.value = candidate.releases.find((release) => release.type === 'album')?.id
-      || candidate.releases[0].id;
-  }
+  const candidateCover = normalizeCoverValue(candidate.cover);
+  if (candidateCover) form.cover = candidateCover;
   selectedArtists.value = candidate.artists?.length
     ? expandArtistNames(candidate.artists)
     : candidate.artist
-      ? candidate.artist.split(/\s*,\s*/).filter(Boolean)
+      ? [candidate.artist]
       : selectedArtists.value;
+}
+
+function selectFieldChoice(field, choice) {
+  const value = choice?.value;
+  if (!value) return;
+
+  if (field === 'title') {
+    form.title = value;
+  } else if (field === 'artists') {
+    const artists = selectedArtists.value.includes(value)
+      ? selectedArtists.value.filter((artist) => artist !== value)
+      : [...selectedArtists.value, value];
+    selectedArtists.value = artists;
+    form.artist = artists.join(', ');
+  } else if (field === 'genres') {
+    const genres = selectedGenres.value.includes(value)
+      ? selectedGenres.value.filter((genre) => genre !== value)
+      : [...selectedGenres.value, value];
+    selectedGenres.value = genres;
+    form.genre = genres.join(', ');
+  } else if (field === 'cover') {
+    form.cover = value;
+    coverPreviewFailed.value = false;
+  }
+}
+
+function openArtistSeparator() {
+  if (selectedArtists.value.length > 1) {
+    editableArtists.value = [...selectedArtists.value];
+  } else {
+    editableArtists.value = suggestArtistSplit(form.artist);
+  }
+  if (!editableArtists.value.length) {
+    editableArtists.value = [form.artist || ''];
+  }
+  isSeparatingArtists.value = true;
+}
+
+function addArtistToSeparation() {
+  editableArtists.value.push('');
+}
+
+function removeArtistFromSeparation(index) {
+  if (editableArtists.value.length > 1) {
+    editableArtists.value.splice(index, 1);
+  }
+}
+
+function confirmArtistSeparation() {
+  const cleaned = editableArtists.value.map((a) => a.trim()).filter(Boolean);
+  if (cleaned.length) {
+    selectedArtists.value = cleaned;
+    form.artist = cleaned.join(', ');
+  }
+  isSeparatingArtists.value = false;
+}
+
+function cancelArtistSeparation() {
+  isSeparatingArtists.value = false;
 }
 
 function applyArtistSelection() {
   form.artist = selectedArtists.value.map(artistName).filter(Boolean).join(', ');
 }
 
-function suggestArtistSplit() {
-  const parts = String(form.artist || '')
-    .split(/\s*(?:&|\by\b|\b(?:feat\.?|ft\.?|featuring)\b)\s*/i)
-    .map((part) => part.trim())
+function syncManualArtist() {
+  // El texto del input es la fuente de verdad cuando el usuario lo edita.
+  // selectedArtists puede contener todavía los artistas de la detección
+  // anterior y no debe sobrescribir el cambio al guardar.
+  selectedArtists.value = form.artist
+    .split(/\s*,\s*/)
+    .map((artist) => artist.trim())
     .filter(Boolean);
-  if (parts.length < 2) return;
-  selectedArtists.value = parts;
-  applyArtistSelection();
+}
+
+function suggestArtistSplitLegacy() {
+  openArtistSeparator();
 }
 
 function applyGenreSelection() {
@@ -1018,28 +1216,22 @@ function applyReleaseType() {
 
 function selectCover(choiceOrUrl) {
   const url = typeof choiceOrUrl === 'string' ? choiceOrUrl : choiceOrUrl?.url;
-  form.cover = url || '';
-  coverPreviewFailed.value = false;
-}
-
-function addCoverFromUrl() {
-  const url = newCoverInput.value.trim();
   if (!url) return;
-  if (!userCustomCovers.value.includes(url)) {
-    userCustomCovers.value.push(url);
+
+  const choiceReleaseId = typeof choiceOrUrl === 'object' ? choiceOrUrl?.releaseId : null;
+  const targetReleaseId = (choiceReleaseId && selectedReleaseIds.value.includes(choiceReleaseId))
+    ? choiceReleaseId
+    : (selectedPrimaryReleaseId.value || selectedReleaseIds.value[0]);
+
+  if (targetReleaseId) {
+    selectedCoverReleaseId.value = targetReleaseId;
+
+    const selectedRelease = releaseChoices.value.find((release) => release.id === targetReleaseId) || null;
+    selectedReleaseType.value = selectedRelease?.type || selectedReleaseType.value;
   }
+
   form.cover = url;
   coverPreviewFailed.value = false;
-  newCoverInput.value = '';
-}
-
-function removeCustomCover(url, event) {
-  event?.stopPropagation();
-  userCustomCovers.value = userCustomCovers.value.filter((u) => u !== url);
-  if (form.cover === url) {
-    const next = availableCovers.value.find((c) => c.url !== url);
-    form.cover = next?.url || '';
-  }
 }
 
 function handleCoverChoiceError(event) {
@@ -1122,9 +1314,21 @@ async function startAudioAnalysis() {
     }
 
     if (result.status === 'ambiguous') {
+      form.title = '';
+      form.artist = '';
+      form.cover = '';
+      selectedReleaseIds.value = [];
+      selectedPrimaryReleaseId.value = '';
+      selectedCoverReleaseId.value = '';
       analysisState.value = 'ambiguous';
-      analysisErrorMessage.value =
-        'Se encontraron varias coincidencias, pero ninguna tiene confianza suficiente.';
+      const auddMissing = result.diagnostics?.warnings?.includes('audd-token-missing');
+      analysisErrorMessage.value = auddMissing
+        ? 'AudD no está configurado. Añade VITE_AUDD_API_TOKEN al archivo .env y reinicia Vite para buscar por audio.'
+        : result.recordingCandidates?.length
+          ? 'Se encontraron varias coincidencias. Elige los datos que quieras aplicar en el panel de revisión.'
+        : result.identificationSource === 'fingerprint' && !result.recordingCandidates?.length
+          ? 'El fingerprint no encontró una coincidencia de audio. No se han aplicado datos del nombre del archivo.'
+          : 'Se encontraron varias coincidencias de audio, pero ninguna tiene confianza suficiente.';
       return;
     }
 
@@ -1147,22 +1351,50 @@ async function startAudioAnalysis() {
       || result.recordingCandidates?.[0]?.id
       || result.candidates?.[0]?.identityKey
       || '';
-    selectedReleaseIds.value = (result.releases || []).map((release) => release.id);
-    selectedPrimaryReleaseId.value = result.releases?.find((release) => release.type === 'album')?.id
-      || result.releases?.[0]?.id
-      || '';
+    const analyzedReleases = (result.releases || []).filter((release) => release?.id);
+    const exactRecordingReleases = (result.selectedRecording?.releases || [])
+      .filter((release) => release?.id);
+    const releasePool = exactRecordingReleases.length
+      ? exactRecordingReleases
+      : analyzedReleases;
+    const normalizeReleaseText = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    const metadataAlbumKey = normalizeReleaseText(metadata.album);
+    const metadataTitleKey = normalizeReleaseText(metadata.title || form.title);
+    const preferredAnalyzedRelease = releasePool.find((release) =>
+      release.id === metadata.musicBrainzReleaseId,
+    ) || releasePool.find((release) =>
+      metadataAlbumKey && normalizeReleaseText(release.title) === metadataAlbumKey,
+    ) || releasePool.find((release) =>
+      release.type === 'single' && metadataTitleKey &&
+      normalizeReleaseText(release.title) === metadataTitleKey,
+    ) || releasePool.find((release) => release.type === 'album')
+      || releasePool[0];
+    const identifiedCover = normalizeCoverValue(metadata.cover);
+    // No copiar aquí metadata.cover al release: puede ser artwork del álbum
+    // padre. La portada del release debe venir asociada a su propio ID.
+    // Una grabación puede pertenecer a varios releases, pero el análisis no
+    // debe marcarlos todos como seleccionados: eso hacía que al guardar se
+    // añadieran álbumes y recopilaciones que el usuario no había elegido.
+    // Se propone únicamente el release más preciso; el resto queda disponible
+    // para que el usuario lo añada manualmente.
+    selectedReleaseIds.value = preferredAnalyzedRelease
+      ? [preferredAnalyzedRelease.id]
+      : [];
+    selectedPrimaryReleaseId.value = preferredAnalyzedRelease?.id || '';
     selectedArtists.value = expandArtistNames(result.recording?.artists || metadata.artists || (metadata.artist ? [metadata.artist] : []));
     selectedGenres.value = [...new Set(result.recording?.genres || metadata.genre || [])];
-    selectedReleaseType.value = result.releases?.find((release) => release.id === metadata.musicBrainzReleaseId)?.type
-      || result.releases?.find((release) => release.type === 'album')?.type
+    selectedReleaseType.value = preferredAnalyzedRelease?.type
       || metadata.releaseType
       || 'album';
 
     form.title = metadata.title || '';
 
     form.artist = metadata.artist || '';
-
-    form.albumArtist = metadata.albumArtist || '';
 
     form.genre =
       Array.isArray(metadata.genre)
@@ -1183,12 +1415,27 @@ async function startAudioAnalysis() {
       ? String(metadata.diskTotal)
       : '';
 
-    form.cover = metadata.cover || '';
-
-    const primaryRelease = result.releases?.find((release) => release.id === selectedPrimaryReleaseId.value)
-      || result.releases?.find((release) => release.type === 'album')
-      || result.releases?.[0];
+    const primaryRelease = selectedReleaseChoices.value.find((release) => release.id === selectedPrimaryReleaseId.value)
+      || selectedReleaseChoices.value[0];
     if (primaryRelease) selectRelease(primaryRelease);
+
+    // Usar primero la portada del release principal. `metadata.cover` puede
+    // proceder de iTunes/Deezer y ser la portada del álbum padre aunque la
+    // grabación identificada sea el sencillo.
+    const primaryCover = getReleaseCover(primaryRelease);
+    const selectedCover = primaryCover
+      ? primaryRelease
+      : selectedReleaseChoices.value.find((release) => getReleaseCover(release));
+    form.cover = primaryCover || identifiedCover || getReleaseCover(selectedCover) || '';
+    selectedCoverReleaseId.value = selectedCover?.id || selectedPrimaryReleaseId.value || '';
+
+    // La portada solo se asocia al release que está seleccionado como portada.
+    // No copiarla a los demás releases disponibles o a los que se añadan
+    // posteriormente sin una portada propia.
+    if (selectedCover?.id && form.cover) {
+      selectedCover.cover = form.cover;
+      selectedCover.coverUrl = form.cover;
+    }
 
     analysisState.value = 'identified';
 
@@ -1227,33 +1474,70 @@ async function saveMetadata() {
   saveMessage.value = '';
 
   try {
+    // El valor visible del campo debe prevalecer sobre la selección que
+    // hubiera generado la identificación automática. Esto permite editar el
+    // artista manualmente sin tocar la lógica de portadas ni de releases.
+    const displayArtist = form.artist.trim() ||
+      (props.song.artist && props.song.artist !== 'Unknown'
+        ? props.song.artist.trim()
+        : '');
+    const savedArtists = displayArtist
+      ? displayArtist.split(/\s*,\s*/).map((artist) => artist.trim()).filter(Boolean)
+      : [];
+    selectedArtists.value = savedArtists;
     const updatedData = {
       title: form.title,
-      artist: form.artist,
-      albumArtist: form.albumArtist,
+      artist: displayArtist,
       genre: form.genre,
       year: form.year,
       track: form.track,
       trackTotal: form.trackTotal,
       disk: form.disk,
       diskTotal: form.diskTotal,
-      cover: form.cover?.trim() || null,
-      artists: selectedArtists.value,
-      artistCredits: selectedArtists.value.map((artist) => typeof artist === 'string'
-        ? { name: artist, role: 'main', joinphrase: '' }
-        : artist),
+      // La portada de la canción siempre debe pertenecer a un release seleccionado.
+      cover: normalizeCoverValue(form.cover).trim() || null,
+      artists: savedArtists,
+      artistCredits: savedArtists.map((artist) => ({
+        name: artist,
+        role: 'main',
+        joinphrase: '',
+      })),
       genres: selectedGenres.value,
       releaseIds: selectedReleaseIds.value,
       primaryReleaseId: selectedPrimaryReleaseId.value,
-      releases: releaseChoices.value
+      coverReleaseId: selectedCoverReleaseId.value || selectedPrimaryReleaseId.value || null,
+      releases: selectedReleaseChoices.value
         .filter((release) => selectedReleaseIds.value.includes(release.id))
-        .map((release) => ({
-          id: release.id,
-          title: release.title,
-          name: release.title,
-          type: release.type || 'unknown',
-          year: release.year || '',
-        })),
+        .map((release) => {
+          // Solo la portada del release elegido se actualiza. Las demás
+          // conservan su artwork y no heredan la portada principal de la canción.
+          const releaseCover = release.id === selectedCoverReleaseId.value
+            ? normalizeCoverValue(form.cover).trim()
+            : getReleaseCover(release);
+          const existingArtworks = (release.artworks || release.coverAlternatives || [])
+            .map((artwork) => typeof artwork === 'string'
+              ? { url: artwork, source: release.source || 'release' }
+              : { ...artwork })
+            .filter((artwork) => artwork?.url);
+          const artworks = releaseCover
+            ? [
+                ...existingArtworks.filter((artwork) => artwork.url !== releaseCover),
+                { url: releaseCover, source: release.source || 'manual' },
+              ]
+            : existingArtworks;
+          return {
+            ...release,
+            id: release.id,
+            title: release.title,
+            name: release.title,
+            type: release.type || 'unknown',
+            year: release.year || '',
+            cover: releaseCover || null,
+            coverUrl: releaseCover || '',
+            artworks,
+            coverAlternatives: artworks.map((artwork) => ({ ...artwork })),
+          };
+        }),
       releaseType: selectedReleaseType.value,
       identifiedMetadata: identifiedResult.value
     };

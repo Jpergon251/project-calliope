@@ -9,6 +9,7 @@ import {
   textSimilarity,
   durationSimilarity,
 } from "./identificationRanking.js";
+import { identifyAudio } from "./audioIdentification.js";
 
 test("fusiona cuatro providers en un recording", () => {
   const context = { title: "A Bocaitos", artist: "Decai", duration: 180 };
@@ -155,6 +156,32 @@ test("fusiona el mismo release de MusicBrainz e iTunes y conserva artwork", () =
   assert.equal(merged[0].artwork.length, 2);
 });
 
+test("prefiere artwork real frente a una URL sintetica de Cover Art Archive", () => {
+  const merged = deduplicateReleases([
+    {
+      id: "mb-release",
+      title: "Album",
+      type: "album",
+      artist: "Artist",
+      year: "2020",
+      provider: "musicbrainz",
+      cover: "https://coverartarchive.org/release/mb-release/front-500",
+    },
+    {
+      id: "itunes:123",
+      title: "Album",
+      type: "album",
+      artist: "Artist",
+      year: "2020",
+      provider: "itunes",
+      cover: "https://images.example/album.jpg",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].cover, "https://images.example/album.jpg");
+});
+
 test("elimina la copia sin portada cuando representa el mismo release", () => {
   const merged = deduplicateReleases([
     { id: "itunes:album", title: "Album", type: "album", artist: "Artist", year: "2023", provider: "itunes", cover: "cover" },
@@ -197,4 +224,93 @@ test("descarta titulos coincidentes con artistas incompatibles", () => {
     { provider: "itunes", recordingId: "wrong", title: "Demasiado Lejos", artist: "Nordi", duration: 180 },
   ], { title: "Demasiado Lejos", artist: "Morat", duration: 180 });
   assert.deepEqual(ranked.map((candidate) => candidate.recordingId), ["valid"]);
+});
+
+test("acepta un artista parcial cuando titulo y duracion coinciden", () => {
+  const ranked = rankRecordingCandidates([
+    { provider: "deezer", title: "BANSHEE", artist: "Los Diozes", duration: 236 },
+  ], {
+    title: "BANSHEE",
+    artist: "Los Diozes & Hidalgo",
+    duration: 236,
+  });
+
+  assert.equal(ranked.length, 1);
+});
+
+test("fusiona variantes de artistas con comas y colaboraciones", () => {
+  const ranked = rankRecordingCandidates([
+    { provider: "itunes", title: "Consejo de Amor (con Morat)", artist: "TINI, Morat", duration: 202 },
+  ], {
+    title: "Consejo de Amor",
+    artist: "Tini, Morat",
+    duration: 202,
+  });
+
+  assert.equal(ranked.length, 1);
+});
+
+test("conserva titulos simbolicos entre album y single", () => {
+  const ranked = rankRecordingCandidates([
+    { provider: "itunes", title: "+", artist: "Aitana & Cali y El Dandee", duration: 219 },
+  ], {
+    title: "+ (MÁS)",
+    artist: "Aitana & Cali y El Dandee",
+    duration: 219,
+  });
+
+  assert.equal(ranked.length, 1);
+});
+
+test("identifyAudio usa AudioContext global cuando no hay window", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAudioContext = globalThis.AudioContext;
+  const originalWindow = globalThis.window;
+
+  class FakeAudioContext {
+    decodeAudioData() {
+      return Promise.resolve({
+        duration: 180,
+        sampleRate: 48000,
+        numberOfChannels: 1,
+        length: 48000 * 180,
+        getChannelData: () => new Float32Array(48000 * 180),
+      });
+    }
+
+    close() {
+      return Promise.resolve();
+    }
+  }
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    headers: { get: () => null },
+    text: async () => JSON.stringify({ recordings: [], results: [] }),
+  });
+  globalThis.AudioContext = FakeAudioContext;
+  globalThis.window = undefined;
+
+  try {
+    const result = await identifyAudio(
+      new File([new Uint8Array(32)], "Song - Artist.mp3", { type: "audio/mpeg" }),
+    );
+
+    assert.ok(result);
+    assert.equal(result.status, "no_match");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalAudioContext === undefined) {
+      delete globalThis.AudioContext;
+    } else {
+      globalThis.AudioContext = originalAudioContext;
+    }
+    if (originalWindow === undefined) {
+      delete globalThis.window;
+    } else {
+      globalThis.window = originalWindow;
+    }
+  }
 });

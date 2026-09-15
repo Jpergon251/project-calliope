@@ -153,8 +153,6 @@ import { DiscAlbum, Heart, Pause, Pencil, Play, ThumbsDown, ThumbsUp } from "luc
 import CoverArt from "../components/common/CoverArt.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 import MetadataModal from "../components/modals/MetadataModal.vue";
-import { getCoverForSong } from "../services/musicRelations.js";
-
 const route = useRoute();
 const router = useRouter();
 const library = useLibraryStore();
@@ -164,18 +162,12 @@ const song = computed(() =>
   library.songs.find(s => s.id === route.params.id)
 );
 
-const songCover = computed(() => getCoverForSong(
-  song.value,
-  { type: song.value?.contextReleaseId ? "release" : "song", releaseId: song.value?.contextReleaseId },
-  library.releases,
-) || song.value?.cover);
+// La página de la canción representa la canción de la biblioteca, no un
+// release concreto. Por eso debe usar su portada principal (`song.cover`).
+// Álbumes y sencillos sí resuelven su portada mediante el release contextual.
+const songCover = computed(() => song.value?.cover || null);
 
-const songFallbackCover = computed(() => {
-  const covers = (song.value?.releases || [])
-    .map((release) => release?.cover || release?.coverUrl)
-    .filter(Boolean);
-  return covers.find((cover) => cover !== songCover.value) || null;
-});
+const songFallbackCover = computed(() => null);
 
 const isCurrentSong = computed(() => library.playingSong?.id === song.value?.id);
 
@@ -186,7 +178,10 @@ const songArtists = computed(() => {
 });
 
 const releaseNames = computed(() => {
-  const names = (song.value?.releases || [])
+  const releaseIds = Array.isArray(song.value?.releaseIds) ? song.value.releaseIds : [];
+  const names = releaseIds
+    .map((id) => library.releases.find((release) => release.id === id))
+    .concat(song.value?.releases || [])
     .map((release) => release?.title)
     .filter(Boolean);
   return [...new Set(names)].join(', ') || song.value?.album || '';

@@ -5,6 +5,7 @@ const MAX_RELEASES = 5;
 
 const PROVIDER_WEIGHTS = {
   acoustid: 1,
+  audd: 1,
   musicbrainz_isrc: 0.99,
   musicbrainz: 0.92,
   optional: 0.95,
@@ -33,6 +34,27 @@ function normalizeArtist(value) {
     .trim();
 }
 
+function artistTextSimilarity(left, right) {
+  const normalizedLeft = normalizeArtist(left);
+  const normalizedRight = normalizeArtist(right);
+  if (!normalizedLeft || !normalizedRight) return 0;
+  if (normalizedLeft === normalizedRight) return 1;
+
+  const split = (value) => value
+    .split(/\s*(?:,|&|\b(?:and|y|con|feat\.?|ft\.?|featuring)\b)\s*/i)
+    .map((item) => normalizeArtist(item))
+    .filter(Boolean);
+  const leftArtists = new Set(split(normalizedLeft));
+  const rightArtists = new Set(split(normalizedRight));
+  const shared = [...leftArtists].filter((artist) => rightArtists.has(artist));
+
+  if (shared.length && (shared.length === leftArtists.size || shared.length === rightArtists.size)) {
+    return 0.92;
+  }
+
+  return textSimilarity(normalizedLeft, normalizedRight);
+}
+
 function normalizeTitle(value) {
   return normalizeComparable(value)
     .replace(/\b(?:feat|ft|featuring)\b.*$/g, "")
@@ -41,8 +63,21 @@ function normalizeTitle(value) {
     .trim();
 }
 
+function comparableTitle(value) {
+  const raw = clean(value)
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .replace(/\s*\[[^\]]*\]\s*$/g, "")
+    .trim()
+    .toLowerCase();
+  return normalizeTitle(raw) || raw;
+}
+
 function titleSimilarity(left, right) {
-  return Math.max(textSimilarity(left, right), textSimilarity(normalizeTitle(left), normalizeTitle(right)));
+  return Math.max(
+    textSimilarity(left, right),
+    textSimilarity(normalizeTitle(left), normalizeTitle(right)),
+    textSimilarity(comparableTitle(left), comparableTitle(right)),
+  );
 }
 
 function releaseTextKey(release) {
@@ -141,7 +176,7 @@ function artistSimilarity(candidate, context) {
   const candidateArtists = artistNames(candidate);
   const referenceArtists = artistNames(context);
   if (!candidateArtists.length || !referenceArtists.length) return 0;
-  return Math.max(...candidateArtists.flatMap((candidateArtist) => referenceArtists.map((referenceArtist) => textSimilarity(candidateArtist, referenceArtist))));
+  return Math.max(...candidateArtists.flatMap((candidateArtist) => referenceArtists.map((referenceArtist) => artistTextSimilarity(candidateArtist, referenceArtist))));
 }
 
 function providerWeight(candidate) {
@@ -157,12 +192,18 @@ function exactEvidence(candidate, context) {
 }
 
 function candidateIsPlausible(candidate, context) {
-  const titleScore = textSimilarity(candidate?.title, context.title);
+  const titleScore = titleSimilarity(candidate?.title, context.title);
   const artistScore = artistSimilarity(candidate, context);
+  const durationScore = durationSimilarity(candidate?.duration, context.duration);
   const hasExactEvidence = exactEvidence(candidate, context) > 0;
   const hasCandidateArtist = artistNames(candidate).length > 0;
   if (titleScore < 0.58) return false;
-  if (hasCandidateArtist && artistNames(context).length && artistScore < 0.7 && !hasExactEvidence) return false;
+  const titleAndDurationMatch = Number(candidate?.duration) > 0
+    && Number(context?.duration) > 0
+    && titleScore >= 0.92
+    && durationScore >= 0.9
+    && artistScore >= 0.5;
+  if (hasCandidateArtist && artistNames(context).length && artistScore < 0.7 && !hasExactEvidence && !titleAndDurationMatch) return false;
   return true;
 }
 
@@ -242,7 +283,7 @@ function releaseIdentityKey(release) {
   if (release?.barcode) return `barcode:${normalizeComparable(release.barcode)}`;
   if (release?.catalogNumber) return `catalog:${normalizeComparable(release.catalogNumber)}|${normalizeArtist(release.artist || release.albumArtist)}`;
   if (release?.musicBrainzReleaseId && !String(release.musicBrainzReleaseId).startsWith("itunes:")) return `release:${release.musicBrainzReleaseId}`;
-  if (release?.id && !String(release.id).startsWith("itunes:")) return `release:${release.id}`;
+  if (release?.id && !String(release.id).startsWith("itunes:") && !String(release.id).startsWith("local:")) return `release:${release.id}`;
   if (release?.releaseGroupId) return `group:${release.releaseGroupId}|${normalizeComparable(release.title)}|${release.type}`;
   return `text:${releaseTextKey(release)}`;
 }
@@ -250,24 +291,31 @@ function releaseIdentityKey(release) {
 function releasesRepresentSameEdition(left, right) {
   const leftId = String(left?.id || left?.musicBrainzReleaseId || "");
   const rightId = String(right?.id || right?.musicBrainzReleaseId || "");
-  const leftIsSynthetic = !leftId || leftId.startsWith("itunes:") || leftId.startsWith("release_");
-  const rightIsSynthetic = !rightId || rightId.startsWith("itunes:") || rightId.startsWith("release_");
+  const leftIsSynthetic = !leftId || leftId.startsWith("itunes:") || leftId.startsWith("release_") || leftId.startsWith("local:");
+  const rightIsSynthetic = !rightId || rightId.startsWith("itunes:") || rightId.startsWith("release_") || rightId.startsWith("local:");
   if (!leftIsSynthetic && !rightIsSynthetic && leftId !== rightId) return false;
+  const leftType = normalizeComparable(left?.type);
+  const rightType = normalizeComparable(right?.type);
+  if (leftType && rightType && leftType !== rightType) return false;
+  const isSpecial = (t) => /\b(deluxe|special|edici[oó]n|remaster|bonus|anniversary|expanded)\b/i.test(t || "");
+  if (isSpecial(left?.title) !== isSpecial(right?.title)) return false;
   const leftTitle = normalizeComparable(left?.title);
   const rightTitle = normalizeComparable(right?.title);
   const leftArtist = normalizeArtist(left?.artist || left?.albumArtist);
   const rightArtist = normalizeArtist(right?.artist || right?.albumArtist);
-  const leftType = normalizeComparable(left?.type);
-  const rightType = normalizeComparable(right?.type);
-  if (!leftTitle || leftTitle !== rightTitle || leftArtist !== rightArtist || leftType !== rightType) return false;
+  if (!leftTitle || leftTitle !== rightTitle || leftArtist !== rightArtist) return false;
   if (left?.releaseGroupId && right?.releaseGroupId && left.releaseGroupId !== right.releaseGroupId) return false;
   const leftYear = clean(left?.year || left?.releaseDate).slice(0, 4);
   const rightYear = clean(right?.year || right?.releaseDate).slice(0, 4);
   return !leftYear || !rightYear || leftYear === rightYear;
 }
 
+function isSyntheticCoverUrl(value) {
+  return /(?:^|\/)coverartarchive\.org\//i.test(String(value || ""));
+}
+
 export function calculateReleaseScore(release, recording = {}) {
-  const titleScore = textSimilarity(release?.title, recording?.album || recording?.title);
+  const titleScore = titleSimilarity(release?.title, recording?.album || recording?.title);
   const artistScore = artistSimilarity(release, recording);
   const exactRecording = release?.recordingIds?.includes(recording?.recordingId) || release?.recordingId === recording?.recordingId ? 1 : 0;
   const sourceScore = providerWeight(release);
@@ -293,8 +341,12 @@ export function deduplicateReleases(releases = []) {
       continue;
     }
     current.providers = [...new Set([...(current.providers || []), ...(release.providers || [release.provider])].filter(Boolean))];
-    if (!current.cover && release.cover) current.cover = release.cover;
-    if (!current.coverUrl && release.coverUrl) current.coverUrl = release.coverUrl;
+    if (release.cover && (!current.cover || (isSyntheticCoverUrl(current.cover) && !isSyntheticCoverUrl(release.cover)))) {
+      current.cover = release.cover;
+    }
+    if (release.coverUrl && (!current.coverUrl || (isSyntheticCoverUrl(current.coverUrl) && !isSyntheticCoverUrl(release.coverUrl)))) {
+      current.coverUrl = release.coverUrl;
+    }
     current.artwork = [...new Map([
       ...(current.artwork || []),
       ...(release.artwork || []),
@@ -306,9 +358,11 @@ export function deduplicateReleases(releases = []) {
 }
 
 export function rankReleases(releases = [], recording = {}, options = {}) {
-  const limit = Number.isInteger(options.limit) && options.limit > 0
-    ? options.limit
-    : MAX_RELEASES;
+  const limit = options.limit === Infinity
+    ? Infinity
+    : Number.isInteger(options.limit) && options.limit > 0
+      ? options.limit
+      : MAX_RELEASES;
   return deduplicateReleases(releases)
     .map((release) => ({ ...release, similarity: calculateReleaseScore(release, recording), confidence: calculateReleaseScore(release, recording) }))
     .sort((left, right) => right.similarity - left.similarity)

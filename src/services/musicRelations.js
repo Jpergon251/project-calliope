@@ -29,6 +29,40 @@ export function selectPrimaryRelease(song, releases = []) {
   return [...candidates].sort((a, b) => releaseScore(a, song) - releaseScore(b, song))[0];
 }
 
+export function applyReleaseCoverSelection(releases = [], targetReleaseId, newCoverUrl, source = 'manual') {
+  return releases.map((release) => {
+    if (!release || release.id !== targetReleaseId) {
+      return { ...release };
+    }
+
+    const existingArtworks = Array.isArray(release.artworks)
+      ? release.artworks.map((artwork) => ({ ...artwork }))
+      : Array.isArray(release.coverAlternatives)
+        ? release.coverAlternatives.map((artwork) => ({ ...artwork }))
+        : [];
+
+    const prevCover = release.cover || release.coverUrl;
+    if (prevCover && !existingArtworks.some((artwork) => artwork.url === prevCover)) {
+      existingArtworks.push({ url: prevCover, source: release.source || 'release' });
+    }
+    if (newCoverUrl && !existingArtworks.some((artwork) => artwork.url === newCoverUrl)) {
+      existingArtworks.push({ url: newCoverUrl, source });
+    }
+
+    return {
+      ...release,
+      cover: newCoverUrl,
+      coverUrl: newCoverUrl,
+      artworks: existingArtworks,
+      coverAlternatives: existingArtworks.map((artwork) => ({ ...artwork })),
+    };
+  });
+}
+
+export function setReleasePrimaryCover(releases = [], targetReleaseId, newCoverUrl, source = 'manual') {
+  return applyReleaseCoverSelection(releases, targetReleaseId, newCoverUrl, source);
+}
+
 export function getCoverForSong(song, context = {}, releases = []) {
   if (!song) return null;
   const releaseId = context.releaseId || (context.type === "song" || context.type === "library"
