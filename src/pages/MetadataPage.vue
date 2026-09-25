@@ -567,29 +567,11 @@ async function runAutomaticMetadata() {
           });
           continue;
         }
-        const releases = (
-          result.releases ||
-          result.metadata.releases ||
-          []
-        ).filter(Boolean);
-        const primaryReleaseId =
-          result.metadata.musicBrainzReleaseId ||
-          releases.find((release) => release.type === "album")?.id ||
-          releases[0]?.id ||
-          "";
-        const primaryRelease = releases.find(
-          (release) => release.id === primaryReleaseId,
-        );
         await library.updateSongMetadata(song.id, {
           ...result.metadata,
           artists: result.recording?.artists || result.metadata.artists || [],
           artistCredits: result.recording?.artistCredits || [],
           genres: result.metadata.genre || result.recording?.genres || [],
-          releases,
-          releaseIds: releases.map((release) => release.id).filter(Boolean),
-          primaryReleaseId,
-          releaseType:
-            primaryRelease?.type || result.metadata.releaseType || "album",
         });
         autoResults.value.push({
           id: song.id,

@@ -230,7 +230,15 @@ export function createRecording(input = {}) {
     artist: (input.artistCredits || input.artists || input.artistEntity || input.artistEntities)
       ? artistsToDisplayString(artistCredits)
       : clean(input.artist) || artistsToDisplayString(artistCredits),
+    // Song metadata is deliberately self-contained. `album` is only text;
+    // it never identifies a mutable collection or artwork owner.
+    album: clean(input.album),
     albumArtist: clean(input.albumArtist),
+    year: Number(input.year) || null,
+    track: Number(input.track) || null,
+    trackTotal: Number(input.trackTotal) || null,
+    disk: Number(input.disk) || null,
+    diskTotal: Number(input.diskTotal) || null,
     duration: Number(input.duration) || 0,
     metadata: input.metadata || {},
     releaseIds: [...new Set(input.releaseIds || [])],

@@ -8,6 +8,14 @@
   background: var(--bg-primary);
 }
 
+// El modal de metadatos usa <Teleport to="body">, así que normalmente no es
+// hijo de esta página. Si por algún motivo se montara aquí dentro, `.song-page`
+// tiene `isolation: isolate`, y todo su contenido quedaría en el nivel 0 frente
+// al sidebar (z-index: 10) y la barra de reproducción (z-index: 20).
+.song-page:has(> .metadata-modal-backdrop) {
+  z-index: 100;
+}
+
 .song-atmosphere {
   position: fixed;
   z-index: 0;
@@ -42,9 +50,17 @@
   display: none;
 }
 
-.song-page > *:not(.song-atmosphere) {
+// Los hijos directos de la página se apilan sobre el visualizador de fondo...
+.song-page > *:not(.song-atmosphere):not(.metadata-modal-backdrop):not([role="dialog"]):not(.modal-backdrop) {
   position: relative;
   z-index: 1;
+}
+
+// ...pero los overlays modales deben escapar del stacking context de `.song-page`
+// para poder cubrir toda la ventana (el modal de metadatos se monta aquí).
+.song-page > .metadata-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
 }
 
 .song-hero {

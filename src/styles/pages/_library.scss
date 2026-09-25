@@ -340,7 +340,8 @@
     width: 100%;
   }
 
-  .library-all-grid {
+  .library-all-grid,
+  .library-carousels {
     display: flex;
     flex-direction: column;
 
@@ -519,7 +520,8 @@
     // ----------------------------------------------------------
 
     .library-content-body {
-      .library-all-grid {
+      .library-all-grid,
+      .library-carousels {
         gap: 32px;
       }
     }

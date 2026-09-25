@@ -260,6 +260,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+
+  previewLimit: {
+    type: Number,
+    default: 10,
+  },
 });
 
 const library = useLibraryStore();
@@ -332,10 +337,12 @@ function refreshPreviewArtists() {
     return;
   }
 
+  const limit = props.previewLimit || PREVIEW_LIMIT;
+
   if (searchQuery.value) {
     previewArtists.value = artists.slice(
       0,
-      PREVIEW_LIMIT
+      limit
     );
 
     return;
@@ -343,7 +350,7 @@ function refreshPreviewArtists() {
 
   previewArtists.value = shuffle(artists).slice(
     0,
-    PREVIEW_LIMIT
+    limit
   );
 }
 
@@ -395,10 +402,7 @@ function openArtist(artist) {
 
 function openAllArtists() {
   router.push({
-    path: "/library",
-    query: {
-      category: "artists",
-    },
+    path: "/artists",
   });
 }
 

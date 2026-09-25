@@ -164,3 +164,21 @@ test("deduplica artistas involucrados por ID y mantiene varios artistas principa
   assert.deepEqual(release.primaryArtists.map((artist) => artist.name), ["Artist A", "Artist B"]);
   assert.deepEqual(release.involvedArtists.map((artist) => artist.name), ["Artist A", "Artist B"]);
 });
+
+test("dos canciones con el mismo álbum textual conservan portada independiente", () => {
+  const left = createRecording({ id: "left", title: "A", album: "Mismo álbum", cover: "cover-a" });
+  const right = createRecording({ id: "right", title: "B", album: "Mismo álbum", cover: "cover-b" });
+  left.cover = "cover-a-editada";
+  assert.equal(right.cover, "cover-b");
+  assert.notEqual(left.cover, right.cover);
+});
+
+test("el modelo de canción conserva créditos estructurados sin dividir Andy & Lucas", () => {
+  const collaborative = createRecording({
+    title: "Colaboración",
+    artists: [{ id: "timo", name: "TIMØ" }, { id: "nil", name: "Nil Moliner" }],
+  });
+  const band = createRecording({ artist: "Andy & Lucas" });
+  assert.deepEqual(collaborative.artists.map(({ name }) => name), ["TIMØ", "Nil Moliner"]);
+  assert.deepEqual(band.artists.map(({ name }) => name), ["Andy & Lucas"]);
+});

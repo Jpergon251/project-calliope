@@ -134,14 +134,12 @@
 
     </template>
 
-    <Teleport to="body">
-      <MetadataModal
-        v-if="metadataEditorSong"
-        :song="metadataEditorSong"
-        @close="closeMetadataEditor"
-        @updated="handleMetadataUpdated"
-      />
-    </Teleport>
+    <MetadataModal
+      v-if="metadataEditorSong"
+      :song="metadataEditorSong"
+      @close="closeMetadataEditor"
+      @updated="handleMetadataUpdated"
+    />
   </main>
 </template>
 

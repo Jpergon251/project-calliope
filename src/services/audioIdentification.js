@@ -128,9 +128,83 @@ const CONFIG = {
   diagnostics: {
     enabled: true,
   },
+
+  // Nivel de detalle de los logs en consola:
+  //   "silent" -> nada, "error" -> solo fallos, "warn" -> fallos y avisos,
+  //   "info"   -> resumen del proceso (por defecto), "debug" -> todo.
+  logLevel: ENV.DEV ? "info" : "error",
 };
 
+// Por debajo de este score una coincidencia de huella no se considera fiable.
 const MIN_FINGERPRINT_MATCH_SCORE = 0.5;
+
+// A partir de aquí AcoustID se considera una identificación sólida: la huella
+// coincide con claridad, así que su evidencia (título, artistas y MBID, que ya
+// proceden de MusicBrainz) hace innecesaria la búsqueda textual de MusicBrainz.
+const STRONG_FINGERPRINT_SCORE = 0.85;
+
+// ============================================================================
+// LOGGER
+// ============================================================================
+//
+// Sustituye a los console.* sueltos: respeta `CONFIG.logLevel`, agrupa cada
+// petición en un único mensaje y mantiene el detalle completo accesible solo
+// cuando el nivel es `debug`. Antes había ~70 logs sueltos que hacían ilegible
+// la consola.
+
+const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
+
+const log = {
+  _allowed(level) {
+    return (
+      LOG_LEVELS[level] <= (LOG_LEVELS[CONFIG.logLevel] ?? LOG_LEVELS.info)
+    );
+  },
+
+  _emit(method, scope, message, data) {
+    if (
+      !this._allowed(
+        method === "error"
+          ? "error"
+          : method === "warn"
+            ? "warn"
+            : method === "debug"
+              ? "debug"
+              : "info",
+      )
+    ) {
+      return;
+    }
+    const prefix = `[Calliope${scope ? `:${scope}` : ""}]`;
+    if (data === undefined) console[method](`${prefix} ${message}`);
+    else console[method](`${prefix} ${message}`, data);
+  },
+
+  info(scope, message, data) {
+    this._emit("info", scope, message, data);
+  },
+  warn(scope, message, data) {
+    this._emit("warn", scope, message, data);
+  },
+  error(scope, message, data) {
+    this._emit("error", scope, message, data);
+  },
+  debug(scope, message, data) {
+    this._emit("debug", scope, message, data);
+  },
+};
+
+// Extrae el resumen legible de un error de fetch para el log de diagnóstico.
+function describeError(error) {
+  if (!error) return "error desconocido";
+  const status = error.status ? `HTTP ${error.status}` : "sin respuesta HTTP";
+  const reason =
+    error.name === "AbortError" ? "timeout" : error.message || "fallo de red";
+  const body = error.data?.error?.message
+    ? ` · ${error.data.error.message}`
+    : "";
+  return `${status} · ${reason}${body}`;
+}
 
 // ============================================================================
 // PESOS DE FUENTES
@@ -299,10 +373,9 @@ function trackTitleSimilarity(left, right) {
   );
 }
 
-function similarity(a, b) {
-  const aa = normalizeText(a);
-  const bb = normalizeText(b);
-
+// Distancia de Levenshtein normalizada a 0..1 sobre dos cadenas ya
+// normalizadas. Compartida por todas las comparaciones de similitud.
+function normalizedSimilarity(aa, bb) {
   if (!aa || !bb) {
     return 0;
   }
@@ -311,14 +384,17 @@ function similarity(a, b) {
     return 1;
   }
 
-  const distance = levenshteinDistance(aa, bb);
   const maxLength = Math.max(aa.length, bb.length);
 
   if (!maxLength) {
     return 1;
   }
 
-  return clamp(1 - distance / maxLength);
+  return clamp(1 - levenshteinDistance(aa, bb) / maxLength);
+}
+
+function similarity(a, b) {
+  return normalizedSimilarity(normalizeText(a), normalizeText(b));
 }
 
 function artistSimilarity(a, b) {
@@ -525,42 +601,26 @@ function detectReleaseType(entity) {
   return "unknown";
 }
 
-function extractGenres(entity) {
-  if (!entity) {
+// `genres` y `tags` de MusicBrainz tienen exactamente la misma forma
+// ({ name } o string), así que ambas se leen con un único extractor.
+function extractGenreList(entity, field) {
+  const items = entity?.[field];
+
+  if (!Array.isArray(items)) {
     return [];
   }
 
-  const genres = [];
+  return uniqueGenres(
+    items.map((item) => (typeof item === "string" ? item : item?.name)),
+  );
+}
 
-  if (Array.isArray(entity.genres)) {
-    for (const item of entity.genres) {
-      const value = typeof item === "string" ? item : item?.name;
-
-      if (isUsefulGenre(value)) {
-        genres.push(normalizeGenreName(value));
-      }
-    }
-  }
-
-  return uniqueGenres(genres);
+function extractGenres(entity) {
+  return extractGenreList(entity, "genres");
 }
 
 function extractTags(entity) {
-  if (!entity || !Array.isArray(entity.tags)) {
-    return [];
-  }
-
-  const tags = [];
-
-  for (const item of entity.tags) {
-    const value = typeof item === "string" ? item : item?.name;
-
-    if (isUsefulGenre(value)) {
-      tags.push(normalizeGenreName(value));
-    }
-  }
-
-  return uniqueGenres(tags);
+  return extractGenreList(entity, "tags");
 }
 
 function uniqueGenres(values) {
@@ -712,6 +772,12 @@ async function runProvider(diagnostics, provider, executor) {
       resultCount,
     );
 
+    // Una sola línea por proveedor, con resultado y tiempo.
+    log.debug(
+      "providers",
+      `✔ ${provider} · ${resultCount || "sin"} resultado(s) · ${attempt.durationMs} ms`,
+    );
+
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : safeString(error);
@@ -726,7 +792,18 @@ async function runProvider(diagnostics, provider, executor) {
       provider,
       message,
     });
-    console.warn(`[Calliope] Provider ${provider} failed:`, message);
+
+    // Un fallo se anuncia en una línea; el detalle completo (cuerpo de la
+    // respuesta y stack) solo aparece en nivel `debug`.
+    log.error("providers", `✖ ${provider} · ${describeError(error)}`);
+    log.debug("providers", `Detalle de ${provider}`, {
+      message,
+      httpStatus: error?.status ?? null,
+      retryCount: error?.retryCount ?? 0,
+      durationMs: attempt.durationMs,
+      data: error?.data ?? null,
+      stack: error?.stack ?? null,
+    });
 
     return null;
   }
@@ -740,6 +817,9 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
   const controller = new AbortController();
 
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  const shortUrl =
+    String(url).length > 120 ? `${String(url).slice(0, 120)}…` : String(url);
 
   try {
     const response = await fetch(url, {
@@ -757,6 +837,13 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
       data = null;
     }
 
+    // Una línea por petición, solo en modo debug: antes cada llamada dejaba
+    // varios mensajes y la consola quedaba dominada por tráfico HTTP.
+    log.debug(
+      "http",
+      `${options.method || "GET"} ${response.status} ${shortUrl}`,
+    );
+
     if (!response.ok) {
       const error = new Error(
         `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`,
@@ -766,10 +853,26 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
       error.data = data;
       error.retryAfter = response.headers.get("retry-after");
 
+      if (!data) {
+        log.debug(
+          "http",
+          `Respuesta no-JSON de ${shortUrl}`,
+          text?.slice(0, 200),
+        );
+      }
+
       throw error;
     }
 
     return data;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      log.debug("http", `Timeout de ${timeout} ms en ${shortUrl}`);
+    } else if (!error?.status) {
+      // Sin status HTTP suele ser CORS, DNS, falta de conexión o un bloqueo.
+      log.debug("http", `Fallo de red en ${shortUrl}`, error?.message || error);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -851,6 +954,17 @@ function enqueueMusicBrainz(task) {
   return run;
 }
 
+// Combinaciones de relaciones de MusicBrainz usadas por las consultas. Se
+// centralizan para no repetir la cadena en cada llamada (antes estaba copiada
+// en cinco sitios, con riesgo de que se desincronizaran).
+const MB_INC = {
+  recording: "artist-credits+releases+release-groups+genres+tags+isrcs",
+  recordingFull:
+    "artist-credits+releases+release-groups+media+genres+tags+isrcs",
+  release: "artist-credits+media+release-groups+genres+tags",
+  releaseGroup: "genres+tags+releases",
+};
+
 async function musicBrainzRequest(path, params = {}) {
   if (Date.now() < musicBrainzUnavailableUntil) {
     return null;
@@ -887,8 +1001,9 @@ async function musicBrainzRequest(path, params = {}) {
           ? retryAfter * 1000
           : 30000;
       musicBrainzUnavailableUntil = Date.now() + Math.min(cooldown, 120000);
-      console.warn(
-        "[Calliope] MusicBrainz no disponible temporalmente; se continúa con los demás providers.",
+      log.warn(
+        "musicbrainz",
+        "Servicio no disponible temporalmente; se continúa con las demás fuentes",
       );
       return null;
     }
@@ -1017,6 +1132,14 @@ async function decodeAudio(file) {
 
   try {
     return await context.decodeAudioData(arrayBuffer.slice(0));
+  } catch (error) {
+    // Un fallo aquí explica que no haya huella y que AcoustID ni se consulte:
+    // casi siempre es un formato que el navegador no sabe decodificar.
+    log.error(
+      "fingerprint",
+      `No se pudo decodificar el audio (${file?.type || "tipo desconocido"}) · formato no soportado por el navegador`,
+    );
+    throw error;
   } finally {
     await context.close().catch(() => {});
   }
@@ -1073,6 +1196,13 @@ async function generateFingerprint(file) {
   const fingerprint = fingerprinter.getCompressedFingerprint();
   fingerprinter.free();
 
+  log.info(
+    "fingerprint",
+    fingerprint
+      ? `Huella lista · ${String(fingerprint).length} chars · ${audioBuffer.duration.toFixed(1)} s @ ${audioBuffer.sampleRate} Hz`
+      : "Huella vacía",
+  );
+
   return {
     fingerprint,
     duration: audioBuffer.duration,
@@ -1082,35 +1212,110 @@ async function generateFingerprint(file) {
 }
 
 // ============================================================================
+// CONSTRUCCIÓN DE CANDIDATOS DESDE UNA GRABACIÓN
+// ============================================================================
+//
+// AcoustID, MusicBrainz/ISRC y MusicBrainz/búsqueda textual reciben el mismo
+// tipo de grabación y extraen exactamente los mismos campos. Antes ese bloque
+// estaba copiado en los tres sitios.
+
+function candidateFromRecording(
+  recording,
+  { provider, sourceType, providerScore, duration, isrc, raw } = {},
+) {
+  return makeCandidate({
+    provider,
+    sourceType,
+    providerScore,
+
+    title: recording?.title,
+    artist: extractArtistCredit(recording),
+    artists: extractArtistCredits(recording),
+    artistCredits: extractArtistCredits(recording),
+
+    album:
+      recording?.releases?.[0]?.title ||
+      recording?.["release-group"]?.title ||
+      recording?.releasegroups?.[0]?.title ||
+      "",
+
+    duration,
+
+    recordingId: safeString(recording?.id),
+    releaseId: safeString(recording?.releases?.[0]?.id),
+    releaseGroupId: safeString(
+      recording?.["release-group"]?.id || recording?.releasegroups?.[0]?.id,
+    ),
+
+    isrc: normalizeIsrc(isrc || recording?.isrcs?.[0]),
+
+    genres: extractGenres(recording),
+    tags: extractTags(recording),
+
+    raw: raw ?? recording,
+  });
+}
+
+// ============================================================================
 // ACOUSTID
 // ============================================================================
 
 async function queryAcoustID(fingerprint, duration) {
-  if (!fingerprint || !CONFIG.acoustid.client) {
-    return [];
+  if (!fingerprint) {
+    throw new Error("Sin huella acústica para consultar AcoustID");
   }
 
-  const url = new URL(CONFIG.acoustid.endpoint);
+  if (!CONFIG.acoustid.client) {
+    throw new Error(
+      "Falta VITE_ACOUSTID_CLIENT: define la clave de AcoustID en el archivo .env",
+    );
+  }
 
-  url.searchParams.set("client", CONFIG.acoustid.client);
+  // AcoustID espera POST para huellas largas; por GET la URL se trunca y el
+  // servidor devuelve "invalid fingerprint".
+  //
+  // El `meta` se limita a `recordings` a propósito. Pedir además
+  // `releasegroups` o `releases` hace que AcoustID devuelva la coincidencia
+  // (score ~0.97) pero con el array `recordings` VACÍO, porque no puede
+  // resolver esas relaciones para la huella y descarta el bloque entero.
+  // Verificado con una canción real: con `recordings` llega el título y el
+  // artista; con "recordings+releasegroups+releases" (o con `+compress`)
+  // `recordings` queda en 0 y AcoustID se marcaba como fallido aunque la
+  // huella coincidiera. Los lanzamientos se obtienen después desde
+  // MusicBrainz, así que no se pierde información.
+  const body = new URLSearchParams({
+    client: CONFIG.acoustid.client,
+    meta: "recordings",
+    duration: String(Math.round(duration || 0)),
+    fingerprint,
+  });
 
-  url.searchParams.set("meta", "recordings+releasegroups+releases+compress");
-
-  url.searchParams.set("duration", String(Math.round(duration || 0)));
-
-  url.searchParams.set("fingerprint", fingerprint);
+  const startedAt = performance.now();
 
   const data = await fetchJsonWithRetry(
-    url.toString(),
-    {},
+    CONFIG.acoustid.endpoint,
     {
-      timeout: 15000,
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    },
+    {
+      timeout: 20000,
       retries: 1,
     },
   );
 
-  const results = Array.isArray(data?.results) ? data.results : [];
+  if (data?.status && data.status !== "ok") {
+    throw new Error(
+      data?.error?.message || "AcoustID devolvió un estado de error",
+    );
+  }
 
+  if (data?.error) {
+    throw new Error(data.error.message || "AcoustID devolvió un error");
+  }
+
+  const results = Array.isArray(data?.results) ? data.results : [];
   const candidates = [];
 
   for (const result of results) {
@@ -1122,45 +1327,30 @@ async function queryAcoustID(fingerprint, duration) {
 
     for (const recording of recordings) {
       candidates.push(
-        makeCandidate({
+        candidateFromRecording(recording, {
           provider: "acoustid",
           sourceType: "fingerprint",
           providerScore: score,
-
-          title: recording?.title,
-
-          artist: extractArtistCredit(recording),
-
-          artists: extractArtistCredits(recording),
-
-          artistCredits: extractArtistCredits(recording),
-
-          album:
-            recording?.releases?.[0]?.title ||
-            recording?.releasegroups?.[0]?.title ||
-            "",
-
-          duration: duration,
-
-          recordingId: safeString(recording?.id),
-
-          releaseId: safeString(recording?.releases?.[0]?.id),
-
-          releaseGroupId: safeString(recording?.releasegroups?.[0]?.id),
-
-          isrc: normalizeIsrc(recording?.isrcs?.[0]),
-
-          genres: extractGenres(recording),
-
-          tags: extractTags(recording),
-
-          raw: {
-            acoustid: result,
-            recording,
-          },
+          duration,
+          raw: { acoustid: result, recording },
         }),
       );
     }
+  }
+
+  // Un único resumen de la consulta: antes eran 8 mensajes sueltos.
+  log.info(
+    "acoustid",
+    candidates.length
+      ? `Coincidencia · ${candidates.length} candidato(s) · ${Math.round(performance.now() - startedAt)} ms`
+      : `Sin coincidencias · ${results.length} resultado(s) de la API · ${Math.round(performance.now() - startedAt)} ms`,
+  );
+
+  if (!results.length) {
+    log.debug(
+      "acoustid",
+      "La huella no coincide con ninguna grabación conocida",
+    );
   }
 
   return candidates;
@@ -1264,7 +1454,7 @@ async function queryMusicBrainzISRC(isrc) {
   const data = await musicBrainzRequest(
     `/isrc/${encodeURIComponent(normalized)}`,
     {
-      inc: "artist-credits+releases+release-groups+genres+tags+isrcs",
+      inc: MB_INC.recording,
       fmt: "json",
     },
   );
@@ -1272,37 +1462,11 @@ async function queryMusicBrainzISRC(isrc) {
   const recordings = Array.isArray(data?.recordings) ? data.recordings : [];
 
   return recordings.map((recording) =>
-    makeCandidate({
+    candidateFromRecording(recording, {
       provider: "musicbrainz_isrc",
       sourceType: "isrc",
       providerScore: 1,
-
-      title: recording?.title,
-
-      artist: extractArtistCredit(recording),
-
-      artists: extractArtistCredits(recording),
-
-      artistCredits: extractArtistCredits(recording),
-
-      album:
-        recording?.releases?.[0]?.title ||
-        recording?.["release-group"]?.title ||
-        "",
-
-      recordingId: safeString(recording?.id),
-
-      releaseId: safeString(recording?.releases?.[0]?.id),
-
-      releaseGroupId: safeString(recording?.["release-group"]?.id),
-
       isrc: normalized,
-
-      genres: extractGenres(recording),
-
-      tags: extractTags(recording),
-
-      raw: recording,
     }),
   );
 }
@@ -1323,7 +1487,7 @@ async function musicBrainzSearch(query) {
   const data = await musicBrainzRequest("/recording", {
     query,
     limit: "25",
-    inc: "artist-credits+releases+release-groups+genres+tags+isrcs",
+    inc: MB_INC.recording,
     fmt: "json",
   });
 
@@ -1407,38 +1571,10 @@ async function queryMusicBrainzText(local, filename) {
       }
 
       results.push(
-        makeCandidate({
+        candidateFromRecording(recording, {
           provider: "musicbrainz",
           sourceType: "text",
-
           providerScore: clamp(Number(recording?.score || 0) / 100),
-
-          title: recording?.title,
-
-          artist: extractArtistCredit(recording),
-
-          artists: extractArtistCredits(recording),
-
-          artistCredits: extractArtistCredits(recording),
-
-          album:
-            recording?.releases?.[0]?.title ||
-            recording?.["release-group"]?.title ||
-            "",
-
-          recordingId: id,
-
-          releaseId: safeString(recording?.releases?.[0]?.id),
-
-          releaseGroupId: safeString(recording?.["release-group"]?.id),
-
-          isrc: normalizeIsrc(recording?.isrcs?.[0]),
-
-          genres: extractGenres(recording),
-
-          tags: extractTags(recording),
-
-          raw: recording,
         }),
       );
     }
@@ -2624,7 +2760,7 @@ async function lookupMusicBrainzRecording(recordingId) {
   }
 
   return musicBrainzRequest(`/recording/${encodeURIComponent(recordingId)}`, {
-    inc: "artist-credits+releases+release-groups+media+genres+tags+isrcs",
+    inc: MB_INC.recordingFull,
     fmt: "json",
   });
 }
@@ -2715,7 +2851,7 @@ async function lookupMusicBrainzRelease(releaseId) {
   }
 
   return musicBrainzRequest(`/release/${encodeURIComponent(releaseId)}`, {
-    inc: "artist-credits+media+release-groups+genres+tags",
+    inc: MB_INC.release,
     fmt: "json",
   });
 }
@@ -2728,7 +2864,7 @@ async function lookupMusicBrainzReleaseGroup(releaseGroupId) {
   return musicBrainzRequest(
     `/release-group/${encodeURIComponent(releaseGroupId)}`,
     {
-      inc: "genres+tags+releases",
+      inc: MB_INC.releaseGroup,
       fmt: "json",
     },
   );
@@ -3556,23 +3692,70 @@ function findAcoustID(candidates) {
 // IDENTIFICACIÓN PRINCIPAL
 // ============================================================================
 
-export async function identifyAudio(file) {
+// Pasos que sigue la identificación, en orden. La UI los usa para mostrar el
+// avance real del análisis; el motor los reporta vía `onProgress`.
+export const IDENTIFICATION_STEPS = [
+  { id: "local", label: "Leyendo metadatos del archivo" },
+  { id: "fingerprint", label: "Generando huella acústica" },
+  { id: "acoustid", label: "Consultando AcoustID" },
+  { id: "providers", label: "Consultando fuentes de metadatos" },
+  { id: "grouping", label: "Agrupando candidatos" },
+  { id: "enrichment", label: "Enriqueciendo con MusicBrainz" },
+  { id: "genres", label: "Resolviendo géneros" },
+  { id: "cover", label: "Buscando portadas" },
+];
+
+function createProgressReporter(onProgress) {
+  if (typeof onProgress !== "function") {
+    return () => {};
+  }
+
+  return (stepId, status = "active", detail = "") => {
+    const index = IDENTIFICATION_STEPS.findIndex((step) => step.id === stepId);
+
+    try {
+      onProgress({
+        step: stepId,
+        label: IDENTIFICATION_STEPS[index]?.label || stepId,
+        index: index === -1 ? 0 : index,
+        total: IDENTIFICATION_STEPS.length,
+        status,
+        detail,
+      });
+    } catch {
+      // Un fallo en el consumidor del progreso nunca debe romper el análisis.
+    }
+  };
+}
+
+export async function identifyAudio(file, { onProgress } = {}) {
   if (!file) {
     return null;
   }
 
+  const report = createProgressReporter(onProgress);
+
   const diagnostics = createDiagnostics();
 
-  console.log("[Calliope] CALLIOPE AUDIO IDENTIFICATION");
-  console.log("[Calliope] Archivo:", file);
+  log.info("start", `Analizando "${file.name}"`);
+  log.debug("start", "Configuración de proveedores", {
+    acoustidClient: CONFIG.acoustid.client ? "definido" : "VACÍO (revisa .env)",
+    musicbrainzUserAgent: CONFIG.musicbrainz.userAgent,
+    deezerProxy: CONFIG.deezer.proxyEndpoint || "(sin proxy)",
+    optionalProvider: CONFIG.optionalProvider.enabled,
+  });
 
   // --------------------------------------------------------------------------
   // 1. Metadata local
   // --------------------------------------------------------------------------
 
+  report("local", "active");
+
   const local = await readLocalMetadata(file);
 
   diagnostics.evidence.localMetadata = local;
+
+  report("local", "complete", local.title || local.artist || "");
 
   // --------------------------------------------------------------------------
   // 2. Filename
@@ -3595,6 +3778,8 @@ export async function identifyAudio(file) {
   let fingerprintData = null;
   let acoustidCandidates = [];
 
+  report("fingerprint", "active");
+
   await runProvider(diagnostics, "chromaprint", async () => {
     fingerprintData = await generateFingerprint(file);
 
@@ -3609,9 +3794,17 @@ export async function identifyAudio(file) {
     return fingerprintData ? [fingerprintData] : [];
   });
 
+  report(
+    "fingerprint",
+    fingerprintData?.fingerprint ? "complete" : "failed",
+    fingerprintData?.fingerprint ? "Huella lista" : "Sin huella",
+  );
+
   // --------------------------------------------------------------------------
   // 4. AcoustID
   // --------------------------------------------------------------------------
+
+  report("acoustid", "active");
 
   if (fingerprintData?.fingerprint) {
     await runProvider(diagnostics, "acoustid", async () => {
@@ -3622,12 +3815,37 @@ export async function identifyAudio(file) {
 
       return acoustidCandidates;
     });
+
+    const acoustidAttempt = [...diagnostics.attempts]
+      .reverse()
+      .find((attempt) => attempt.provider === "acoustid");
+
+    report(
+      "acoustid",
+      acoustidAttempt?.status === "error"
+        ? "failed"
+        : acoustidCandidates.length
+          ? "complete"
+          : "failed",
+      acoustidAttempt?.status === "error"
+        ? acoustidAttempt.error || "Error al consultar AcoustID"
+        : acoustidCandidates.length
+          ? `${acoustidCandidates.length} coincidencias`
+          : "Sin coincidencias",
+    );
   } else {
     const attempt = beginAttempt(diagnostics, "acoustid");
 
     finishAttempt(attempt, "skipped", 0, {
       reason: "fingerprint-unavailable",
     });
+
+    log.error(
+      "acoustid",
+      "Omitido: no hay huella acústica. Revisa si el formato del archivo se puede decodificar.",
+    );
+
+    report("acoustid", "failed", "Sin huella acústica");
   }
 
   // --------------------------------------------------------------------------
@@ -3650,11 +3868,28 @@ export async function identifyAudio(file) {
   }
 
   // --------------------------------------------------------------------------
-  // 6. TODAS las fuentes textuales
+  // 6. Fuentes textuales
   //
-  // No paramos porque AcoustID haya encontrado algo.
-  // Todas siguen aportando evidencia.
+  // AcoustID ya consulta MusicBrainz internamente y devuelve título, artistas
+  // y el MBID de la grabación. Si la huella dio una coincidencia fuerte, la
+  // búsqueda textual de MusicBrainz es redundante (y la más limitada por el
+  // rate limit de 1 req/s), así que se omite. iTunes, Deezer y LRCLIB se
+  // mantienen porque aportan portadas y géneros que AcoustID no trae.
   // --------------------------------------------------------------------------
+
+  report("providers", "active");
+
+  const strongAcousticMatch = acoustidCandidates.some(
+    (candidate) => candidate.providerScore >= STRONG_FINGERPRINT_SCORE,
+  );
+
+  if (strongAcousticMatch) {
+    const attempt = beginAttempt(diagnostics, "musicbrainz");
+
+    finishAttempt(attempt, "skipped", 0, {
+      reason: "covered-by-acoustid-fingerprint",
+    });
+  }
 
   const [
     musicBrainzCandidates,
@@ -3663,9 +3898,11 @@ export async function identifyAudio(file) {
     lrclibCandidates,
     optionalCandidates,
   ] = await Promise.all([
-    runProvider(diagnostics, "musicbrainz", async () =>
-      queryMusicBrainzText(local, filename),
-    ),
+    strongAcousticMatch
+      ? Promise.resolve([])
+      : runProvider(diagnostics, "musicbrainz", async () =>
+          queryMusicBrainzText(local, filename),
+        ),
 
     runProvider(diagnostics, "itunes", async () =>
       queryITunes(local, filename),
@@ -3686,6 +3923,8 @@ export async function identifyAudio(file) {
       : Promise.resolve([]),
   ]);
 
+  report("providers", "complete");
+
   // --------------------------------------------------------------------------
   // 7. Todos los candidatos
   // --------------------------------------------------------------------------
@@ -3699,10 +3938,6 @@ export async function identifyAudio(file) {
     ...(lrclibCandidates || []),
     ...(optionalCandidates || []),
   ];
-
-  console.log("[Calliope] Acoustic providers:", {
-    acoustid: acoustidCandidates.length,
-  });
 
   for (const candidate of allCandidates) {
     candidate.rawScore = scoreCandidate(candidate, context);
@@ -3741,12 +3976,10 @@ export async function identifyAudio(file) {
   diagnostics.evidence.recordingCandidateLimit =
     IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS;
 
-  console.log(
-    "[Calliope] Recording stages:",
-    diagnostics.evidence.recordingStages,
+  log.info(
+    "candidates",
+    `${allCandidates.length} recopilados · ${rankedRecordingCandidates.length} tras deduplicar y ordenar`,
   );
-
-  console.log("[Calliope] Candidatos totales:", allCandidates.length);
 
   if (!allCandidates.length) {
     diagnostics.finishedAt = new Date().toISOString();
@@ -3766,6 +3999,8 @@ export async function identifyAudio(file) {
   // --------------------------------------------------------------------------
   // 8. Agrupación
   // --------------------------------------------------------------------------
+
+  report("grouping", "active");
 
   const clusters = clusterCandidates(rankedRecordingCandidates);
 
@@ -3800,16 +4035,18 @@ export async function identifyAudio(file) {
   // 9. Diagnóstico de candidatos
   // --------------------------------------------------------------------------
 
-  console.log("[Calliope] Identidades agrupadas:", identities.length);
+  log.debug("grouping", `${identities.length} identidad(es) agrupada(s)`);
 
-  for (const identity of identities.slice(0, 10)) {
-    console.log("[Calliope] Candidato:", {
+  log.debug(
+    "grouping",
+    "Identidades",
+    identities.slice(0, 10).map((identity) => ({
       title: identity.title,
       artist: identity.artist,
-      confidence: identity.confidence,
+      confidence: Number(identity.confidence.toFixed(3)),
       providers: identity.providers,
-    });
-  }
+    })),
+  );
 
   // --------------------------------------------------------------------------
   // 10. Elegir ganador
@@ -3925,17 +4162,17 @@ export async function identifyAudio(file) {
   if (competingEvidence) {
     diagnostics.warnings.push("competing-candidates-reviewable");
     diagnostics.competingCandidates = identities.slice(0, 10);
-    console.warn(
-      "[Calliope] Evidencia competida; se devuelve propuesta revisable",
-      {
-        winner: winner.confidence,
-        second: second.confidence,
-      },
+    log.warn(
+      "grouping",
+      `Evidencia competida (${winner.confidence.toFixed(2)} vs ${second.confidence.toFixed(2)}); se devuelve propuesta revisable`,
     );
   }
 
   if (!validation.valid) {
-    console.warn("[Calliope] Candidato rechazado:", validation);
+    log.warn(
+      "validation",
+      `Candidato rechazado · ${validation.problems.join(", ")}`,
+    );
 
     diagnostics.finishedAt = new Date().toISOString();
 
@@ -3957,6 +4194,9 @@ export async function identifyAudio(file) {
   // --------------------------------------------------------------------------
   // 12. Enriquecimiento MusicBrainz
   // --------------------------------------------------------------------------
+
+  report("grouping", "complete");
+  report("enrichment", "active");
 
   let recording = null;
   let release = null;
@@ -4034,11 +4274,10 @@ export async function identifyAudio(file) {
     afterDedupe: deduplicateReleases(diagnostics.evidence.rawReleases).length,
     final: winnerDiscoveredReleases.length,
   };
-  console.log(
-    "[Calliope] Release discovery for:",
-    `${winner.title} — ${winner.artist}`,
+  log.info(
+    "grouping",
+    `Ganador: ${winner.title} — ${winner.artist} · ${winner.confidence.toFixed(2)} · ${winner.providers.join("+")}`,
   );
-  console.log("[Calliope] Final releases:", winnerDiscoveredReleases.length);
 
   const preferredRelease = choosePreferredRelease(
     recording,
@@ -4093,9 +4332,13 @@ export async function identifyAudio(file) {
 
   releaseGroup = releaseGroup || releaseGroupFallback;
 
+  report("enrichment", "complete");
+
   // --------------------------------------------------------------------------
   // 13. Géneros
   // --------------------------------------------------------------------------
+
+  report("genres", "active");
 
   const genreResolution = resolveGenresImproved({
     recording,
@@ -4107,13 +4350,22 @@ export async function identifyAudio(file) {
 
   diagnostics.evidence.genreResolution = genreResolution;
 
-  console.log("[Calliope] Géneros seleccionados:", genreResolution.selected);
+  log.debug("genres", "Seleccionados", genreResolution.selected);
+  log.debug("genres", "Descartados", genreResolution.discarded);
 
-  console.log("[Calliope] Géneros descartados:", genreResolution.discarded);
+  report(
+    "genres",
+    "complete",
+    genreResolution.selected?.length
+      ? genreResolution.selected.join(", ")
+      : "Sin géneros",
+  );
 
   // --------------------------------------------------------------------------
   // 14. Cover
   // --------------------------------------------------------------------------
+
+  report("cover", "active");
 
   const mbCover = await getCoverFromMusicBrainz(
     release?.id || winner.releaseId,
@@ -4178,21 +4430,27 @@ export async function identifyAudio(file) {
 
   diagnostics.finishedAt = new Date().toISOString();
 
-  console.log("[Calliope] IDENTIFICACIÓN CONSENSUADA");
+  // Un único resumen final en lugar de 9 líneas sueltas.
+  log.info(
+    "done",
+    `Identificado: ${metadata.title} — ${metadata.artist} · ${winner.confidence.toFixed(2)} · ${winner.providers.join("+")}`,
+  );
 
-  console.log("[Calliope] Título:", metadata.title);
+  log.debug("done", "Resumen de proveedores", {
+    attempts: diagnostics.attempts.map((attempt) => ({
+      provider: attempt.provider,
+      status: attempt.status,
+      results: attempt.resultCount,
+      ms: attempt.durationMs,
+      error: attempt.error || undefined,
+    })),
+    errors: diagnostics.errors,
+    warnings: diagnostics.warnings,
+    genres: metadata.genre,
+    metadata,
+  });
 
-  console.log("[Calliope] Artista:", metadata.artist);
-
-  console.log("[Calliope] Confianza:", winner.confidence);
-
-  console.log("[Calliope] Fuentes:", winner.providers);
-
-  console.log("[Calliope] Géneros:", metadata.genre);
-
-  console.log("[Calliope] CANCIÓN IDENTIFICADA");
-
-  console.log("[Calliope] Resultado final:", metadata);
+  report("cover", "complete", cover ? "Portada encontrada" : "Sin portada");
 
   return {
     status: "match",
@@ -4201,13 +4459,17 @@ export async function identifyAudio(file) {
 
     recording: normalized.recording,
 
-    releases: normalized.releases,
+    // A recording is the only entity exposed to the application. MusicBrainz
+    // release data may be consulted internally as metadata evidence, but never
+    // becomes a relationship, candidate, or artwork owner in Calliope.
+    evidence: {
+      ...normalized.evidence,
+      release: undefined,
+    },
 
-    releaseGroups: normalized.releaseGroups,
-
-    evidence: normalized.evidence,
-
-    confidenceByEntity: normalized.confidence,
+    confidenceByEntity: {
+      recordingConfidence: normalized.confidence.recordingConfidence,
+    },
 
     confidence: winner.confidence,
 

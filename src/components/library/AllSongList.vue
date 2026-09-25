@@ -138,6 +138,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+
+  previewLimit: {
+    type: Number,
+    default: 10,
+  },
 });
 
 const library = useLibraryStore();
@@ -223,6 +228,8 @@ function refreshPreviewSongs() {
     return;
   }
 
+  const limit = props.previewLimit || PREVIEW_LIMIT;
+
   /*
    * Si hay una búsqueda activa, mostramos los primeros
    * resultados relevantes en lugar de resultados aleatorios.
@@ -230,7 +237,7 @@ function refreshPreviewSongs() {
   if (searchQuery.value) {
     previewSongs.value = songs.slice(
       0,
-      PREVIEW_LIMIT
+      limit
     );
 
     return;
@@ -238,7 +245,7 @@ function refreshPreviewSongs() {
 
   previewSongs.value = library.smartShuffle(songs).slice(
     0,
-    PREVIEW_LIMIT
+    limit
   );
 }
 
@@ -275,10 +282,7 @@ async function scrollCarousel(direction) {
 
 function openAllSongs() {
   router.push({
-    path: "/library",
-    query: {
-      category: "songs",
-    },
+    path: "/songs",
   });
 }
 

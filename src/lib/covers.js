@@ -67,16 +67,12 @@ export function clearCoverCache() {
 }
 
 /**
- * Resuelve la portada de una canción asegurando que si la canción no tiene
- * portada directa pero pertenece a un álbum con portada, la obtenga de ahí.
+ * Resuelve exclusivamente la portada propia de una canción. El texto de álbum
+ * no implica herencia de artwork.
  */
 export function resolveSongCover(library, song) {
   if (!song) return null;
   if (song.cover) return toDisplayUrl(song.cover);
-  if (song.albumId && Array.isArray(library?.albums)) {
-    const album = library.albums.find((a) => a.id === song.albumId);
-    if (album?.cover) return toDisplayUrl(album.cover);
-  }
   return null;
 }
 

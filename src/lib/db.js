@@ -2,7 +2,7 @@ import { openDB } from "idb";
 
 export const dbPromise = openDB(
   "music-player",
-  12,
+  13,
   {
     upgrade(db) {
 
@@ -61,28 +61,9 @@ export const dbPromise = openDB(
         store.createIndex("artist", "artist", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains("releases")) {
-        const store = db.createObjectStore("releases", { keyPath: "id" });
-        store.createIndex("musicBrainzReleaseId", "musicBrainzReleaseId", { unique: false });
-        store.createIndex("releaseGroupId", "releaseGroupId", { unique: false });
-        store.createIndex("type", "type", { unique: false });
-        store.createIndex("artist", "artist", { unique: false });
-        store.createIndex("title", "title", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("releaseGroups")) {
-        const store = db.createObjectStore("releaseGroups", { keyPath: "id" });
-        store.createIndex("musicBrainzReleaseGroupId", "musicBrainzReleaseGroupId", { unique: false });
-        store.createIndex("primaryType", "primaryType", { unique: false });
-        store.createIndex("title", "title", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("releaseTracks")) {
-        const store = db.createObjectStore("releaseTracks", { keyPath: "id" });
-        store.createIndex("recordingId", "recordingId", { unique: false });
-        store.createIndex("releaseId", "releaseId", { unique: false });
-        store.createIndex("releaseTrack", ["releaseId", "discNumber", "trackNumber"], { unique: false });
-      }
+      // Existing release/releaseGroup/releaseTrack stores are intentionally
+      // retained on upgrade for non-destructive compatibility. They are no
+      // longer created for new libraries and are never part of the live flow.
 
       if (!db.objectStoreNames.contains("artists")) {
         const store = db.createObjectStore("artists", { keyPath: "id" });
@@ -95,6 +76,12 @@ export const dbPromise = openDB(
         store.createIndex("releaseId", "releaseId", { unique: false });
         store.createIndex("recordingId", "recordingId", { unique: false });
         store.createIndex("source", "source", { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains("songs")) {
+        const store = db.createObjectStore("songs", { keyPath: "id" });
+        store.createIndex("fileId", "fileId", { unique: false });
+        store.createIndex("musicBrainzRecordingId", "musicBrainzRecordingId", { unique: false });
       }
 
     }
