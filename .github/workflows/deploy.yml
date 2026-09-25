@@ -5,6 +5,8 @@ on:
     branches: ['main']
   workflow_dispatch:
 
+env:
+  VITE_ACOUSTID_CLIENT: gCqZRLkoQU
 permissions:
   contents: read
   pages: write
