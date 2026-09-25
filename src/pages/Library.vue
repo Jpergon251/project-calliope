@@ -35,9 +35,17 @@
       </div>
     </header>
 
+
+
     <main class="library-content-body">
       <NoFolderState v-if="!library.folderHandle" />
       <div v-else class="library-carousels">
+
+        <PLList
+          :search-query="searchQuery"
+          :preview="true"
+          :preview-limit="20"
+        />
         <AllSongList
           :search-query="searchQuery"
           :preview="true"
@@ -61,6 +69,7 @@ import AllSongList from '../components/library/AllSongList.vue';
 import ArtistList from '../components/library/ArtistList.vue';
 import NoFolderState from '../components/common/NoFolderState.vue';
 import { useLibraryStore } from '../stores/libraryStore.js';
+import PLList from '../components/library/PLList.vue';
 
 const library = useLibraryStore();
 const route = useRoute();
