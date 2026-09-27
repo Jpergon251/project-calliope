@@ -88,43 +88,7 @@
       </div>
     </section>
 
-    <!-- 4. "Álbumes más escuchados" (ordenados según historial) -->
-    <section v-if="user.profile.homeShowTopAlbums && topAlbums.length > 0" class="home-section" aria-labelledby="top-albums-title">
-      <div class="section-title-row">
-        <div>
-          <h2 id="top-albums-title" class="section-heading">Álbumes más escuchados</h2>
-          <p class="section-subheading">Tus álbumes favoritos según tu actividad</p>
-        </div>
-        <RouterLink to="/albums" class="section-link">Ver álbumes</RouterLink>
-      </div>
-
-      <div class="albums-fluid-grid">
-        <div
-          v-for="album in topAlbums"
-          :key="album.id"
-          class="home-album-card"
-          role="button"
-          tabindex="0"
-          @click="goToAlbum(album.id)"
-          @keyup.enter="goToAlbum(album.id)"
-        >
-          <div class="album-cover-frame">
-            <CoverArt :cover="album.cover" kind="album" :alt="album.name" />
-            <button class="album-play-overlay-btn" type="button" aria-label="Ver álbum">
-              <Play fill="currentColor" :size="20" />
-            </button>
-          </div>
-
-          <div class="album-meta-info">
-            <strong class="album-name" :title="album.name">{{ album.name }}</strong>
-            <span class="album-artist">{{ album.artist || 'Varios artistas' }}</span>
-            <span class="album-plays-tag">{{ album.playCount }} {{ album.playCount === 1 ? 'reproducción' : 'reproducciones' }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. "Playlists más escuchadas" (ordenadas según historial) -->
+    <!-- 4. "Playlists más escuchadas" (ordenadas según historial) -->
     <section v-if="user.profile.homeShowTopPlaylists && topPlaylists.length > 0" class="home-section" aria-labelledby="top-playlists-title">
       <div class="section-title-row">
         <div>
@@ -286,36 +250,7 @@ function refreshQuickPicks() {
   quickPickSongs.value = library.smartShuffle(all).slice(0, 6);
 }
 
-// 3. "Álbumes más escuchados": real counts from listening history
-const topAlbums = computed(() => {
-  const history = library.listeningHistory || [];
-  if (history.length === 0) return [];
-
-  const counts = new Map();
-  for (const item of history) {
-    if (item.type === 'album') {
-      counts.set(item.itemId, (counts.get(item.itemId) || 0) + 1);
-    } else if (item.type === 'song') {
-      const song = library.songs.find(s => s.id === item.itemId);
-      if (song && song.albumId) {
-        counts.set(song.albumId, (counts.get(song.albumId) || 0) + 1);
-      }
-    }
-  }
-
-  if (counts.size === 0) return [];
-
-  return Array.from(counts.entries())
-    .map(([albumId, count]) => {
-      const album = library.albums.find(a => a.id === albumId);
-      return album ? { ...album, playCount: count } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.playCount - a.playCount)
-    .slice(0, 6);
-});
-
-// 4. "Playlists más escuchadas": real counts from listening history
+// 3. "Playlists más escuchadas": real counts from listening history
 const topPlaylists = computed(() => {
   const history = library.listeningHistory || [];
   if (history.length === 0) return [];
@@ -347,7 +282,6 @@ const recentHistoryItems = computed(() => {
 
 function getTypeName(type) {
   switch (type) {
-    case 'album': return 'Álbum';
     case 'playlist': return 'Playlist';
     default: return 'Canción';
   }

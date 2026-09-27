@@ -51,7 +51,7 @@
           @keyup.enter="goToArtist(artist.name)"
         >
           <div class="artist-avatar">
-            <img v-if="artist.cover" :src="artist.cover" :alt="artist.name" />
+            <img v-if="artist.customCover" :src="artist.customCover" :alt="artist.name" />
             <div v-else class="artist-avatar-fallback">
               <User :size="38" />
             </div>

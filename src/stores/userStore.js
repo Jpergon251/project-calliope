@@ -18,6 +18,8 @@ import { useLibraryStore } from "./libraryStore.js";
 const LS_LEGACY_KEY = "calliope-user-profile";
 const LS_SESSION_KEY = "calliope-active-session";
 const SS_GUEST_KEY = "calliope-guest-session";
+const SS_PENDING_PREFS_KEY = "calliope-pending-preferences";
+const LS_GUEST_PREFS_KEY = "calliope-guest-preferences";
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
 
@@ -59,6 +61,8 @@ export const useUserStore = defineStore("user", () => {
   const loaded = ref(false);
   const profilesList = ref([]);
   const currentSession = ref(null); // { type: 'registered' | 'guest', profileId: string | null, isGuest: boolean, startedAt: number }
+  // Preferencias elegidas antes de que exista un perfil (onboarding).
+  const pendingPreferences = ref({ ...DEFAULT_PREFERENCES });
 
   const hasSession = computed(() => Boolean(currentSession.value));
   const isGuest = computed(() => Boolean(currentSession.value?.isGuest));
@@ -107,9 +111,30 @@ export const useUserStore = defineStore("user", () => {
       ...DEFAULT_PREFERENCES,
       ...(raw.preferences || {}),
     };
+    // Una preferencia guardada como undefined no debe pisar el valor por defecto.
+    for (const key of Object.keys(preferences)) {
+      if (preferences[key] === undefined) {
+        preferences[key] = DEFAULT_PREFERENCES[key];
+      }
+    }
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
-      if (raw[key] !== undefined && raw.preferences?.[key] === undefined) {
+      // Una clave plana sólo aporta valor si la preferencia no viene ya en
+      // `preferences`; de lo contrario el valor guardado se perdería.
+      if (
+        raw[key] !== undefined &&
+        raw.preferences?.[key] === undefined &&
+        preferences[key] === undefined
+      ) {
         preferences[key] = raw[key];
+      }
+    }
+    // Mantener sincronizadas las claves planas con `preferences`. La interfaz
+    // escribe en las claves planas (profile.accentColor) mientras que el
+    // almacenamiento vive en `preferences`; sin esta copia se persistía el
+    // valor antiguo y los ajustes se revertían al recargar.
+    for (const key of Object.keys(DEFAULT_PREFERENCES)) {
+      if (preferences[key] !== undefined) {
+        raw[key] = preferences[key];
       }
     }
 
@@ -135,7 +160,6 @@ export const useUserStore = defineStore("user", () => {
       ...preferences,
     };
   }
-
   async function loadProfiles() {
     try {
       const db = await dbPromise;
@@ -234,6 +258,13 @@ export const useUserStore = defineStore("user", () => {
     return true;
   }
 
+  function clearPendingPreferences() {
+    pendingPreferences.value = { ...DEFAULT_PREFERENCES };
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(SS_PENDING_PREFS_KEY);
+    }
+  }
+
   function updateSessionActivity() {
     if (!currentSession.value) return;
 
@@ -286,7 +317,11 @@ export const useUserStore = defineStore("user", () => {
               updatedAt: guestSession.lastActivity,
               isPrivate: false,
               credential: null,
-              preferences: { ...DEFAULT_PREFERENCES },
+              preferences: {
+                ...DEFAULT_PREFERENCES,
+                ...toRaw(pendingPreferences.value || {}),
+                ...readGuestPreferences(),
+              },
             });
 
             avatarBlob.value = null;
@@ -348,6 +383,20 @@ export const useUserStore = defineStore("user", () => {
 
   async function load() {
     try {
+      pendingPreferences.value = {
+        ...DEFAULT_PREFERENCES,
+        ...readPendingPreferences(),
+      };
+
+      // `load()` se invoca desde el router, App.vue y varias páginas.
+      // Volver a restaurar la sesión ya restaurada descartaba el perfil
+      // en memoria (con las preferencias aún no guardadas) y lo sustituía
+      // por la copia de IndexedDB, revirtiendo el color de acento y los
+      // ajustes recién cambiados.
+      if (loaded.value && currentSession.value) {
+        return;
+      }
+
       await loadProfiles();
       await restoreSession();
     } catch (err) {
@@ -368,6 +417,11 @@ export const useUserStore = defineStore("user", () => {
     password = "",
     preferences = {},
   }) {
+    // Recoge lo elegido durante el onboarding (p. ej. el color de acento).
+    preferences = {
+      ...toRaw(pendingPreferences.value || {}),
+      ...preferences,
+    };
     const id = generateProfileId();
     let credential = null;
 
@@ -402,6 +456,13 @@ export const useUserStore = defineStore("user", () => {
   }
 
   async function loginProfile(profileId, password = null) {
+    // Este login no es un inicio de sesión: el perfil ya está activo y sólo
+    // se está re-sincronizando la copia en memoria. No debe consumir las
+    // preferencias pendientes del onboarding ni reemplazar el perfil actual.
+    if (loaded.value && currentSession.value?.profileId === profileId) {
+      return { success: true, alreadyActive: true };
+    }
+
     const db = await dbPromise;
     const target = await db.get("profiles", profileId);
 
@@ -431,9 +492,19 @@ export const useUserStore = defineStore("user", () => {
       }
     }
 
-    const normalized = normalizeProfile(target);
+    const normalized = normalizeProfile({
+      ...target,
+      ...(target.preferences || {}),
+      preferences: {
+        ...(target.preferences || {}),
+        ...toRaw(pendingPreferences.value || {}),
+      },
+    });
     profile.value = normalized;
     avatarBlob.value = normalized.avatarBlob || null;
+
+    // Las preferencias pendientes ya forman parte del perfil activo.
+    clearPendingPreferences();
 
     // Crear sesión local con expiración de 24 horas
     createSession(normalized.id);
@@ -471,7 +542,11 @@ export const useUserStore = defineStore("user", () => {
       updatedAt: now,
       isPrivate: false,
       credential: null,
-      preferences: { ...DEFAULT_PREFERENCES },
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        ...readGuestPreferences(),
+        ...toRaw(pendingPreferences.value || {}),
+      },
     });
 
     profile.value = guestProfile;
@@ -513,6 +588,10 @@ export const useUserStore = defineStore("user", () => {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem(SS_GUEST_KEY);
     }
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(LS_GUEST_PREFS_KEY);
+    }
+    clearPendingPreferences();
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem(LS_SESSION_KEY);
     }
@@ -560,10 +639,77 @@ export const useUserStore = defineStore("user", () => {
     return { success: true };
   }
 
+  function readGuestPreferences() {
+    if (typeof localStorage === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(LS_GUEST_PREFS_KEY);
+      return raw ? JSON.parse(raw) || {} : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function readPendingPreferences() {
+    if (typeof sessionStorage === "undefined") return {};
+    try {
+      const raw = sessionStorage.getItem(SS_PENDING_PREFS_KEY);
+      return raw ? JSON.parse(raw) || {} : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function setPendingPreferences(partial = {}) {
+    pendingPreferences.value = {
+      ...pendingPreferences.value,
+      ...partial,
+    };
+
+    if (typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          SS_PENDING_PREFS_KEY,
+          JSON.stringify(pendingPreferences.value)
+        );
+      } catch {
+        // sessionStorage puede no estar disponible; no es crítico.
+      }
+    }
+  }
+
   async function save() {
-    if (isGuest.value || !profile.value.id) {
+    if (!profile.value.id) {
       return;
     }
+
+    // La interfaz edita las claves planas (profile.showVisualizer,
+    // profile.accentColor...), mientras que el almacenamiento vive en
+    // `preferences`. Sincronizamos aquí para que cualquier cambio se
+    // persista, venga de `updateProfile` o de un `v-model` directo.
+    const syncedPreferences = { ...toRaw(profile.value.preferences || {}) };
+    for (const key of Object.keys(DEFAULT_PREFERENCES)) {
+      if (profile.value[key] !== undefined) {
+        syncedPreferences[key] = toRaw(profile.value[key]);
+      }
+    }
+    profile.value.preferences = syncedPreferences;
+
+    // Los invitados no tienen perfil persistente, pero sus preferencias
+    // deben sobrevivir a la navegación y a las recargas de la página.
+    if (isGuest.value) {
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.setItem(
+            LS_GUEST_PREFS_KEY,
+            JSON.stringify(toRaw(profile.value.preferences || {}))
+          );
+        } catch {
+          // Almacenamiento no disponible; las preferencias siguen en memoria.
+        }
+      }
+      return;
+    }
+
     try {
       updateSessionActivity();
 
@@ -610,10 +756,25 @@ export const useUserStore = defineStore("user", () => {
   }
 
   async function updateProfile(partial) {
-    profile.value = { ...profile.value, ...partial };
-    if (!isGuest.value) {
-      await save();
+    // La interfaz escribe claves planas (p. ej. `accentColor`), pero el
+    // almacenamiento vive en `preferences`. Sincronizamos ambas para que
+    // `save()` no persista el valor antiguo.
+    const nextPreferences = { ...(profile.value.preferences || {}) };
+    for (const key of Object.keys(DEFAULT_PREFERENCES)) {
+      if (partial[key] !== undefined) {
+        nextPreferences[key] = partial[key];
+      }
     }
+
+    profile.value = {
+      ...profile.value,
+      ...partial,
+      preferences: nextPreferences,
+    };
+
+    // Los invitados también deben conservar sus ajustes entre recargas,
+    // aunque su perfil no viva en IndexedDB.
+    await save();
   }
 
   async function setAvatar(data) {
@@ -744,7 +905,27 @@ export const useUserStore = defineStore("user", () => {
   };
 
   function applyPreferences() {
-    const p = profile.value;
+    const isPersistentProfile =
+      Boolean(profile.value.id) && profile.value.id !== "guest";
+
+    // Para invitados, las preferencias guardadas viven en localStorage y se
+    // cargan en `profile.preferences`; las claves planas del perfil sólo
+    // aportan el valor por defecto y no deben pisarlas.
+    const savedPreferences = isPersistentProfile
+      ? profile.value.preferences || {}
+      : {
+          // Lo guardado en disco gana sobre los valores por defecto, y las
+          // preferencias del perfil en memoria ganan sobre ambos.
+          ...toRaw(pendingPreferences.value || {}),
+          ...readGuestPreferences(),
+          ...(profile.value.preferences || {}),
+        };
+
+    const p = {
+      ...DEFAULT_PREFERENCES,
+      ...savedPreferences,
+      ...(isPersistentProfile ? profile.value : {}),
+    };
     const accent = ACCENTS[p.accentColor] || ACCENTS.neon;
     const root = document.documentElement;
     root.style.setProperty("--accent", accent.base);
@@ -797,6 +978,9 @@ export const useUserStore = defineStore("user", () => {
     isSessionValid,
     restoreSession,
     updateSessionActivity,
+    pendingPreferences,
+    setPendingPreferences,
+    clearPendingPreferences,
     startGuestSession,
     isGuestSession,
     setProfilePrivacy,

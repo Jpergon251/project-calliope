@@ -151,11 +151,22 @@
 
                 <button
                   type="button"
-                  class="welcome-button welcome-button-ghost"
+                  class="welcome-button welcome-button-primary"
                   @click="continueAsGuest"
                 >
                   <User :size="17" />
                   Continuar como invitado
+                </button>
+              </div>
+
+              <div class="welcome-actions-row">
+                <button
+                  type="button"
+                  class="welcome-button welcome-button-secondary"
+                  @click="goToNextStep"
+                >
+                  Continuar sin perfil
+                  <ArrowRight :size="17" />
                 </button>
               </div>
             </div>
@@ -383,14 +394,14 @@
                 class="welcome-accent-option"
                 :class="{
                   selected:
-                    user.profile.accentColor === option.value
+                    isAccentSelected(option.value)
                 }"
                 :style="{
                   '--option-color': option.color
                 }"
                 :aria-label="`Usar color ${option.label}`"
                 :aria-pressed="
-                  user.profile.accentColor === option.value
+                  isAccentSelected(option.value)
                 "
                 @click="selectAccent(option.value)"
               >
@@ -398,7 +409,7 @@
 
                 <Check
                   v-if="
-                    user.profile.accentColor === option.value
+                    isAccentSelected(option.value)
                   "
                   :size="16"
                 />
@@ -766,14 +777,27 @@ const draftInitials = computed(() => {
 });
 
 const selectedAccent = computed(() => {
+  const current =
+    user.profile.id && user.profile.id !== "guest"
+      ? user.profile.accentColor
+      : user.pendingPreferences.accentColor;
+
   return (
     ACCENT_OPTIONS.find(
       option =>
-        option.value === user.profile.accentColor
+        option.value === current
     ) ||
     ACCENT_OPTIONS[0]
   );
 });
+
+function isAccentSelected(value) {
+  if (user.profile.id && user.profile.id !== "guest") {
+    return user.profile.accentColor === value;
+  }
+
+  return user.pendingPreferences.accentColor === value;
+}
 
 const selectedAccentLabel = computed(() => {
   return selectedAccent.value.label;
@@ -834,6 +858,7 @@ async function confirmUnlock() {
 }
 
 async function continueAsGuest() {
+  user.clearPendingPreferences();
   await user.startGuestSession();
   router.push("/");
 }
@@ -880,6 +905,19 @@ async function submitNewProfile() {
 }
 
 async function selectAccent(value) {
+  if (
+    user.profile.id === "guest" ||
+    !user.profile.id
+  ) {
+    // Aún no existe perfil: guardamos la elección para aplicarla
+    // al crear el perfil o al entrar como invitado.
+    user.setPendingPreferences({
+      accentColor: value,
+    });
+    user.applyPreferences();
+    return;
+  }
+
   if (user.profile.accentColor === value) {
     return;
   }

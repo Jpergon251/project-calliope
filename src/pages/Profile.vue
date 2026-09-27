@@ -899,18 +899,6 @@
 
         <div class="pref-row">
           <div class="pref-text">
-            <strong>Mostrar álbumes más escuchados</strong>
-            <p>Ranking según tu actividad real de escucha.</p>
-          </div>
-
-          <ToggleSwitch
-            v-model="user.profile.homeShowTopAlbums"
-            @update:modelValue="user.save()"
-          />
-        </div>
-
-        <div class="pref-row">
-          <div class="pref-text">
             <strong>Mostrar playlists más escuchadas</strong>
             <p>Tus listas favoritas según el historial.</p>
           </div>
