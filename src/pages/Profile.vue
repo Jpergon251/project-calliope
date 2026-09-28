@@ -269,14 +269,14 @@
 
         <div class="kpi-card">
           <div class="kpi-icon-wrap">
-            <DiscAlbum :size="18" />
+            <ListMusic :size="18" />
           </div>
           <div class="kpi-info">
-            <span class="kpi-label">Álbumes distintos</span>
+            <span class="kpi-label">Playlists distintas</span>
             <strong class="kpi-value">{{
-              currentStats.uniqueAlbumsCount
+              currentStats.uniquePlaylistsCount
             }}</strong>
-            <span class="kpi-subtext">álbumes escuchados</span>
+            <span class="kpi-subtext">playlists abiertas</span>
           </div>
         </div>
 
@@ -296,11 +296,7 @@
 
       <!-- Spotlight Highlights -->
       <div
-        v-if="
-          currentStats.topSong ||
-          currentStats.topArtist ||
-          currentStats.topAlbum
-        "
+        v-if="currentStats.topSong || currentStats.topArtist"
         class="stats-spotlight-row"
       >
         <!-- Top Song Card -->
@@ -377,44 +373,6 @@
                 >
                 <span class="sep">•</span>
                 <span>{{ currentStats.topArtist.listenTimeFormatted }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Album Card -->
-        <div
-          v-if="currentStats.topAlbum"
-          class="spotlight-card album-spotlight"
-          @click="goToAlbum(currentStats.topAlbum.id)"
-        >
-          <div class="spotlight-badge">
-            <DiscAlbum :size="13" />
-            <span>ÁLBUM MÁS ESCUCHADO</span>
-          </div>
-          <div class="spotlight-body">
-            <div class="spotlight-cover">
-              <img
-                v-if="currentStats.topAlbum.cover"
-                :src="currentStats.topAlbum.cover"
-                :alt="currentStats.topAlbum.name"
-              />
-              <DiscAlbum v-else :size="28" class="spotlight-cover-fallback" />
-            </div>
-            <div class="spotlight-details">
-              <h4 class="spotlight-title" :title="currentStats.topAlbum.name">
-                {{ currentStats.topAlbum.name }}
-              </h4>
-              <p class="spotlight-subtitle">
-                {{ currentStats.topAlbum.artist || "Varios artistas" }}
-              </p>
-              <div class="spotlight-metrics">
-                <span
-                  ><strong>{{ currentStats.topAlbum.plays }}</strong>
-                  reps.</span
-                >
-                <span class="sep">•</span>
-                <span>{{ currentStats.topAlbum.listenTimeFormatted }}</span>
               </div>
             </div>
           </div>
@@ -662,48 +620,43 @@
           </p>
         </div>
 
-        <!-- Top publicaciones -->
+        <!-- Top Playlists -->
         <div class="ranking-panel">
           <div class="ranking-header">
             <h4>
-              <DiscAlbum :size="15" />
-              Top publicaciones
+              <ListMusic :size="15" />
+              Top Playlists
             </h4>
-            <span class="ranking-count" v-if="currentStats.topAlbums.length"
-              >{{ currentStats.topAlbums.length }} publicaciones</span
+            <span class="ranking-count" v-if="currentStats.topPlaylists.length"
+              >{{ currentStats.topPlaylists.length }} playlists</span
             >
           </div>
 
-          <div v-if="currentStats.topAlbums.length" class="ranking-list">
+          <div v-if="currentStats.topPlaylists.length" class="ranking-list">
             <div
-              v-for="alb in currentStats.topAlbums"
-              :key="alb.id || alb.name"
+              v-for="pl in currentStats.topPlaylists"
+              :key="pl.id"
               class="ranking-item clickable-row"
-              @click="goToAlbum(alb.id)"
+              @click="goToPlaylist(pl.id)"
             >
-              <span class="rank-badge" :class="`rank-${alb.rank}`">{{
-                alb.rank
+              <span class="rank-badge" :class="`rank-${pl.rank}`">{{
+                pl.rank
               }}</span>
               <div class="ranking-cover">
-                <img v-if="alb.cover" :src="alb.cover" :alt="alb.name" />
-                <DiscAlbum v-else :size="16" class="cover-icon" />
+                <img v-if="pl.cover" :src="pl.cover" :alt="pl.name" />
+                <ListMusic v-else :size="16" class="cover-icon" />
               </div>
               <div class="ranking-meta">
-                <span class="ranking-name" :title="alb.name">{{
-                  alb.name
-                }}</span>
-                <span class="ranking-sub">
-                  {{ alb.artist || "Varios artistas" }} · {{ releaseTypeLabel(alb.releaseType) }}
-                </span>
+                <span class="ranking-name" :title="pl.name">{{ pl.name }}</span>
+                <span class="ranking-sub">{{ pl.subtitle || "Playlist" }}</span>
               </div>
               <div class="ranking-stats">
-                <span class="rank-plays">{{ alb.plays }} reps.</span>
-                <span class="rank-duration">{{ alb.listenTimeFormatted }}</span>
+                <span class="rank-plays">{{ pl.plays }} reps.</span>
               </div>
             </div>
           </div>
           <p v-else class="ranking-empty">
-            No hay álbumes registrados en este periodo.
+            No hay playlists registradas en este periodo.
           </p>
         </div>
       </div>
@@ -1456,11 +1409,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  DiscAlbum,
   Flame,
   HardDrive,
   Headphones,
   LibraryIcon,
+  ListMusic,
   Lock,
   LogOut,
   Music2,
@@ -1521,7 +1474,7 @@ const metricOptions = [
   { id: "plays", label: "Reproducciones", unit: "" },
   { id: "songs", label: "Canciones distintas", unit: "" },
   { id: "artists", label: "Artistas distintos", unit: "" },
-  { id: "albums", label: "Álbumes distintos", unit: "" },
+  { id: "playlists", label: "Playlists distintas", unit: "" },
 ];
 const selectedPeriod = ref("all");
 // Fecha ancla del periodo actualmente visualizado. null = periodo actual.
@@ -1618,10 +1571,9 @@ function bucketMetricValue(bucket) {
   if (m === "plays") return bucket.plays || 0;
   if (m === "songs") return bucket.uniqueSongs || 0;
   if (m === "artists") return bucket.uniqueArtists || 0;
-  if (m === "albums") return bucket.uniqueAlbums || 0;
+  if (m === "playlists") return bucket.uniquePlaylists || 0;
   return bucket.minutes || 0;
-}
-function bucketMatchesEvent(bucket, ev) {
+}function bucketMatchesEvent(bucket, ev) {
   const p = selectedPeriod.value;
   const evDate = new Date(ev.timestamp || 0);
   if (p === "day") return evDate.getHours() === bucket.hour;
@@ -1655,13 +1607,11 @@ const chartBuckets = computed(() => {
       let key = null;
       if (metric === "artists")
         key = ev.artist || ev.artists?.[0] || "Desconocido";
-      else if (metric === "songs") key = ev.songId;
-      else key = ev.albumId || ev.album || "desconocido";
+      else key = ev.songId;
       if (key) set.add(key);
     }
     b.uniqueSongs = metric === "songs" ? set.size : 0;
     b.uniqueArtists = metric === "artists" ? set.size : 0;
-    b.uniqueAlbums = metric === "albums" ? set.size : 0;
   }
   return buckets;
 });
@@ -1692,13 +1642,11 @@ const compareSeries = computed(() => {
         let key = null;
         if (metric === "artists")
           key = ev.artist || ev.artists?.[0] || "Desconocido";
-        else if (metric === "songs") key = ev.songId;
-        else key = ev.albumId || ev.album || "desconocido";
+        else key = ev.songId;
         if (key) set.add(key);
       }
       b.uniqueSongs = metric === "songs" ? set.size : 0;
       b.uniqueArtists = metric === "artists" ? set.size : 0;
-      b.uniqueAlbums = metric === "albums" ? set.size : 0;
     }
   }
   return compBuckets.map((b) => bucketMetricValue(b));
@@ -1752,9 +1700,9 @@ function kpiDelta(key) {
   } else if (key === "artists") {
     curVal = cur?.uniqueArtistsCount || 0;
     prevVal = prev?.uniqueArtistsCount || 0;
-  } else if (key === "albums") {
-    curVal = cur?.uniqueAlbumsCount || 0;
-    prevVal = prev?.uniqueAlbumsCount || 0;
+  } else if (key === "playlists") {
+    curVal = cur?.uniquePlaylistsCount || 0;
+    prevVal = prev?.uniquePlaylistsCount || 0;
   }
   const diff = curVal - prevVal;
   return {
@@ -1947,14 +1895,12 @@ function goToArtist(name) {
   });
 }
 
-function releaseTypeLabel(type) {
-  return { album: 'Álbum', single: 'Sencillo', ep: 'EP', compilation: 'Compilación' }[type] || 'Publicación';
+// Navega a la playlist local (o a Favoritos, que usa la misma ruta).
+function goToPlaylist(playlistId) {
+  if (!playlistId) return;
+  router.push({ name: "playlist", params: { playlistId } });
 }
 
-function goToAlbum(albumId) {
-  if (!albumId) return;
-  router.push({ name: "album", params: { id: albumId } });
-}
 const isEditing = ref(false);
 const savedFlash = ref(false);
 const storageText = ref("");
@@ -2003,14 +1949,20 @@ function cancelEditing() {
 async function saveIdentity() {
   const avatarUrl = draft.avatarUrl.trim();
 
+  // `updateProfile` escribe TODO lo que recibe. Enviar `avatarUrl` vacío
+  // cuando la foto actual es un Blob borraba la referencia del avatar y
+  // el perfil perdía la imagen. Sólo tocamos el avatar si el usuario
+  // realmente lo ha cambiado en este formulario.
+  const avatarChanged = avatarUrl && avatarUrl !== (user.profile.avatarUrl || "");
+
   await user.updateProfile({
     username: draft.username.trim(),
     displayName: draft.displayName.trim(),
     bio: draft.bio.trim(),
-    avatarUrl,
+    ...(avatarChanged ? { avatarUrl } : {}),
   });
 
-  if (avatarUrl) {
+  if (avatarChanged) {
     await user.setAvatar(avatarUrl);
   }
 

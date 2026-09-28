@@ -1345,7 +1345,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     const songAgg = new Map();
     const artistAgg = new Map();
-    const albumAgg = new Map();
+    const playlistAgg = new Map();
 
     for (const ev of events) {
       const listenTime = Number(ev.listenTime) || 0;
@@ -1390,26 +1390,6 @@ export const useLibraryStore = defineStore("library", () => {
         aItem.listenTime += listenTime;
         if (ev.timestamp > aItem.lastPlayedAt)
           aItem.lastPlayedAt = ev.timestamp;
-      }
-
-      const albKey = ev.albumId || ev.album;
-      if (albKey) {
-        if (!albumAgg.has(albKey)) {
-          albumAgg.set(albKey, {
-            id: albKey,
-            name: ev.album || "Álbum",
-            artist: ev.artist || "",
-            cover: null,
-            plays: 0,
-            listenTime: 0,
-            lastPlayedAt: ev.timestamp,
-          });
-        }
-        const albItem = albumAgg.get(albKey);
-        albItem.plays++;
-        albItem.listenTime += listenTime;
-        if (ev.timestamp > albItem.lastPlayedAt)
-          albItem.lastPlayedAt = ev.timestamp;
       }
     }
 
@@ -1460,28 +1440,37 @@ export const useLibraryStore = defineStore("library", () => {
           }
         }
       }
+    }
 
-      if (sum.albumStats) {
-        for (const [albKey, albData] of Object.entries(sum.albumStats)) {
-          if (!albumAgg.has(albKey)) {
-            albumAgg.set(albKey, {
-              id: albKey,
-              name: albData.name || "Álbum",
-              artist: albData.artist || "",
-              cover: albData.cover || null,
-              plays: albData.playCount || 0,
-              listenTime: albData.totalListenTime || 0,
-              lastPlayedAt: albData.lastPlayedAt || 0,
-            });
-          } else {
-            const item = albumAgg.get(albKey);
-            if ((albData.playCount || 0) > item.plays)
-              item.plays = albData.playCount;
-            if ((albData.totalListenTime || 0) > item.listenTime)
-              item.listenTime = albData.totalListenTime;
-          }
-        }
+    // Las playlists no generan eventos de reproducción de canción: su
+    // actividad vive en el historial (`type === "playlist"`). Es la fuente
+    // que usa la app para saber qué listas se han abierto.
+    const playlistEvents = listeningHistory.value.filter((h) => {
+      if (h.type !== "playlist") return false;
+      const t = h.timestamp || 0;
+      return t >= start.getTime() && t < end.getTime();
+    });
+
+    for (const entry of playlistEvents) {
+      const pId = entry.itemId;
+      if (!pId) continue;
+
+      if (!playlistAgg.has(pId)) {
+        playlistAgg.set(pId, {
+          id: pId,
+          name: entry.title || "Playlist",
+          subtitle: entry.subtitle || "",
+          cover: entry.cover || null,
+          plays: 0,
+          lastPlayedAt: entry.timestamp || 0,
+        });
       }
+      const item = playlistAgg.get(pId);
+      item.plays++;
+      if ((entry.timestamp || 0) > item.lastPlayedAt) {
+        item.lastPlayedAt = entry.timestamp || 0;
+      }
+      if (!item.cover && entry.cover) item.cover = entry.cover;
     }
 
     for (const songItem of songAgg.values()) {
@@ -1490,38 +1479,25 @@ export const useLibraryStore = defineStore("library", () => {
         if (found?.cover) songItem.cover = found.cover;
       }
     }
-    for (const albItem of albumAgg.values()) {
-      if (!albItem.cover) {
-        const found = albums.value.find(
-          (a) => a.id === albItem.id || a.name === albItem.name,
-        );
-        if (found?.cover) albItem.cover = found.cover;
+    // Las playlists del historial pueden venir sin portada (p. ej. si se
+    // abrieron antes de tenerla). La resolvemos desde la playlist actual.
+    for (const pItem of playlistAgg.values()) {
+      if (!pItem.cover) {
+        const found = playlists.value.find((p) => p.id === pItem.id);
+        if (found?.cover) pItem.cover = found.cover;
       }
     }
+    // IMPORTANTE: un artista NO hereda la portada de una de sus canciones ni
+    // la de uno de sus álbumes. Es la misma regla documentada en ArtistPage:
+    // si el artista no tiene imagen propia, se muestra el icono de usuario.
+    // `getArtistCover` devuelve la imagen explícita del artista (personalizada
+    // o resuelta por el sistema) y `customCover` la elegida por el usuario.
     for (const aItem of artistAgg.values()) {
       if (!aItem.cover) {
         let cover = getArtistCover(aItem.name);
         if (!cover) {
           const art = getArtistByName(aItem.name);
           cover = art?.customCover || null;
-        }
-        if (!cover) {
-          const targetKey = normalizeArtistKey(aItem.name);
-          const songWithCover = songs.value.find((s) => {
-            if (!s.cover) return false;
-            const names = parseArtistNames(s.artist);
-            return names.some((n) => normalizeArtistKey(n) === targetKey);
-          });
-          if (songWithCover) cover = songWithCover.cover;
-        }
-        if (!cover) {
-          const targetKey = normalizeArtistKey(aItem.name);
-          const albumWithCover = albums.value.find((alb) => {
-            if (!alb.cover) return false;
-            const names = parseArtistNames(alb.artist);
-            return names.some((n) => normalizeArtistKey(n) === targetKey);
-          });
-          if (albumWithCover) cover = albumWithCover.cover;
         }
         aItem.cover = cover || null;
       }
@@ -1545,18 +1521,16 @@ export const useLibraryStore = defineStore("library", () => {
         listenTimeFormatted: formatListenTime(a.listenTime),
       }));
 
-    const topAlbums = Array.from(albumAgg.values())
-      .sort((a, b) => b.plays - a.plays || b.listenTime - a.listenTime)
+    // Playlists más abiertas en el periodo. Se ordenan por número de
+    // aperturas y, a igualdad, por la más reciente.
+    const topPlaylists = Array.from(playlistAgg.values())
+      .sort((a, b) => b.plays - a.plays || b.lastPlayedAt - a.lastPlayedAt)
       .slice(0, 10)
-      .map((alb, idx) => ({
-        ...alb,
-        rank: idx + 1,
-        listenTimeFormatted: formatListenTime(alb.listenTime),
-      }));
+      .map((p, idx) => ({ ...p, rank: idx + 1 }));
 
     const topSong = topSongs[0] || null;
     const topArtist = topArtists[0] || null;
-    const topAlbum = topAlbums[0] || null;
+    const topPlaylist = topPlaylists[0] || null;
 
     const likedSongsCount = songs.value.filter((s) => isSongLiked(s)).length;
 
@@ -1584,14 +1558,14 @@ export const useLibraryStore = defineStore("library", () => {
         totalListenTimeFormatted: formatListenTime(totalListenTime),
         uniqueSongsCount: songAgg.size,
         uniqueArtistsCount: artistAgg.size,
-        uniqueAlbumsCount: albumAgg.size,
+        uniquePlaylistsCount: playlistAgg.size,
         likedSongsCount,
         topSong,
         topArtist,
-        topAlbum,
+        topPlaylist,
         topSongs,
         topArtists,
-        topAlbums,
+        topPlaylists,
         recentActivity,
         chartData,
         // Rango del periodo consultado (útil para la navegación histórica).

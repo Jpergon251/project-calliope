@@ -20,6 +20,10 @@ const LS_SESSION_KEY = "calliope-active-session";
 const SS_GUEST_KEY = "calliope-guest-session";
 const SS_PENDING_PREFS_KEY = "calliope-pending-preferences";
 const LS_GUEST_PREFS_KEY = "calliope-guest-preferences";
+// La sesión de invitado no vive en IndexedDB ("profiles"), pero su avatar
+// sí necesita persistir entre recargas: lo guardamos en la tienda
+// "settings", igual que hace la migración del perfil legado.
+const AVATAR_SETTING_KEY = "guest-avatar";
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
 
@@ -305,14 +309,20 @@ export const useUserStore = defineStore("user", () => {
             currentSession.value = guestSession;
             updateSessionActivity();
 
+            // El invitado no tiene perfil en IndexedDB, así que su avatar
+            // se recupera de la tienda "settings" para que no se pierda
+            // al recargar.
+            const guestAvatar = await readGuestAvatar();
+
             profile.value = normalizeProfile({
               id: "guest",
               name: "Invitado",
               displayName: "Invitado",
               username: "invitado",
               bio: "",
-              avatarUrl: "",
-              avatarBlob: null,
+              avatarUrl:
+                typeof guestAvatar === "string" ? guestAvatar : "",
+              avatarBlob: guestAvatar instanceof Blob ? guestAvatar : null,
               createdAt: guestSession.createdAt,
               updatedAt: guestSession.lastActivity,
               isPrivate: false,
@@ -324,7 +334,8 @@ export const useUserStore = defineStore("user", () => {
               },
             });
 
-            avatarBlob.value = null;
+            avatarBlob.value =
+              guestAvatar instanceof Blob ? guestAvatar : null;
             bannerBlob.value = null;
             applyPreferences();
             return true;
@@ -735,6 +746,9 @@ export const useUserStore = defineStore("user", () => {
 
         const serialized = JSON.parse(JSON.stringify(cloneClean));
 
+        // El Blob del avatar/banner NO sobrevive a JSON.stringify (se
+        // convierte en {}). Lo reinyectamos explícitamente después de
+        // serializar para que quede realmente persistido en IndexedDB.
         const toSave = normalizeProfile({
           ...serialized,
           private: isPriv,
@@ -743,7 +757,13 @@ export const useUserStore = defineStore("user", () => {
           bannerBlob: currentBannerBlob instanceof Blob ? currentBannerBlob : null,
           updatedAt: Date.now(),
         });
+
         await db.put("profiles", toSave);
+
+        // Mantenemos el perfil en memoria coherente con lo persistido: sin
+        // esto, `avatarBlob.value` seguía vivo sólo en esta sesión y el
+        // avatar desaparecía tras recargar.
+        profile.value.avatarBlob = toSave.avatarBlob;
 
         const idx = profilesList.value.findIndex((p) => p.id === toSave.id);
         if (idx >= 0) {
@@ -788,8 +808,46 @@ export const useUserStore = defineStore("user", () => {
       profile.value.avatarUrl = "";
       avatarBlob.value = null;
     }
+
     if (!isGuest.value) {
       await save();
+      return;
+    }
+
+    // Los invitados no tienen perfil en IndexedDB, así que persistimos el
+    // avatar por separado para que sobreviva a una recarga.
+    await saveGuestAvatar();
+  }
+
+  /** Persiste (o borra) el avatar del invitado en IndexedDB. */
+  async function saveGuestAvatar() {
+    try {
+      const db = await dbPromise;
+      if (!db.objectStoreNames.contains("settings")) return;
+
+      const value =
+        avatarBlob.value instanceof Blob
+          ? avatarBlob.value
+          : profile.value.avatarUrl || null;
+
+      if (value) {
+        await db.put("settings", value, AVATAR_SETTING_KEY);
+      } else {
+        await db.delete("settings", AVATAR_SETTING_KEY);
+      }
+    } catch (err) {
+      console.warn("[userStore] No se pudo guardar el avatar del invitado:", err);
+    }
+  }
+
+  /** Recupera el avatar del invitado guardado (URL o Blob). */
+  async function readGuestAvatar() {
+    try {
+      const db = await dbPromise;
+      if (!db.objectStoreNames.contains("settings")) return null;
+      return (await db.get("settings", AVATAR_SETTING_KEY)) || null;
+    } catch {
+      return null;
     }
   }
 
