@@ -11,7 +11,7 @@
   overflow-x: hidden;
   overflow-y: auto;
 
-  background: var(--bg-primary, #000);
+  background: var(--theme-main-background, var(--bg-primary, #000));
   color: var(--text-primary, #fff);
 
   isolation: isolate;
@@ -29,41 +29,11 @@
 
   overflow: hidden;
   pointer-events: none;
+  background: var(--theme-main-background, var(--bg-primary, #000));
 }
 
 .welcome-glow {
-  position: absolute;
-  width: 520px;
-  height: 520px;
-
-  border-radius: 50%;
-
-  filter: blur(100px);
-  opacity: 0.12;
-}
-
-.welcome-glow-primary {
-  top: -280px;
-  left: 50%;
-
-  background: rgba(
-    var(--accent-rgb, 37, 216, 102),
-    0.8
-  );
-
-  transform: translateX(-50%);
-}
-
-.welcome-glow-secondary {
-  right: -300px;
-  bottom: -300px;
-
-  background: rgba(
-    var(--accent-rgb, 37, 216, 102),
-    0.35
-  );
-
-  opacity: 0.06;
+  display: none;
 }
 
 /* ============================================================
@@ -116,6 +86,15 @@
   height: auto;
 }
 
+.welcome-logo .app-image {
+  color: var(--theme-logo-color, var(--accent));
+  filter: drop-shadow(0 2px 8px var(--theme-logo-shadow, transparent));
+}
+
+.welcome-logo .app-name {
+  color: var(--theme-logo-text, var(--text-primary));
+}
+
 /* ============================================================
    PROGRESS
    ============================================================ */
@@ -146,10 +125,7 @@
 
 .welcome-progress span.active {
   background: var(--accent, #25d866);
-
-  box-shadow:
-    0 0 10px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.4);
+  box-shadow: var(--theme-selected-shadow, none);
 }
 
 /* ============================================================
@@ -401,7 +377,7 @@
 
   &.is-active {
     border-color: var(--accent, #25d866);
-    box-shadow: 0 0 20px rgba(var(--accent-rgb, 37, 216, 102), 0.2);
+    box-shadow: var(--theme-selected-shadow, none);
   }
 
   &.is-private .welcome-private-badge {
@@ -749,17 +725,13 @@
 
   color: var(--accent-contrast, #000);
 
-  box-shadow:
-    0 8px 25px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.14);
+  box-shadow: var(--theme-control-shadow, none);
 }
 
 .welcome-button-primary:hover {
   background: var(--accent-hover, #45e07b);
 
-  box-shadow:
-    0 10px 30px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.22);
+  box-shadow: var(--theme-control-shadow, none);
 }
 
 .welcome-button-secondary {
@@ -851,14 +823,16 @@
 }
 
 .welcome-accent-current {
-  width: 18px !important;
+  display: flex;
+  overflow: hidden;
+  width: 72px;
   height: 18px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.07));
+  border-radius: 999px;
+}
 
-  border-radius: 50%;
-
-  box-shadow:
-    0 0 15px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.35);
+.welcome-accent-current span {
+  flex: 1;
 }
 
 /* ============================================================
@@ -867,7 +841,7 @@
 
 .welcome-accent-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 
   gap: 10px;
 }
@@ -882,7 +856,9 @@
   align-items: center;
   justify-content: center;
 
-  gap: 12px;
+  gap: 10px;
+
+  padding: 16px 10px 12px;
 
   border: 1px solid
     rgba(255, 255, 255, 0.06);
@@ -921,30 +897,21 @@
       transparent
     );
 
-  box-shadow:
-    0 0 24px
-      color-mix(
-        in srgb,
-        var(--option-color) 12%,
-        transparent
-      );
+  box-shadow: var(--theme-selected-shadow, none);
 }
 
-.welcome-accent-dot {
-  width: 30px;
-  height: 30px;
+.welcome-palette-swatches {
+  width: 100%;
+  max-width: 180px;
+  height: 22px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
 
-  border-radius: 50%;
-
-  background: var(--option-color);
-
-  box-shadow:
-    0 0 18px
-      color-mix(
-        in srgb,
-        var(--option-color) 35%,
-        transparent
-      );
+.welcome-palette-swatches span {
+  flex: 1;
 }
 
 .welcome-accent-option svg {
@@ -953,13 +920,16 @@
   right: 10px;
 
   color: var(--option-color);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
 
 .welcome-accent-option small {
   color: inherit;
 
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
 }
 
 /* ============================================================
@@ -1014,9 +984,7 @@
 
   transform: translateY(-2px);
 
-  box-shadow:
-    0 16px 40px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.08);
+  box-shadow: var(--theme-hover-shadow, none);
 }
 
 .welcome-folder:active:not(:disabled) {

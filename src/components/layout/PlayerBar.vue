@@ -14,6 +14,7 @@
             :max="library.duration || 0"
             step="0.1"
             :value="library.currentTime"
+            :style="{ '--progress': `${progressPercent}%` }"
             @input="handleSeek($event)"
             class="progress-bar"
             aria-label="Progreso de la canción"

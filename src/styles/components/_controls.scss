@@ -29,7 +29,7 @@
     .toggle-thumb {
       transform: translateX(20px);
       background: var(--accent);
-      box-shadow: 0 0 10px var(--accent);
+      box-shadow: var(--theme-selected-shadow, none);
     }
   }
   &:active .toggle-thumb {

@@ -260,7 +260,7 @@
           background: var(--accent-surface-strong);
           border-color: var(--accent-border);
           color: var(--accent-light);
-          box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15);
+          box-shadow: var(--theme-selected-shadow, none);
         }
 
         .tab-badge {
@@ -310,7 +310,7 @@
         border: 1px solid var(--accent-border);
         border-radius: var(--radius-lg);
         padding: 18px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 24px rgba(var(--accent-rgb), 0.08);
+        box-shadow: var(--theme-panel-shadow, 0 8px 24px rgba(0, 0, 0, 0.6));
         transition: all 0.2s ease;
         position: relative;
         overflow: hidden;
@@ -510,7 +510,7 @@
                   border-color: var(--accent);
                   background: rgba(var(--accent-rgb), 0.12);
                   color: var(--accent);
-                  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+                  box-shadow: var(--theme-control-shadow, none);
                   transform: translateY(-1px);
                 }
 
@@ -737,7 +737,7 @@
             &.is-current {
               background: var(--accent-surface-strong);
               border-color: var(--accent-border);
-              box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.12);
+              box-shadow: var(--theme-selected-shadow, none);
 
               .track-order-num {
                 color: var(--accent);
@@ -964,7 +964,7 @@
                 height: 4px;
                 background: var(--accent);
                 border-radius: 999px;
-                box-shadow: 0 0 14px var(--accent), 0 0 4px #ffffff;
+                box-shadow: var(--theme-selected-shadow, none);
                 z-index: 10;
               }
             }
@@ -982,7 +982,7 @@
                 height: 4px;
                 background: var(--accent);
                 border-radius: 999px;
-                box-shadow: 0 0 14px var(--accent), 0 0 4px #ffffff;
+                box-shadow: var(--theme-selected-shadow, none);
                 z-index: 10;
               }
             }
@@ -1059,7 +1059,7 @@
       border-radius: 24px 24px 0 0;
       border-left: none;
       border-top: 1px solid var(--accent-border);
-      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.95), 0 0 30px rgba(var(--accent-rgb), 0.1);
+      box-shadow: var(--theme-panel-shadow, 0 -12px 40px rgba(0, 0, 0, 0.95));
       animation: queue-sheet-slide-up 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
 
       .queue-drag-pill {

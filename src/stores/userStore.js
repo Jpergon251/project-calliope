@@ -13,6 +13,10 @@ import {
   hashPassword,
   verifyPassword,
 } from "../lib/crypto.js";
+import {
+  getColorPalette,
+  normalizePaletteId,
+} from "../lib/colorPalettes.js";
 import { useLibraryStore } from "./libraryStore.js";
 
 const LS_LEGACY_KEY = "calliope-user-profile";
@@ -28,7 +32,7 @@ const AVATAR_SETTING_KEY = "guest-avatar";
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 export const DEFAULT_PREFERENCES = {
-  accentColor: "neon", // neon | cyan | magenta | amber
+  accentColor: "miami-vice",
   reducedMotion: false,
   showVisualizer: true,
   autoplayOnStart: false,
@@ -64,6 +68,7 @@ export const useUserStore = defineStore("user", () => {
   const bannerBlob = ref(null);
   const loaded = ref(false);
   const profilesList = ref([]);
+  let themeTransitionTimeout = null;
   const currentSession = ref(null); // { type: 'registered' | 'guest', profileId: string | null, isGuest: boolean, startedAt: number }
   // Preferencias elegidas antes de que exista un perfil (onboarding).
   const pendingPreferences = ref({ ...DEFAULT_PREFERENCES });
@@ -115,6 +120,13 @@ export const useUserStore = defineStore("user", () => {
       ...DEFAULT_PREFERENCES,
       ...(raw.preferences || {}),
     };
+    if (
+      raw.preferences?.accentColor === undefined &&
+      raw.accentColor !== undefined
+    ) {
+      preferences.accentColor = raw.accentColor;
+    }
+    preferences.accentColor = normalizePaletteId(preferences.accentColor);
     // Una preferencia guardada como undefined no debe pisar el valor por defecto.
     for (const key of Object.keys(preferences)) {
       if (preferences[key] === undefined) {
@@ -398,6 +410,9 @@ export const useUserStore = defineStore("user", () => {
         ...DEFAULT_PREFERENCES,
         ...readPendingPreferences(),
       };
+      pendingPreferences.value.accentColor = normalizePaletteId(
+        pendingPreferences.value.accentColor
+      );
 
       // `load()` se invoca desde el router, App.vue y varias páginas.
       // Volver a restaurar la sesión ya restaurada descartaba el perfil
@@ -675,6 +690,9 @@ export const useUserStore = defineStore("user", () => {
       ...pendingPreferences.value,
       ...partial,
     };
+    pendingPreferences.value.accentColor = normalizePaletteId(
+      pendingPreferences.value.accentColor
+    );
 
     if (typeof sessionStorage !== "undefined") {
       try {
@@ -911,57 +929,6 @@ export const useUserStore = defineStore("user", () => {
   }
 
   // ---------- Aplicación de preferencias al documento ----------
-  const ACCENTS = {
-    neon: {
-      base: "#25d866",
-      hover: "#55ed8a",
-      active: "#18ae4f",
-      light: "#8affae",
-      dark: "#128f4a",
-      darker: "#0b4d28",
-      rgb: "37, 216, 102",
-      borderHover: "rgba(138, 255, 174, 0.4)",
-      glow: "0 0 14px rgba(37, 216, 102, 0.35)",
-      glowSoft: "0 0 26px rgba(37, 216, 102, 0.18)",
-    },
-    cyan: {
-      base: "#22d3ee",
-      hover: "#67e8f9",
-      active: "#0891b2",
-      light: "#a5f3fc",
-      dark: "#0e7490",
-      darker: "#155e75",
-      rgb: "34, 211, 238",
-      borderHover: "rgba(165, 243, 252, 0.4)",
-      glow: "0 0 14px rgba(34, 211, 238, 0.35)",
-      glowSoft: "0 0 26px rgba(34, 211, 238, 0.18)",
-    },
-    magenta: {
-      base: "#e14eca",
-      hover: "#f472b6",
-      active: "#c026d3",
-      light: "#fbcfe8",
-      dark: "#a21caf",
-      darker: "#701a75",
-      rgb: "225, 78, 202",
-      borderHover: "rgba(251, 207, 232, 0.4)",
-      glow: "0 0 14px rgba(225, 78, 202, 0.35)",
-      glowSoft: "0 0 26px rgba(225, 78, 202, 0.18)",
-    },
-    amber: {
-      base: "#fbbf24",
-      hover: "#fcd34d",
-      active: "#d97706",
-      light: "#fef3c7",
-      dark: "#b45309",
-      darker: "#78350f",
-      rgb: "251, 191, 36",
-      borderHover: "rgba(254, 243, 199, 0.4)",
-      glow: "0 0 14px rgba(251, 191, 36, 0.35)",
-      glowSoft: "0 0 26px rgba(251, 191, 36, 0.18)",
-    },
-  };
-
   function applyPreferences() {
     const isPersistentProfile =
       Boolean(profile.value.id) && profile.value.id !== "guest";
@@ -984,32 +951,29 @@ export const useUserStore = defineStore("user", () => {
       ...savedPreferences,
       ...(isPersistentProfile ? profile.value : {}),
     };
-    const accent = ACCENTS[p.accentColor] || ACCENTS.neon;
+    const palette = getColorPalette(p.accentColor);
     const root = document.documentElement;
-    root.style.setProperty("--accent", accent.base);
-    root.style.setProperty("--accent-hover", accent.hover);
-    root.style.setProperty("--accent-active", accent.active);
-    root.style.setProperty("--accent-light", accent.light);
-    root.style.setProperty("--accent-dark", accent.dark);
-    root.style.setProperty("--accent-darker", accent.darker);
-    root.style.setProperty("--accent-rgb", accent.rgb);
-    root.style.setProperty("--accent-muted", `rgba(${accent.rgb}, .14)`);
-    root.style.setProperty("--accent-surface", `rgba(${accent.rgb}, .045)`);
-    root.style.setProperty(
-      "--accent-surface-strong",
-      `rgba(${accent.rgb}, .13)`,
-    );
-    root.style.setProperty("--accent-border", `rgba(${accent.rgb}, .34)`);
-    root.style.setProperty("--accent-shadow", `rgba(${accent.rgb}, .12)`);
-    root.style.setProperty(
-      "--accent-contrast",
-      accent.darker === "#0b4d28" ? "#effff4" : accent.light,
-    );
-    root.style.setProperty("--border-hover", accent.borderHover);
-    root.style.setProperty("--neon-glow", accent.glow);
-    root.style.setProperty("--neon-glow-soft", accent.glowSoft);
-    root.style.setProperty("--status-current", accent.base);
+    const isThemeChange =
+      Boolean(root.dataset.theme) && root.dataset.theme !== palette.value;
+    const shouldTransitionTheme =
+      isThemeChange &&
+      !p.reducedMotion &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    clearTimeout(themeTransitionTimeout);
+    root.classList.toggle("theme-transitioning", shouldTransitionTheme);
+    root.dataset.theme = palette.value;
+    for (const [token, value] of Object.entries(palette.tokens)) {
+      root.style.setProperty(token, value);
+    }
     root.classList.toggle("reduced-motion", Boolean(p.reducedMotion));
+
+    if (shouldTransitionTheme) {
+      themeTransitionTimeout = setTimeout(() => {
+        root.classList.remove("theme-transitioning");
+        themeTransitionTimeout = null;
+      }, 420);
+    }
   }
 
   watch(profile, applyPreferences, { deep: true });

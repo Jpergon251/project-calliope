@@ -1,11 +1,16 @@
 <template>
-  <LoadingScreen v-if="library.loading || !user.loaded" />
+  <Transition name="miami-screen" mode="out-in">
+    <LoadingScreen v-if="library.loading || !user.loaded" key="loading" />
 
-  <RouterView v-else-if="!user.hasSession || route.name === 'Welcome'" />
+    <RouterView
+      v-else-if="!user.hasSession || route.name === 'Welcome'"
+      key="welcome"
+    />
 
-  <div v-else class="app-container">
-    <MainLayout />
-  </div>
+    <div v-else class="app-container" key="app">
+      <MainLayout />
+    </div>
+  </Transition>
 </template>
 
 <script setup>

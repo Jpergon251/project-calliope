@@ -35,7 +35,7 @@
   background: var(--bg-secondary, #050505);
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: var(--radius-lg, 20px);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 24px rgba(var(--accent-rgb, 37, 216, 102), 0.04);
+  box-shadow: var(--theme-panel-shadow, 0 24px 64px rgba(0, 0, 0, 0.9));
   overflow: hidden;
   animation: playlist-modal-scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
@@ -46,7 +46,7 @@
 .delete-confirm-card {
   width: min(430px, 100%);
   border-color: rgba(255, 91, 91, 0.25);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 28px rgba(255, 91, 91, 0.08);
+  box-shadow: var(--theme-panel-shadow, 0 24px 64px rgba(0, 0, 0, 0.9));
 }
 
 // -------------------------------------------------------------
@@ -143,7 +143,7 @@
     background: rgba(255, 91, 91, 0.12);
     border: 1px solid rgba(255, 91, 91, 0.28);
     color: var(--warning-danger, #ff5b5b);
-    box-shadow: 0 0 16px rgba(255, 91, 91, 0.15);
+    box-shadow: none;
   }
 
   .close-button {
@@ -678,4 +678,3 @@
     animation: none;
   }
 }
-

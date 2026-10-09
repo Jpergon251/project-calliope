@@ -21,7 +21,7 @@
     background: var(--bg-secondary, #050505);
     border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-lg, 20px);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 24px rgba(var(--accent-rgb, 37, 216, 102), 0.04);
+    box-shadow: var(--theme-panel-shadow, 0 24px 64px rgba(0, 0, 0, 0.9));
     overflow: hidden;
     animation: modal-scale-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
@@ -142,7 +142,7 @@
 
           &:focus {
             border-color: var(--accent, #25d866);
-            background: #0d0d0d;
+            background: var(--bg-secondary);
             box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 37, 216, 102), 0.12), var(--neon-glow-soft);
           }
 
@@ -367,7 +367,7 @@
               &.checked {
                 background: var(--accent, #25d866);
                 border-color: var(--accent, #25d866);
-                box-shadow: 0 0 8px rgba(var(--accent-rgb, 37, 216, 102), 0.4);
+                box-shadow: var(--theme-selected-shadow, none);
 
                 .checkbox-icon {
                   color: var(--accent-contrast, #000000);
@@ -540,11 +540,11 @@
         &.btn-primary {
           background: var(--accent, #25d866);
           color: var(--accent-contrast, #000000);
-          box-shadow: 0 4px 14px rgba(var(--accent-rgb, 37, 216, 102), 0.28);
+          box-shadow: var(--theme-control-shadow, none);
 
           &:hover:not(:disabled) {
             background: var(--accent-hover, #45e07b);
-            box-shadow: 0 6px 20px rgba(var(--accent-rgb, 37, 216, 102), 0.42), var(--neon-glow);
+            box-shadow: var(--theme-control-shadow, none);
             transform: translateY(-1px);
           }
 

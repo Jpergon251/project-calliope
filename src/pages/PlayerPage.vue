@@ -2,6 +2,7 @@
   <main
     class="player-page"
     :class="{ 'is-overlay': isOverlay }"
+    :style="song?.cover ? { '--player-artwork-background': `url(${JSON.stringify(song.cover)})` } : undefined"
     aria-label="Reproductor de música"
     @touchstart="handleTouchStart"
     @touchmove="handleTouchMove"

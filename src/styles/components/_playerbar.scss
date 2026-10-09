@@ -9,30 +9,10 @@
   overflow: visible;
   isolation: isolate;
 
-  /*
-   * OLED + accent atmosphere.
-   *
-   * El gradiente utiliza exclusivamente --accent-rgb para que
-   * el ambiente cambie automáticamente con el color elegido.
-   * La opacidad es deliberadamente muy baja para mantener el OLED.
-   */
-  background:
-    radial-gradient(
-      ellipse 70% 180% at 50% 100%,
-      rgba(var(--accent-rgb), 0.045) 0%,
-      rgba(var(--accent-rgb), 0.018) 38%,
-      transparent 72%
-    ),
-    linear-gradient(
-      180deg,
-      var(--bg-primary) 0%,
-      var(--bg-secondary) 100%
-    );
+  background: var(--theme-player-background, var(--player-bg));
 
   border-top: 1px solid var(--border-color);
-  box-shadow:
-    0 -8px 24px rgba(0, 0, 0, 0.7),
-    0 -1px 0 rgba(var(--accent-rgb), 0.025);
+  box-shadow: var(--theme-player-shadow, var(--shadow-sm));
 
   .progress {
     width: 100%;
@@ -41,8 +21,52 @@
       width: 100%;
       height: 4px;
       margin: 0;
-      accent-color: var(--accent);
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
       cursor: pointer;
+
+      &::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(
+          to right,
+          var(--accent) 0 var(--progress, 0%),
+          rgba(255, 248, 241, 0.34) var(--progress, 0%) 100%
+        );
+      }
+
+      &::-webkit-slider-thumb {
+        width: 10px;
+        height: 10px;
+        margin-top: -3px;
+        appearance: none;
+        border: 0;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      &::-moz-range-track {
+        height: 4px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 248, 241, 0.34);
+      }
+
+      &::-moz-range-progress {
+        height: 4px;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+
+      &::-moz-range-thumb {
+        width: 10px;
+        height: 10px;
+        border: 0;
+        border-radius: 50%;
+        background: var(--accent);
+      }
     }
 
     .time-info {
@@ -195,7 +219,7 @@
       height: 44px;
       background: var(--accent);
       color: var(--accent-contrast);
-      box-shadow: var(--neon-glow);
+      box-shadow: var(--theme-control-shadow, var(--neon-glow));
       border: none;
 
       .control-icon {
@@ -206,7 +230,7 @@
       @media (hover: hover) and (pointer: fine) {
         &:hover {
           background: var(--accent-hover);
-          box-shadow: var(--neon-glow);
+          box-shadow: var(--theme-control-shadow, var(--neon-glow));
           transform: scale(1.06);
         }
       }
@@ -242,7 +266,7 @@
         color: var(--accent-light, var(--accent));
         border-color: var(--accent-border);
         background: var(--accent-surface);
-        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.25);
+        box-shadow: var(--theme-selected-shadow, none);
 
         @media (hover: hover) and (pointer: fine) {
           &:hover {
@@ -278,7 +302,7 @@
         color: var(--accent-light, var(--accent));
         border-color: var(--accent-border);
         background: var(--accent-surface);
-        box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+        box-shadow: var(--theme-selected-shadow, none);
       }
     }
   }
@@ -306,7 +330,11 @@
       background: transparent;
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all var(--transition-fast);
+      transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
 
       .vol-icon {
         width: 18px;
@@ -374,7 +402,7 @@
       bottom: 0;
       border-radius: 999px;
       background: var(--accent);
-      box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+      box-shadow: var(--theme-control-shadow, none);
       transition: width 0.08s ease-out, background var(--transition-fast);
     }
 
@@ -386,7 +414,7 @@
       border-radius: 50%;
       background: #fff;
       border: 2px solid var(--accent);
-      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(var(--accent-rgb), 0.5);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6), var(--theme-control-shadow, none);
       transform: translate(-50%, -50%) scale(0.7);
       opacity: 0;
       pointer-events: none;
@@ -465,7 +493,7 @@
           background: rgba(255, 255, 255, 0.2);
         }
         .vol-fill {
-          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.65);
+          box-shadow: var(--theme-control-shadow, none);
         }
       }
     }
@@ -567,9 +595,7 @@
 
     border-top: 1px solid var(--border-color);
 
-    box-shadow:
-      0 -4px 16px rgba(0, 0, 0, 0.8),
-      0 -1px 0 rgba(var(--accent-rgb), 0.025);
+    box-shadow: var(--theme-panel-shadow, 0 -4px 16px rgba(0, 0, 0, 0.8));
 
     .mini-progress-track {
       position: absolute;
@@ -583,7 +609,7 @@
       .mini-progress-bar {
         height: 100%;
         background: var(--accent);
-        box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
+        box-shadow: var(--theme-control-shadow, none);
         transition: width 0.15s linear;
       }
     }
@@ -739,6 +765,7 @@
 
 .player-page {
   position: relative;
+  isolation: isolate;
   display: flex;
   width: min(100%, 680px);
   min-height: 100dvh;
@@ -767,6 +794,33 @@
       transparent 68%
     ),
     var(--bg-primary);
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &::before {
+    position: absolute;
+    z-index: 0;
+    inset: -48px;
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(54, 37, 58, 0.68) 0%,
+        rgba(42, 32, 47, 0.62) 45%,
+        rgba(33, 25, 35, 0.76) 100%
+      ),
+      var(--player-artwork-background, none);
+    background-position: center;
+    background-size: cover;
+    filter: blur(76px) saturate(1.2) brightness(0.58);
+    opacity: 0.82;
+    content: "";
+    pointer-events: none;
+    transform: scale(1.08);
+    transition: background-image 0.55s ease;
+  }
 }
 
 .now-playing-overlay {
@@ -900,8 +954,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.9),
-    0 0 40px rgba(var(--accent-rgb), 0.035);
+    0 20px 50px rgba(0, 0, 0, 0.72);
 
   img,
   .artwork-fallback {
@@ -1027,25 +1080,17 @@
       height: 6px;
       overflow: visible;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.2);
       transition: height 0.15s ease;
 
       .scrubber-fill {
+        display: block;
         height: 100%;
         border-radius: 999px;
-
-        /*
-         * El progreso usa el accent actual.
-         * El gradiente es del mismo color, no una segunda paleta.
-         */
-        background: linear-gradient(
-          90deg,
-          var(--accent-dark),
-          var(--accent)
-        );
-
-        box-shadow: var(--neon-glow);
+        background: var(--accent);
+        box-shadow: none;
         pointer-events: none;
+        transition: width 0.12s linear;
       }
 
       .scrubber-thumb {
@@ -1155,7 +1200,7 @@
       color: var(--accent-light, var(--accent)) !important;
       background: var(--accent-surface) !important;
       border-color: var(--accent-border) !important;
-      box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.35) !important;
+      box-shadow: var(--theme-selected-shadow, none) !important;
 
       &:hover {
         background: var(--accent-surface-strong) !important;
@@ -1185,9 +1230,7 @@
     }
 
     &.is-playing {
-      box-shadow:
-        0 0 20px rgba(var(--accent-rgb), 0.4),
-        0 0 42px rgba(var(--accent-rgb), 0.08);
+      box-shadow: var(--theme-selected-shadow, none);
     }
   }
 }
@@ -1383,7 +1426,7 @@
           border-color: var(--accent);
           background: rgba(var(--accent-rgb), 0.12);
           color: var(--accent);
-          box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+          box-shadow: var(--theme-control-shadow, none);
           transform: translateY(-1px);
         }
       }

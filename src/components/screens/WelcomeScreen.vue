@@ -357,12 +357,12 @@
             </span>
 
             <h1>
-              Elige tu color.
+              Elige tu tema.
             </h1>
 
             <p>
-              Personaliza el color de Calliope.
-              Podrás cambiarlo más adelante desde tu perfil.
+              Personaliza los colores de Calliope.
+              Podrás cambiar el tema más adelante desde tu perfil.
             </p>
           </div>
 
@@ -370,7 +370,7 @@
             <div class="welcome-accent-header">
               <div>
                 <strong>
-                  Color de acento
+                  Tema visual
                 </strong>
 
                 <span>
@@ -378,39 +378,41 @@
                 </span>
               </div>
 
-              <span
-                class="welcome-accent-current"
-                :style="{
-                  backgroundColor: selectedAccentColor
-                }"
-              ></span>
+              <span class="welcome-accent-current" aria-hidden="true">
+                <span
+                  v-for="color in selectedPalette.colors"
+                  :key="color"
+                  :style="{ backgroundColor: color }"
+                ></span>
+              </span>
             </div>
 
             <div class="welcome-accent-options">
               <button
-                v-for="option in ACCENT_OPTIONS"
+                v-for="option in COLOR_PALETTES"
                 :key="option.value"
                 type="button"
                 class="welcome-accent-option"
                 :class="{
-                  selected:
-                    isAccentSelected(option.value)
+                  selected: isPaletteSelected(option.value)
                 }"
                 :style="{
-                  '--option-color': option.color
+                  '--option-color': option.tokens['--accent']
                 }"
-                :aria-label="`Usar color ${option.label}`"
-                :aria-pressed="
-                  isAccentSelected(option.value)
-                "
-                @click="selectAccent(option.value)"
+                :aria-label="`Usar tema ${option.label}`"
+                :aria-pressed="isPaletteSelected(option.value)"
+                @click="selectPalette(option.value)"
               >
-                <span class="welcome-accent-dot"></span>
+                <span class="welcome-palette-swatches" aria-hidden="true">
+                  <span
+                    v-for="color in option.colors"
+                    :key="color"
+                    :style="{ backgroundColor: color }"
+                  ></span>
+                </span>
 
                 <Check
-                  v-if="
-                    isAccentSelected(option.value)
-                  "
+                  v-if="isPaletteSelected(option.value)"
                   :size="16"
                 />
 
@@ -618,6 +620,7 @@ import { Capacitor } from "@capacitor/core";
 import Logo from "../common/Logo.vue";
 import { useLibraryStore } from "../../stores/libraryStore";
 import { useUserStore } from "../../stores/userStore";
+import { COLOR_PALETTES, normalizePaletteId } from "../../lib/colorPalettes.js";
 
 const library = useLibraryStore();
 const user = useUserStore();
@@ -647,29 +650,6 @@ const steps = [
   {
     id: 3,
     label: "Biblioteca",
-  },
-];
-
-const ACCENT_OPTIONS = [
-  {
-    value: "neon",
-    label: "Neón",
-    color: "#25d866",
-  },
-  {
-    value: "cyan",
-    label: "Cian",
-    color: "#22d3ee",
-  },
-  {
-    value: "magenta",
-    label: "Magenta",
-    color: "#e14eca",
-  },
-  {
-    value: "amber",
-    label: "Ámbar",
-    color: "#fbbf24",
   },
 ];
 
@@ -776,22 +756,21 @@ const draftInitials = computed(() => {
   ).toUpperCase();
 });
 
-const selectedAccent = computed(() => {
+const selectedPalette = computed(() => {
   const current =
     user.profile.id && user.profile.id !== "guest"
       ? user.profile.accentColor
       : user.pendingPreferences.accentColor;
 
   return (
-    ACCENT_OPTIONS.find(
-      option =>
-        option.value === current
+    COLOR_PALETTES.find(
+      palette => palette.value === normalizePaletteId(current)
     ) ||
-    ACCENT_OPTIONS[0]
+    COLOR_PALETTES[0]
   );
 });
 
-function isAccentSelected(value) {
+function isPaletteSelected(value) {
   if (user.profile.id && user.profile.id !== "guest") {
     return user.profile.accentColor === value;
   }
@@ -799,13 +778,7 @@ function isAccentSelected(value) {
   return user.pendingPreferences.accentColor === value;
 }
 
-const selectedAccentLabel = computed(() => {
-  return selectedAccent.value.label;
-});
-
-const selectedAccentColor = computed(() => {
-  return selectedAccent.value.color;
-});
+const selectedAccentLabel = computed(() => selectedPalette.value.label);
 
 function goToNextStep() {
   if (currentStep.value < steps.length) {
@@ -904,16 +877,14 @@ async function submitNewProfile() {
   }
 }
 
-async function selectAccent(value) {
+async function selectPalette(value) {
   if (
     user.profile.id === "guest" ||
     !user.profile.id
   ) {
     // Aún no existe perfil: guardamos la elección para aplicarla
     // al crear el perfil o al entrar como invitado.
-    user.setPendingPreferences({
-      accentColor: value,
-    });
+    user.setPendingPreferences({ accentColor: value });
     user.applyPreferences();
     return;
   }
@@ -922,9 +893,7 @@ async function selectAccent(value) {
     return;
   }
 
-  await user.updateProfile({
-    accentColor: value,
-  });
+  await user.updateProfile({ accentColor: value });
 }
 
 async function selectFolder() {

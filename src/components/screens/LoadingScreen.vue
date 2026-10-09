@@ -15,10 +15,18 @@
 
         </div>
 
+        <div class="loading-card miami-loading-card">
+            <div class="miami-logo-stage" aria-hidden="true">
+                <div class="miami-logo-art">
+                    <img
+                        class="miami-logo-image"
+                        src="/icon/miami_vice/CLogo.svg"
+                        alt=""
+                    />
+                    <span class="miami-logo-sheen"></span>
+                </div>
+            </div>
+        </div>
+
     </section>
 </template>
-
-<script setup>
-import Logo from '../common/Logo.vue';
-
-</script>

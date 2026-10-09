@@ -65,3 +65,9 @@
 @use "pages/artistlist";
 @use "pages/history";
 @use "pages/profile";
+
+/* ============================================================
+   THEME-SPECIFIC SURFACE TREATMENTS
+   ============================================================ */
+
+@use "base/themes";

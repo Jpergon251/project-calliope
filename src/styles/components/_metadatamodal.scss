@@ -845,7 +845,7 @@
           }
 
           &.badge-incomplete {
-            background: rgba(255, 184, 77, 0.18);
+            background: color-mix(in srgb, var(--warning-caution) 18%, transparent);
             color: var(--warning-caution);
             font-weight: 600;
           }
@@ -1011,8 +1011,8 @@
       }
 
       &.state-warning {
-        background: rgba(255, 184, 77, 0.12);
-        border: 1px solid rgba(255, 184, 77, 0.3);
+        background: color-mix(in srgb, var(--warning-caution) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--warning-caution) 30%, transparent);
         color: var(--warning-caution);
       }
 
@@ -1098,9 +1098,9 @@
     flex-direction: column;
     gap: 12px;
     padding: 14px 16px;
-    border: 1px solid rgba(255, 184, 77, 0.28);
+    border: 1px solid color-mix(in srgb, var(--warning-caution) 28%, transparent);
     border-radius: var(--radius-md);
-    background: rgba(255, 184, 77, 0.045);
+    background: color-mix(in srgb, var(--warning-caution) 4.5%, transparent);
 
     .review-heading {
       display: flex;
@@ -1138,7 +1138,7 @@
 
     &.selected {
       border-color: var(--warning-caution);
-      background: rgba(255, 184, 77, 0.09);
+      background: color-mix(in srgb, var(--warning-caution) 9%, transparent);
     }
 
     .candidate-item-info {

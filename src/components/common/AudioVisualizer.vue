@@ -43,9 +43,15 @@ function draw() {
 
   const context = element.getContext('2d');
   const styles = getComputedStyle(document.documentElement);
-  const accentRgb = styles.getPropertyValue('--accent-rgb').trim() || '37, 216, 102';
-  const accentLight = styles.getPropertyValue('--accent-light').trim() || '#8affae';
-  const accentRgba = (alpha) => `rgba(${accentRgb}, ${alpha})`;
+  const visualizerRgb =
+    styles.getPropertyValue('--visualizer-rgb').trim() ||
+    styles.getPropertyValue('--accent-rgb').trim() ||
+    '37, 216, 102';
+  const visualizerColor =
+    styles.getPropertyValue('--visualizer-color').trim() ||
+    styles.getPropertyValue('--accent-light').trim() ||
+    '#8affae';
+  const visualizerRgba = (alpha) => `rgba(${visualizerRgb}, ${alpha})`;
   const ratio = window.devicePixelRatio || 1;
   const width = element.clientWidth;
   const height = element.clientHeight;
@@ -114,9 +120,9 @@ function draw() {
   // 1. Relleno con gradiente bajo la onda (iluminación de campo de energía neon)
   if (energyLevel > 0.05) {
     const fillGradient = context.createLinearGradient(0, centerY - height * 0.4, 0, centerY + 10);
-    fillGradient.addColorStop(0, accentRgba(0.16 * energyLevel));
-    fillGradient.addColorStop(0.7, accentRgba(0.04 * energyLevel));
-    fillGradient.addColorStop(1, accentRgba(0));
+    fillGradient.addColorStop(0, visualizerRgba(0.16 * energyLevel));
+    fillGradient.addColorStop(0.7, visualizerRgba(0.04 * energyLevel));
+    fillGradient.addColorStop(1, visualizerRgba(0));
 
     context.beginPath();
     context.moveTo(points[0].x, centerY);
@@ -141,22 +147,22 @@ function draw() {
   const strokeGradient = context.createLinearGradient(startX, 0, startX + availableWidth, 0);
   if (energyLevel > 0.15) {
     // Modo iluminado: verde neon vibrante con núcleo claro
-    strokeGradient.addColorStop(0, accentRgba(0));
-    strokeGradient.addColorStop(0.18, accentRgba(0.5 + 0.3 * energyLevel));
-    strokeGradient.addColorStop(0.5, `color-mix(in srgb, ${accentLight} 90%, white)`);
-    strokeGradient.addColorStop(0.82, accentRgba(0.5 + 0.3 * energyLevel));
-    strokeGradient.addColorStop(1, accentRgba(0));
+    strokeGradient.addColorStop(0, visualizerRgba(0));
+    strokeGradient.addColorStop(0.18, visualizerRgba(0.5 + 0.3 * energyLevel));
+    strokeGradient.addColorStop(0.5, visualizerColor);
+    strokeGradient.addColorStop(0.82, visualizerRgba(0.5 + 0.3 * energyLevel));
+    strokeGradient.addColorStop(1, visualizerRgba(0));
 
-    context.shadowColor = styles.getPropertyValue('--accent').trim() || '#25d866';
+    context.shadowColor = visualizerColor;
     context.shadowBlur = 16 * energyLevel;
     context.lineWidth = 2.2 + 0.6 * energyLevel;
   } else {
     // Modo reposo apagado: tono sutil, tenue, sin resplandor excesivo
-    strokeGradient.addColorStop(0, accentRgba(0));
-    strokeGradient.addColorStop(0.2, accentRgba(0.18));
-    strokeGradient.addColorStop(0.5, accentRgba(0.32));
-    strokeGradient.addColorStop(0.8, accentRgba(0.18));
-    strokeGradient.addColorStop(1, accentRgba(0));
+    strokeGradient.addColorStop(0, visualizerRgba(0));
+    strokeGradient.addColorStop(0.2, visualizerRgba(0.18));
+    strokeGradient.addColorStop(0.5, visualizerRgba(0.32));
+    strokeGradient.addColorStop(0.8, visualizerRgba(0.18));
+    strokeGradient.addColorStop(1, visualizerRgba(0));
 
     context.shadowColor = 'transparent';
     context.shadowBlur = 0;
@@ -183,9 +189,9 @@ function draw() {
     context.save();
     context.shadowBlur = 0;
     const mirrorGradient = context.createLinearGradient(startX, 0, startX + availableWidth, 0);
-    mirrorGradient.addColorStop(0, accentRgba(0));
-    mirrorGradient.addColorStop(0.5, accentRgba(0.2 * energyLevel));
-    mirrorGradient.addColorStop(1, accentRgba(0));
+    mirrorGradient.addColorStop(0, visualizerRgba(0));
+    mirrorGradient.addColorStop(0.5, visualizerRgba(0.2 * energyLevel));
+    mirrorGradient.addColorStop(1, visualizerRgba(0));
 
     context.strokeStyle = mirrorGradient;
     context.lineWidth = 1.2;

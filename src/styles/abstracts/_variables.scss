@@ -1,69 +1,84 @@
 :root {
   // =============================================================
-  // CALLIOPE DESIGN SYSTEM — DARK OLED + NEON ACCENT
+  // CALLIOPE DESIGN SYSTEM — NEUTRAL DARK BASE
   // =============================================================
-  // Base 100% negra (#000000 OLED) con superficies oscuras
-  // muy controladas (#050505, #0a0a0a, #121212) y acento neón reactivo.
-  // Cero fondos verdes o tintes residuales.
+  // Theme-specific color and surface tokens are applied from user preferences.
 
   // ==========
   // BACKGROUNDS (DARK OLED REAL)
   // ==========
-  --bg-primary: #000000;
-  --bg-secondary: #050505;
-  --bg-tertiary: #0a0a0a;
-  --bg-hover: #121212;
+  --bg-primary: #261d2b;
+  --bg-secondary: #34253a;
+  --bg-tertiary: #4a3152;
+  --bg-hover: #54385d;
 
   // ==========
   // SURFACES
   // ==========
-  --surface: #070707;
-  --surface-hover: #111111;
-  --surface-active: #161616;
-  --card-bg: #070707;
-  --card-hover-bg: #111111;
-  --sidebar-bg: #000000;
-  --sidebar-surface: #000000;
-  --player-bg: #050505;
-  --player-surface: #050505;
+  --surface: #38283f;
+  --surface-hover: #48324f;
+  --surface-active: #53395b;
+  --card-bg: #3b2a43;
+  --card-hover-bg: #49334f;
+  --sidebar-bg: #211923;
+  --sidebar-surface: #302237;
+  --player-bg: #704a73;
+  --player-surface: #805584;
   --visualizer-surface: transparent;
 
   // ==========
   // TEXT
   // ==========
-  --text-primary: #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-muted: #666666;
-  --text-inverted: #000000;
+  --text-primary: #f5eaf0;
+  --text-secondary: #d8c6d8;
+  --text-muted: #bca8be;
+  --text-inverted: #2b2030;
 
   // ==========
-  // ACCENT (NEON COMO ACENTO ELEGANTE)
+  // ACCENT
   // ==========
-  --accent-rgb: 37, 216, 102;
-  --accent: #25d866;
-  --accent-hover: #45e07b;
-  --accent-active: #1da651;
-  --accent-light: #6bf49e;
-  --accent-dark: #148a43;
-  --accent-darker: #0d542a;
-  --accent-contrast: #000000;
-  --accent-muted: rgba(var(--accent-rgb), 0.12);
-  --accent-surface: rgba(var(--accent-rgb), 0.04);
-  --accent-surface-strong: rgba(var(--accent-rgb), 0.10);
+  --accent-rgb: 245, 213, 170;
+  --accent: #f5d5aa;
+  --accent-hover: #ffe2bf;
+  --accent-active: #e9c394;
+  --accent-light: #ffead1;
+  --accent-dark: #c99e72;
+  --accent-darker: #795d48;
+  --accent-contrast: #2b2030;
+  --accent-secondary: #b77ea5;
+  --accent-secondary-rgb: 183, 126, 165;
+  --theme-main-background:
+    radial-gradient(ellipse at 50% -18%, rgba(183, 126, 165, 0.1), transparent 58%),
+    linear-gradient(145deg, #2a202f, #261d2b 58%, #211923);
+  --theme-sidebar-background: linear-gradient(180deg, #2b202f, #211923 76%);
+  --theme-player-background: linear-gradient(110deg, #704a73, #805584 54%, #704a73);
+  --theme-player-shadow: 0 -8px 24px rgba(14, 8, 17, 0.2);
+  --theme-panel-shadow: 0 12px 30px rgba(14, 8, 17, 0.22);
+  --theme-hover-shadow: 0 14px 30px rgba(14, 8, 17, 0.3);
+  --theme-control-shadow: 0 2px 8px rgba(14, 8, 17, 0.14);
+  --theme-logo-color: #ffead1;
+  --theme-logo-text: #f5eaf0;
+  --theme-logo-shadow: transparent;
+  --theme-card-radius: 16px;
+  --theme-logo-shadow: transparent;
+  --theme-card-lift: -1px;
+  --accent-muted: rgba(var(--accent-rgb), 0.16);
+  --accent-surface: rgba(var(--accent-rgb), 0.07);
+  --accent-surface-strong: rgba(var(--accent-rgb), 0.14);
   --accent-border: rgba(var(--accent-rgb), 0.28);
-  --accent-shadow: rgba(var(--accent-rgb), 0.12);
+  --accent-shadow: transparent;
 
   // ==========
   // GLOWS (SUTILES, SOLO INTERACTIVOS)
   // ==========
-  --neon-glow: 0 0 12px rgba(var(--accent-rgb), 0.32);
-  --neon-glow-soft: 0 0 20px rgba(var(--accent-rgb), 0.14);
+  --neon-glow: none;
+  --neon-glow-soft: none;
 
   // ==========
   // BORDERS
   // ==========
-  --border-color: rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(var(--accent-rgb), 0.35);
+  --border-color: rgba(242, 221, 238, 0.13);
+  --border-hover: rgba(245, 213, 170, 0.42);
 
   // ==========
   // SHADOWS (OLED PROFUNDOS)
@@ -87,25 +102,25 @@
   // ==========
   // STATUS
   // ==========
-  --status-success: #25d866;
-  --status-info: #60a5fa;
-  --warning-caution: #ffb84d;
-  --warning-danger: #ff5b5b;
-  --cancel-color: #ff5b5b;
-  --check-color: #25d866;
+  --status-success: #a6b995;
+  --status-info: #c5a9cb;
+  --warning-caution: #d9b77f;
+  --warning-danger: #d58a9a;
+  --cancel-color: #d58a9a;
+  --check-color: #b77ea5;
 
   // ==========
   // ROADMAP
   // ==========
-  --roadmap: #5b7cff;
-  --roadmap-light: #8ca3ff;
-  --roadmap-muted: rgba(91, 124, 255, 0.4);
-  --roadmap-dark: #364ea8;
-  --status-current: #25d866;
-  --status-next: #f5a623;
-  --status-planned: #4086d1;
-  --status-completed: #25d866;
-  --status-research: #a87a35;
-  --status-warning: #ff5b5b;
-  --status-future: #7f6abd;
+  --roadmap: #b77ea5;
+  --roadmap-light: #e0b7d2;
+  --roadmap-muted: rgba(183, 126, 165, 0.4);
+  --roadmap-dark: #704a73;
+  --status-current: #f5d5aa;
+  --status-next: #c5a9cb;
+  --status-planned: #c5a9cb;
+  --status-completed: #a6b995;
+  --status-research: #b77ea5;
+  --status-warning: #d9b77f;
+  --status-future: #bca8be;
 }

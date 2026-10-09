@@ -718,25 +718,37 @@
       <div class="pref-card">
         <div class="pref-row">
           <div class="pref-text">
-            <strong>Color de acento</strong>
-            <p>Elige el tono neón que tiñe botones, progreso y detalles.</p>
+            <strong>Temas</strong>
+            <p>Elige el estilo visual de los fondos, superficies, botones y detalles.</p>
           </div>
 
           <div class="accent-swatches">
             <button
-              v-for="opt in ACCENT_OPTIONS"
-              :key="opt.value"
+              v-for="palette in COLOR_PALETTES"
+              :key="palette.value"
               type="button"
               class="accent-swatch"
               :class="{
-                selected: user.profile.accentColor === opt.value,
+                selected: user.profile.accentColor === palette.value,
               }"
-              :style="{ '--swatch': opt.color }"
-              :aria-label="opt.label"
-              :title="opt.label"
-              @click="user.updateProfile({ accentColor: opt.value })"
+              :style="{ '--option-color': palette.tokens['--accent'] }"
+              :aria-label="`Usar tema ${palette.label}`"
+              :aria-pressed="user.profile.accentColor === palette.value"
+              :title="palette.label"
+              @click="user.updateProfile({ accentColor: palette.value })"
             >
-              <Check v-if="user.profile.accentColor === opt.value" :size="13" />
+              <span class="profile-palette-swatches" aria-hidden="true">
+                <span
+                  v-for="color in palette.colors"
+                  :key="color"
+                  :style="{ backgroundColor: color }"
+                ></span>
+              </span>
+              <span class="profile-palette-name">{{ palette.label }}</span>
+              <Check
+                v-if="user.profile.accentColor === palette.value"
+                :size="13"
+              />
             </button>
           </div>
         </div>
@@ -1436,17 +1448,11 @@ import { useLibraryStore } from "../stores/libraryStore.js";
 import { downscaleImage } from "../lib/covers.js";
 import ToggleSwitch from "../components/common/ToggleSwitch.vue";
 import SongIconCover from "../components/common/SongIconCover.vue";
+import { COLOR_PALETTES } from "../lib/colorPalettes.js";
 
 const user = useUserStore();
 const library = useLibraryStore();
 const router = useRouter();
-
-const ACCENT_OPTIONS = [
-  { value: "neon", label: "Neón", color: "#25d866" },
-  { value: "cyan", label: "Cian", color: "#22d3ee" },
-  { value: "magenta", label: "Magenta", color: "#e14eca" },
-  { value: "amber", label: "Ámbar", color: "#fbbf24" },
-];
 
 const categories = [
   { id: "stats", label: "Estadísticas", icon: BarChart3 },

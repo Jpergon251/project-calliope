@@ -162,9 +162,7 @@
         border-color: rgba(var(--accent-rgb, 37, 216, 102), 0.4);
         color: var(--accent-light, #8affae);
         transform: translateY(-2px);
-        box-shadow:
-          0 6px 16px rgba(0, 0, 0, 0.4),
-          0 0 12px rgba(var(--accent-rgb, 37, 216, 102), 0.2);
+        box-shadow: var(--theme-hover-shadow, var(--shadow-sm));
 
         svg {
           color: var(--accent, #25d866);
@@ -179,7 +177,7 @@
         background: rgba(var(--accent-rgb, 37, 216, 102), 0.16);
         border-color: var(--accent, #25d866);
         color: var(--accent, #25d866);
-        box-shadow: 0 0 14px rgba(var(--accent-rgb, 37, 216, 102), 0.3);
+        box-shadow: var(--theme-selected-shadow, none);
       }
     }
 
@@ -499,7 +497,7 @@
   border: 1px solid rgba(var(--accent-rgb, 37, 216, 102), 0.28);
   color: var(--accent, #25d866);
   margin-bottom: 20px;
-  box-shadow: 0 0 24px rgba(var(--accent-rgb, 37, 216, 102), 0.16);
+  box-shadow: var(--theme-selected-shadow, none);
 }
 
 .no-folder-title {
@@ -532,13 +530,13 @@
   font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(var(--accent-rgb, 37, 216, 102), 0.3);
+  box-shadow: var(--theme-control-shadow, none);
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 
   &:hover {
     background: var(--accent-hover, #45e07b);
     transform: translateY(-2px);
-    box-shadow: 0 6px 22px rgba(var(--accent-rgb, 37, 216, 102), 0.45);
+    box-shadow: var(--theme-control-shadow, none);
   }
 
   &:active {
