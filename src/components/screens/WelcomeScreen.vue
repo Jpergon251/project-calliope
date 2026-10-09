@@ -32,20 +32,24 @@
         <section
           v-if="currentStep === 1"
           class="welcome-step"
+          :class="{ 'welcome-step-choice': viewMode === 'choice' }"
         >
-          <!-- MODO: LISTA DE PERFILES EXISTENTES -->
-          <template v-if="viewMode === 'list'">
+          <template v-if="viewMode === 'choice'">
             <div class="welcome-heading">
               <span class="welcome-eyebrow">
-                Perfiles locales
+                {{ user.profilesList.length ? "Perfiles locales" : "Tu música, tu espacio" }}
               </span>
 
               <h1>
-                Elige tu perfil.
+                {{ user.profilesList.length ? "Elige tu perfil." : "¿Cómo quieres empezar?" }}
               </h1>
 
               <p>
-                Selecciona tu perfil para cargar tu música y preferencias en este dispositivo.
+                {{
+                  user.profilesList.length
+                    ? "Selecciona un perfil o elige cómo quieres continuar."
+                    : "Crea un perfil local o entra como invitado. Podrás cambiarlo más adelante."
+                }}
               </p>
             </div>
 
@@ -138,7 +142,7 @@
               </p>
             </div>
 
-            <div class="welcome-actions welcome-actions-column">
+            <div class="welcome-actions welcome-actions-column welcome-choice-actions">
               <div class="welcome-actions-row">
                 <button
                   type="button"
@@ -158,30 +162,18 @@
                   Continuar como invitado
                 </button>
               </div>
-
-              <div class="welcome-actions-row">
-                <button
-                  type="button"
-                  class="welcome-button welcome-button-secondary"
-                  @click="goToNextStep"
-                >
-                  Continuar sin perfil
-                  <ArrowRight :size="17" />
-                </button>
-              </div>
             </div>
           </template>
 
           <!-- MODO: CREAR PERFIL LOCAL -->
-          <template v-else>
+          <template v-else-if="viewMode === 'create'">
             <button
-              v-if="user.profilesList.length > 0"
               type="button"
               class="welcome-back"
               @click="cancelCreate"
             >
               <ArrowLeft :size="17" />
-              Volver a perfiles
+              Volver
             </button>
 
             <div class="welcome-heading">
@@ -321,14 +313,6 @@
                   Cancelar
                 </button>
 
-                <button
-                  type="button"
-                  class="welcome-button welcome-button-ghost"
-                  @click="continueAsGuest"
-                >
-                  <User :size="17" />
-                  Continuar como invitado
-                </button>
               </div>
             </form>
           </template>
@@ -629,7 +613,7 @@ const router = useRouter();
 const currentStep = ref(1);
 const selectingFolder = ref(false);
 
-const viewMode = ref("list"); // 'list' | 'create'
+const viewMode = ref("choice");
 const selectedProfileId = ref(null);
 const unlockingProfile = ref(null);
 const unlockPassword = ref("");
@@ -681,10 +665,8 @@ function startCreatingProfile() {
 }
 
 function cancelCreate() {
-  if (user.profilesList.length > 0) {
-    viewMode.value = "list";
-    createPasswordError.value = "";
-  }
+  viewMode.value = "choice";
+  createPasswordError.value = "";
 }
 
 const isNativeApp = computed(() => {
@@ -929,11 +911,7 @@ onMounted(async () => {
       return;
     }
 
-    if (user.profilesList.length === 0) {
-      viewMode.value = "create";
-    } else {
-      viewMode.value = "list";
-    }
+    viewMode.value = "choice";
   } catch (error) {
     console.error(
       "[WelcomeScreen] No se pudieron cargar los perfiles:",

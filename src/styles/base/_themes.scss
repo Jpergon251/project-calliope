@@ -42,6 +42,117 @@ html[data-theme] .app-container .main :is(
 }
 
 html[data-theme="miami-vice"] {
+  .welcome-header .welcome-logo {
+    display: flex;
+    width: auto;
+    max-width: none;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .welcome-header .welcome-logo .miami-app-mark {
+    --welcome-logo-intro-x: 395px;
+    --welcome-logo-intro-y: calc(40vh - 52px);
+    position: relative;
+    display: block;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    overflow: hidden;
+    filter: drop-shadow(0 0 8px rgba(255, 234, 209, 0.24));
+    transform-origin: center;
+    animation: miami-welcome-mark-intro 1.35s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  }
+
+  @media (max-width: 700px) {
+    .welcome-header .welcome-logo .miami-app-mark {
+      --welcome-logo-intro-x: calc(50vw - 45px);
+      --welcome-logo-intro-y: calc(40vh - 45px);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .welcome-header .welcome-logo .miami-app-mark {
+      --welcome-logo-intro-x: calc(50vw - 39px);
+      --welcome-logo-intro-y: calc(40vh - 41px);
+    }
+  }
+
+  @media (min-width: 701px) and (max-width: 900px) {
+    .welcome-header .welcome-logo .miami-app-mark {
+      --welcome-logo-intro-x: calc(50vw - 55px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-header .welcome-logo .miami-app-mark,
+    .welcome-header .welcome-logo .app-name {
+      animation: none;
+    }
+  }
+
+  &.reduced-motion {
+    .welcome-header .welcome-logo .miami-app-mark,
+    .welcome-header .welcome-logo .app-name {
+      animation: none;
+    }
+  }
+
+  .welcome-header .welcome-logo .miami-app-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .welcome-header .welcome-logo .app-image {
+    display: none;
+  }
+
+  .welcome-header .welcome-logo .app-name {
+    display: block;
+    margin: 0;
+    color: var(--theme-logo-text, var(--text-primary));
+    font-family: "GTA Art Deco", sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    animation: miami-welcome-wordmark-intro 520ms 1.2s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  }
+
+  .welcome-content {
+    animation: miami-welcome-content-intro 620ms 1.7s both;
+  }
+
+  .welcome-footer {
+    animation: miami-welcome-content-intro 520ms 1.85s both;
+  }
+
+  .welcome-step-choice .welcome-heading {
+    text-align: center;
+  }
+
+  .welcome-choice-actions {
+    align-items: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-content,
+    .welcome-footer {
+      animation: none;
+    }
+  }
+
+  &.reduced-motion {
+    .welcome-content,
+    .welcome-footer {
+      animation: none;
+    }
+  }
+
   .miami-screen-enter-active,
   .miami-screen-leave-active {
     transition:
@@ -393,6 +504,48 @@ html[data-theme="miami-vice"] {
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes miami-welcome-mark-intro {
+  0% {
+    opacity: 0;
+    transform: translate3d(
+      var(--welcome-logo-intro-x),
+      var(--welcome-logo-intro-y),
+      0
+    ) scale(3.4);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes miami-welcome-wordmark-intro {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+}
+
+@keyframes miami-welcome-content-intro {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
 
   to {
@@ -986,5 +1139,147 @@ html[data-theme="red-music"] {
 
   .home .jump-card {
     box-shadow: none;
+  }
+}
+
+html[data-theme="neon-wave"] {
+  .welcome-header .welcome-logo {
+    animation: neon-welcome-brand-intro 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .welcome-content {
+    animation: neon-welcome-content-intro 560ms 160ms both;
+  }
+
+  .welcome-choice-actions .welcome-button {
+    animation: neon-welcome-action-intro 420ms both;
+
+    &:nth-child(2) {
+      animation-delay: 100ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-header .welcome-logo,
+    .welcome-content,
+    .welcome-choice-actions .welcome-button {
+      animation: none;
+    }
+  }
+
+  &.reduced-motion {
+    .welcome-header .welcome-logo,
+    .welcome-content,
+    .welcome-choice-actions .welcome-button {
+      animation: none;
+    }
+  }
+}
+
+html[data-theme="red-music"] {
+  .welcome-header .welcome-logo {
+    animation: red-welcome-brand-intro 680ms ease-out both;
+  }
+
+  .welcome-content {
+    animation: red-welcome-content-intro 600ms 120ms both;
+  }
+
+  .welcome-choice-actions .welcome-button {
+    animation: red-welcome-action-intro 460ms both;
+
+    &:nth-child(2) {
+      animation-delay: 110ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-header .welcome-logo,
+    .welcome-content,
+    .welcome-choice-actions .welcome-button {
+      animation: none;
+    }
+  }
+
+  &.reduced-motion {
+    .welcome-header .welcome-logo,
+    .welcome-content,
+    .welcome-choice-actions .welcome-button {
+      animation: none;
+    }
+  }
+}
+
+@keyframes neon-welcome-brand-intro {
+  from {
+    opacity: 0;
+    filter: drop-shadow(0 0 0 rgba(36, 255, 137, 0));
+    transform: translateY(12px) scale(0.88);
+  }
+
+  to {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px rgba(36, 255, 137, 0.3));
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes neon-welcome-content-intro {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes neon-welcome-action-intro {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes red-welcome-brand-intro {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes red-welcome-content-intro {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes red-welcome-action-intro {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
