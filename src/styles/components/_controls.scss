@@ -83,6 +83,14 @@
     opacity: 0.98;
     filter: saturate(1.35) brightness(1.18) drop-shadow(0 0 14px var(--accent));
   }
+  &.muted {
+    opacity: 0.3;
+    filter: saturate(0.45) brightness(0.7);
+  }
+  &.paused {
+    opacity: 0.3;
+    filter: saturate(0.45) brightness(0.7);
+  }
   canvas {
     display: block;
     width: 100%;

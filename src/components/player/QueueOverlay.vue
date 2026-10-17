@@ -445,16 +445,6 @@
               <h3 class="section-title">Ya escuchados</h3>
               <span class="count-tag muted">{{ historyQueue.length }}</span>
             </div>
-
-            <button
-              v-if="historyQueue.length > 0"
-              type="button"
-              class="clear-history-text-btn"
-              @click="library.clearHistoryQueue()"
-              title="Borrar historial de esta sesión"
-            >
-              Limpiar
-            </button>
           </div>
 
           <ul

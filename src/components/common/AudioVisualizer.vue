@@ -1,5 +1,13 @@
 <template>
-  <div class="audio-visualizer" :class="{ active: isLit }" aria-hidden="true">
+  <div
+    class="audio-visualizer"
+    :class="{
+      active: visualizerState === 'active',
+      muted: visualizerState === 'dimmed',
+      paused: visualizerState === 'off',
+    }"
+    aria-hidden="true"
+  >
     <canvas ref="canvas"></canvas>
   </div>
 </template>
@@ -7,15 +15,34 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue';
 import { useLibraryStore } from '../../stores/libraryStore.js';
+import {
+  scaledVisualizerGain,
+  smoothVisualizerValue,
+  visualizerAmplitude,
+  visualizerMode,
+} from '../../lib/visualizerMath.js';
 
 const library = useLibraryStore();
 const canvas = ref(null);
 let analyser = null;
 let animationFrame = null;
 let idlePhase = 0;
-let energyLevel = 0; // interpolación suave para encendido / apagado
+let energyLevel = 0;
+let smoothedSpectrum = null;
+let smoothedMotion = 0;
+let previousFrameTime = 0;
+const MIN_DB = -78;
+const MAX_DB = -18;
 
-const isLit = computed(() => library.isPlaying);
+function frequencyLevel(byteValue) {
+  const db = (byteValue / 255) * (analyser?.maxDecibels ?? -20)
+    + (1 - byteValue / 255) * (analyser?.minDecibels ?? -100);
+  return Math.max(0, Math.min(1, (db - MIN_DB) / (MAX_DB - MIN_DB)));
+}
+
+const visualizerState = computed(() =>
+  visualizerMode(library.isPlaying, library.isMuted, library.volume),
+);
 
 function initAnalyser() {
   analyser = library.getAudioAnalyser();
@@ -70,17 +97,40 @@ function draw() {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
 
-  const playing = Boolean(library.isPlaying && analyser);
-  const targetEnergy = playing ? 1 : 0;
-  energyLevel += (targetEnergy - energyLevel) * 0.08; // transición suave de iluminación
-
+  const playing = Boolean(library.isPlaying);
+  const gainScale = playing ? scaledVisualizerGain(library.volume) : 0;
+  const now = performance.now();
+  const deltaSeconds = previousFrameTime ? (now - previousFrameTime) / 1000 : 1 / 60;
+  previousFrameTime = now;
   idlePhase += 0.025;
 
   const pointsCount = 64;
-  const values = playing ? new Uint8Array(analyser.frequencyBinCount) : null;
-  if (playing) {
-    analyser.getByteFrequencyData(values);
+  const values = playing && analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
+  if (values) analyser.getByteFrequencyData(values);
+  if (values) {
+    if (!smoothedSpectrum || smoothedSpectrum.length !== values.length) {
+      smoothedSpectrum = new Float32Array(values.length);
+    }
+    let weightedLevel = 0;
+    let weightsTotal = 0;
+    for (let index = 0; index < values.length; index++) {
+      const level = frequencyLevel(values[index]);
+      smoothedSpectrum[index] = smoothVisualizerValue(
+        smoothedSpectrum[index], level, 7, 3.4, deltaSeconds,
+      );
+      const normalized = index / Math.max(1, values.length - 1);
+      const weight = normalized < 0.2 ? 1.35 : normalized < 0.68 ? 1 : 0.82;
+      weightedLevel += smoothedSpectrum[index] * weight;
+      weightsTotal += weight;
+    }
+    const musicalLevel = weightsTotal ? weightedLevel / weightsTotal : 0;
+    const targetMotion = Math.pow(musicalLevel, 0.8);
+    smoothedMotion = smoothVisualizerValue(smoothedMotion, targetMotion, 4.2, 1.7, deltaSeconds);
+  } else {
+    smoothedMotion = smoothVisualizerValue(smoothedMotion, 0, 4.2, 1.7, deltaSeconds);
+    if (!playing) smoothedSpectrum?.fill(0);
   }
+  energyLevel = smoothedMotion;
 
   const centerY = height * 0.58;
   const isMobile = width <= 768;
@@ -96,29 +146,32 @@ function draw() {
     const windowFactor = Math.sin(progress * Math.PI);
 
     let amp = 0;
-    if (playing && values) {
+    if (values) {
       // Muestrear frecuencias distribuidas armónicamente
       const freqIndex = Math.min(
         Math.floor(Math.pow(progress, 1.3) * (values.length * 0.7)),
         values.length - 1
       );
-      const rawValue = values[freqIndex] || 0;
-      amp = (rawValue / 255) * (height * 0.42);
+      const bandLevel = smoothedSpectrum?.[freqIndex] || 0;
+      amp = visualizerAmplitude(bandLevel, library.volume) * (height * 0.42);
     }
 
     // Ondulación sutil en reposo (idle) que mantiene presencia apagada pero viva
-    const idleWave =
-      Math.sin(idlePhase * 1.5 + progress * 5) * 2.2 +
-      Math.cos(idlePhase * 0.8 + progress * 3) * 1.4;
+    const idleWave = values
+      ? 0
+      : Math.sin(idlePhase * 1.5 + progress * 5) * 2.2 +
+        Math.cos(idlePhase * 0.8 + progress * 3) * 1.4;
 
-    const totalAmp = (amp * energyLevel + idleWave * (1 - energyLevel * 0.6)) * windowFactor;
+    const totalAmp = gainScale === 0
+      ? 0
+      : (amp + idleWave * (1 - energyLevel * 0.6)) * windowFactor;
     const y = centerY - totalAmp;
 
     points.push({ x, y, totalAmp, windowFactor });
   }
 
   // 1. Relleno con gradiente bajo la onda (iluminación de campo de energía neon)
-  if (energyLevel > 0.05) {
+  if (gainScale > 0 && energyLevel > 0.05) {
     const fillGradient = context.createLinearGradient(0, centerY - height * 0.4, 0, centerY + 10);
     fillGradient.addColorStop(0, visualizerRgba(0.16 * energyLevel));
     fillGradient.addColorStop(0.7, visualizerRgba(0.04 * energyLevel));
@@ -145,23 +198,33 @@ function draw() {
 
   // 2. Línea principal Neon (apagada en reposo, brillante al sonar)
   const strokeGradient = context.createLinearGradient(startX, 0, startX + availableWidth, 0);
-  if (energyLevel > 0.15) {
+  const visualAlpha = Math.max(0, Math.min(0.92, 0.72 + gainScale * 0.2));
+  if (!playing) {
+    strokeGradient.addColorStop(0, visualizerRgba(0));
+    strokeGradient.addColorStop(0.2, visualizerRgba(0.2));
+    strokeGradient.addColorStop(0.5, visualizerRgba(0.28));
+    strokeGradient.addColorStop(0.8, visualizerRgba(0.2));
+    strokeGradient.addColorStop(1, visualizerRgba(0));
+    context.shadowColor = 'transparent';
+    context.shadowBlur = 0;
+    context.lineWidth = 1.6;
+  } else if (energyLevel > 0.15) {
     // Modo iluminado: verde neon vibrante con núcleo claro
     strokeGradient.addColorStop(0, visualizerRgba(0));
-    strokeGradient.addColorStop(0.18, visualizerRgba(0.5 + 0.3 * energyLevel));
+    strokeGradient.addColorStop(0.18, visualizerRgba(visualAlpha));
     strokeGradient.addColorStop(0.5, visualizerColor);
-    strokeGradient.addColorStop(0.82, visualizerRgba(0.5 + 0.3 * energyLevel));
+    strokeGradient.addColorStop(0.82, visualizerRgba(visualAlpha));
     strokeGradient.addColorStop(1, visualizerRgba(0));
 
     context.shadowColor = visualizerColor;
-    context.shadowBlur = 16 * energyLevel;
+    context.shadowBlur = 12 + 16 * energyLevel;
     context.lineWidth = 2.2 + 0.6 * energyLevel;
   } else {
     // Modo reposo apagado: tono sutil, tenue, sin resplandor excesivo
     strokeGradient.addColorStop(0, visualizerRgba(0));
-    strokeGradient.addColorStop(0.2, visualizerRgba(0.18));
-    strokeGradient.addColorStop(0.5, visualizerRgba(0.32));
-    strokeGradient.addColorStop(0.8, visualizerRgba(0.18));
+    strokeGradient.addColorStop(0.2, visualizerRgba(visualAlpha));
+    strokeGradient.addColorStop(0.5, visualizerRgba(visualAlpha));
+    strokeGradient.addColorStop(0.8, visualizerRgba(visualAlpha));
     strokeGradient.addColorStop(1, visualizerRgba(0));
 
     context.shadowColor = 'transparent';
@@ -185,7 +248,7 @@ function draw() {
   context.stroke();
 
   // 3. Reflejo especular atenuado inferior
-  if (energyLevel > 0.2) {
+  if (gainScale > 0 && energyLevel > 0.2) {
     context.save();
     context.shadowBlur = 0;
     const mirrorGradient = context.createLinearGradient(startX, 0, startX + availableWidth, 0);
@@ -222,5 +285,6 @@ onBeforeUnmount(() => {
   if (animationFrame) {
     cancelAnimationFrame(animationFrame);
   }
+  smoothedSpectrum = null;
 });
 </script>

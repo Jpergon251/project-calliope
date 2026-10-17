@@ -88,14 +88,19 @@
           ref="scrubberRef"
           role="slider"
           :aria-valuenow="displayCurrentTime"
+          :aria-valuetext="`${formatTime(displayCurrentTime)} de ${formatTime(library.duration)}`"
           aria-valuemin="0"
           :aria-valuemax="library.duration || 0"
           tabindex="0"
+          @keydown="handleScrubberKeydown"
           @click="handleScrubberClick"
           @touchstart="handleScrubberTouchStart"
           @touchmove="handleScrubberTouchMove"
           @touchend="handleScrubberTouchEnd"
+          @touchcancel="handleScrubberTouchEnd"
           @mousedown="handleScrubberMouseDown"
+          @focus="handleScrubberFocus"
+          @blur="handleScrubberBlur"
         >
           <div class="scrubber-track">
             <div class="scrubber-fill" :style="{ width: `${progressPercent}%` }"></div>
@@ -109,42 +114,49 @@
       </section>
 
       <section class="player-page-controls" aria-label="Controles de reproducción">
-        <button
-          type="button"
-          class="ctrl-btn shuffle-btn"
-          :class="{ active: library.isShuffleEnabled }"
-          :aria-label="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria desactivada'"
-          :title="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria'"
-          @click="library.toggleShuffle()"
-        >
-          <Shuffle :size="20" />
-        </button>
-        <button type="button" class="ctrl-btn" aria-label="Canción anterior" @click="library.playPreviousSong">
-          <SkipBack fill="currentColor" />
-        </button>
-        <button
-          type="button"
-          class="main-control"
-          :class="{ 'is-playing': library.isPlaying }"
-          :aria-label="library.isPlaying ? 'Pausar' : 'Reproducir'"
-          @click="library.togglePlay"
-        >
-          <Pause v-if="library.isPlaying" fill="currentColor" />
-          <Play v-else fill="currentColor" />
-        </button>
-        <button type="button" class="ctrl-btn" aria-label="Siguiente canción" @click="library.playNextSong">
-          <SkipForward fill="currentColor" />
-        </button>
-        <button
-          type="button"
-          class="ctrl-btn autoplay-btn"
-          :class="{ active: library.autoplay }"
-          :aria-label="library.autoplay ? 'Desactivar reproducción automática' : 'Activar reproducción automática'"
-          :title="library.autoplay ? 'Reproducción automática activada' : 'Reproducción automática desactivada'"
-          @click="handleToggleAutoplay"
-        >
-          <Infinity :size="22" />
-        </button>
+        <div class="player-page-control-group">
+          <div class="player-page-transport">
+            <button
+              type="button"
+              class="ctrl-btn shuffle-btn"
+              :class="{ active: library.isShuffleEnabled }"
+              :aria-label="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria desactivada'"
+              :title="library.isShuffleEnabled ? 'Reproducción aleatoria activada' : 'Reproducción aleatoria'"
+              @click="library.toggleShuffle()"
+            >
+              <Shuffle :size="20" />
+            </button>
+            <button type="button" class="ctrl-btn" aria-label="Canción anterior" @click="library.playPreviousSong">
+              <SkipBack fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              class="main-control"
+              :class="{ 'is-playing': library.isPlaying }"
+              :aria-label="library.isPlaying ? 'Pausar' : 'Reproducir'"
+              @click="library.togglePlay"
+            >
+              <Pause v-if="library.isPlaying" fill="currentColor" />
+              <Play v-else fill="currentColor" />
+            </button>
+            <button type="button" class="ctrl-btn" aria-label="Siguiente canción" @click="library.playNextSong">
+              <SkipForward fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              class="ctrl-btn autoplay-btn"
+              :class="{ active: library.autoplay }"
+              :aria-label="library.autoplay ? 'Desactivar reproducción automática' : 'Activar reproducción automática'"
+              :title="library.autoplay ? 'Reproducción automática activada' : 'Reproducción automática desactivada'"
+              @click="handleToggleAutoplay"
+            >
+              <Infinity :size="22" />
+            </button>
+          </div>
+          <section class="player-page-volume" aria-label="Control de volumen">
+            <VolumeModal :library="library" layout="bar" />
+          </section>
+        </div>
       </section>
 
       <section class="player-page-visualizer" aria-label="Visualizador de audio">
@@ -178,6 +190,7 @@ import {
 } from 'lucide-vue-next';
 import { useLibraryStore } from '../stores/libraryStore.js';
 import AudioVisualizer from '../components/common/AudioVisualizer.vue';
+import VolumeModal from '../components/player/VolumeModal.vue';
 import SongIconCover from '../components/common/SongIconCover.vue';
 
 defineProps({
@@ -258,6 +271,7 @@ function handleTouchEnd() {
 // Timeline scrubber logic
 const scrubberRef = ref(null);
 const isScrubbing = ref(false);
+const isScrubberFocused = ref(false);
 const scrubTime = ref(0);
 
 const displayCurrentTime = computed(() => {
@@ -277,46 +291,78 @@ function calculateTimeFromX(clientX) {
   return ratio * library.duration;
 }
 
-function handleScrubberClick(e) {
-  const time = calculateTimeFromX(e.clientX);
+function handleScrubberFocus() {
+  isScrubberFocused.value = true;
+}
+
+function handleScrubberBlur() {
+  isScrubberFocused.value = false;
+}
+
+function handleScrubberKeydown(e) {
+  const offsets = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -10, PageUp: 10 };
+  if (e.key === 'Home') {
+    e.preventDefault();
+    library.seek(0);
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    library.seek(library.duration);
+  } else if (offsets[e.key]) {
+    e.preventDefault();
+    library.seek(Math.max(0, Math.min(library.duration, displayCurrentTime.value + offsets[e.key])));
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    const rect = scrubberRef.value?.getBoundingClientRect();
+    if (rect) finishScrubbing(calculateTimeFromX(rect.left + rect.width * (displayCurrentTime.value / Math.max(1, library.duration))));
+  }
+}
+
+function beginScrubbing(time) {
+  isScrubbing.value = true;
+  scrubTime.value = time;
+  library.setProgressScrubbing(true);
+}
+
+function finishScrubbing(time = scrubTime.value) {
   library.currentTime = time;
+  library.seek(time);
+  library.setProgressScrubbing(false);
+  isScrubbing.value = false;
+}
+
+function handleScrubberClick(e) {
+  if (e.detail === 0 || isScrubbing.value) return;
+  const time = calculateTimeFromX(e.clientX);
   library.seek(time);
 }
 
 function handleScrubberTouchStart(e) {
-  isScrubbing.value = true;
-  scrubTime.value = calculateTimeFromX(e.touches[0].clientX);
+  beginScrubbing(calculateTimeFromX(e.touches[0].clientX));
 }
 
 function handleScrubberTouchMove(e) {
   if (!isScrubbing.value) return;
   scrubTime.value = calculateTimeFromX(e.touches[0].clientX);
+  library.currentTime = scrubTime.value;
 }
 
 function handleScrubberTouchEnd() {
-  if (isScrubbing.value) {
-    library.currentTime = scrubTime.value;
-    library.seek(scrubTime.value);
-    isScrubbing.value = false;
-  }
+  if (isScrubbing.value) finishScrubbing();
 }
 
 function handleScrubberMouseDown(e) {
-  isScrubbing.value = true;
-  scrubTime.value = calculateTimeFromX(e.clientX);
+  if (e.button !== 0) return;
+  beginScrubbing(calculateTimeFromX(e.clientX));
 
   function onMouseMove(moveEvent) {
     if (isScrubbing.value) {
       scrubTime.value = calculateTimeFromX(moveEvent.clientX);
+      library.currentTime = scrubTime.value;
     }
   }
 
   function onMouseUp() {
-    if (isScrubbing.value) {
-      library.currentTime = scrubTime.value;
-      library.seek(scrubTime.value);
-      isScrubbing.value = false;
-    }
+    if (isScrubbing.value) finishScrubbing();
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
   }

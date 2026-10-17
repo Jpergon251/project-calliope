@@ -4,19 +4,23 @@
  * Single source of truth for volume conversions:
  * UI Volume (0.0 to 1.0) <-> Decibels (dB) <-> Linear Audio Gain (0.0 to 1.0)
  *
- * Perceptual curve based on human auditory perception (power curve with exponent 2.2):
- * - 0% (v = 0.00)  -> -Infinity dB (Gain: 0.0, Silence)
- * - 5% (v = 0.05)  -> ~ -57 dB     (Gain: ~0.0014, Ultra-low / night listening)
- * - 15% (v = 0.15) -> ~ -36 dB     (Gain: ~0.015, Low volume)
- * - 30% (v = 0.30) -> ~ -23 dB     (Gain: ~0.07, Medium-low volume)
- * - 50% (v = 0.50) -> ~ -13 dB     (Gain: ~0.22, Normal listening volume)
- * - 75% (v = 0.75) -> ~ -5.5 dB    (Gain: ~0.53, Loud)
- * - 100% (v = 1.00) -> 0.0 dB      (Gain: 1.0, Unity gain, Max, No clipping)
+ * Perceptual curve based on human auditory perception (cubic power curve with exponent 3.0):
+ * - 0% (v = 0.00)  -> -Infinity dB (Gain: 0.000, Silence)
+ * - 10% (v = 0.10) -> -60.0 dB     (Gain: 0.001, Ultra-low / quiet background)
+ * - 20% (v = 0.20) -> -41.9 dB     (Gain: 0.008, Low volume)
+ * - 30% (v = 0.30) -> -31.4 dB     (Gain: 0.027, Medium-low volume)
+ * - 40% (v = 0.40) -> -23.9 dB     (Gain: 0.064, Moderate listening)
+ * - 50% (v = 0.50) -> -18.1 dB     (Gain: 0.125, Comfortable / moderate volume)
+ * - 60% (v = 0.60) -> -13.3 dB     (Gain: 0.216, Lively listening volume)
+ * - 70% (v = 0.70) -> -9.3 dB      (Gain: 0.343, Loud)
+ * - 80% (v = 0.80) -> -5.8 dB      (Gain: 0.512, Very loud)
+ * - 90% (v = 0.90) -> -2.7 dB      (Gain: 0.729, Near maximum)
+ * - 100% (v = 1.00) -> 0.0 dB      (Gain: 1.000, Unity gain, Max, No clipping)
  */
 
 export const MIN_DB = -60;
 export const MAX_DB = 0;
-export const PERCEPTUAL_EXPONENT = 2.2;
+export const PERCEPTUAL_EXPONENT = 3.0;
 
 /**
  * Converts a UI slider volume (0.0 to 1.0) to decibels (dB).

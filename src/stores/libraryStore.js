@@ -27,6 +27,7 @@ import {
 } from "../lib/volume.js";
 
 import { useUserStore } from "./userStore.js";
+import { appendListeningHistoryGroup } from "../services/listeningHistory.js";
 import {
   createRecording,
   createRelease,
@@ -210,14 +211,18 @@ export const useLibraryStore = defineStore("library", () => {
   const sortMode = ref("name");
   const loading = ref(false);
 
+  // Navigation back-stack is independent from the persistent listening history.
   const historyQueue = ref([]);
   const playQueue = ref([]);
+  const activeQueueHistory = ref([]);
 
   const playingSong = ref(null);
   const isPlaying = ref(false);
 
   const currentTime = ref(0);
   const duration = ref(0);
+  const isProgressScrubbing = ref(false);
+
   const volume = ref(0.7);
   const isMuted = ref(false);
 
@@ -281,13 +286,45 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   const profileStatsSummary = ref(createEmptyStatsSummary());
+  const audio = new Audio();
 
   // Real listening time tracking variables (avoids scrubbing artifacts)
   let currentListeningSongId = null;
   let currentListeningAccumulatedSec = 0;
   let currentSongPlayCounted = false;
+  let currentListeningSessionId = 0;
+  const recordedPlaybackSessions = new Set();
   let lastTimeUpdateTimestamp = null;
   let pendingSaveSummaryTimeout = null;
+  let progressUpdateTimer = null;
+  let handlingEnded = false;
+
+  function setProgressScrubbing(value) {
+    isProgressScrubbing.value = Boolean(value);
+    if (!isProgressScrubbing.value) syncAudioProgress();
+  }
+
+  function syncAudioProgress() {
+    if (!audio) return;
+    if (!isProgressScrubbing.value) {
+      currentTime.value = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    }
+    if (Number.isFinite(audio.duration)) duration.value = audio.duration;
+  }
+
+  function startProgressUpdates() {
+    if (progressUpdateTimer !== null) clearInterval(progressUpdateTimer);
+    syncAudioProgress();
+    progressUpdateTimer = setInterval(syncAudioProgress, 1000);
+  }
+
+  function stopProgressUpdates() {
+    if (progressUpdateTimer !== null) {
+      clearInterval(progressUpdateTimer);
+      progressUpdateTimer = null;
+    }
+    syncAudioProgress();
+  }
 
   // =========================
   // NOW PLAYING & QUEUE OVERLAYS
@@ -978,6 +1015,10 @@ export const useLibraryStore = defineStore("library", () => {
 
   async function recordSongPlay(song, initialListenedSec = 0) {
     if (!song || !song.id) return;
+    const playIdentity = `${currentListeningSongId || song.id}:${currentListeningSessionId}`;
+    if (recordedPlaybackSessions.has(playIdentity)) return;
+    if (currentListeningSongId && currentListeningSongId !== song.id) return;
+    recordedPlaybackSessions.add(playIdentity);
     const user = useUserStore();
     const currentProfileId =
       user.currentSession?.profileId || (user.isGuest ? "guest" : "default");
@@ -1930,24 +1971,24 @@ export const useLibraryStore = defineStore("library", () => {
       if (db.objectStoreNames.contains("history")) {
         const records = await db.getAll("history");
 
-        let dirty = false;
-
+        const dirtyRecords = [];
         for (const record of records || []) {
+          let dirty = false;
           if (isBlobUrl(record.cover)) {
             record.cover = null;
             dirty = true;
           }
+          if (!Number.isFinite(Number(record.playCount)) || Number(record.playCount) < 1) {
+            record.playCount = 1;
+            dirty = true;
+          }
+          if (dirty) dirtyRecords.push(record);
         }
-
-        if (dirty) {
+        if (dirtyRecords.length) {
           try {
-            await db.clear("history");
-
-            await Promise.all(
-              (records || []).map((record) => db.put("history", toRaw(record))),
-            );
+            await Promise.all(dirtyRecords.map((record) => db.put("history", toRaw(record))));
           } catch (e) {
-            console.warn("Could not migrate history covers:", e);
+            console.warn("Could not migrate history records:", e);
           }
         }
 
@@ -1997,54 +2038,47 @@ export const useLibraryStore = defineStore("library", () => {
     } catch {}
 
     const now = Date.now();
-
-    const last = listeningHistory.value[0];
-
     const user = useUserStore();
     const currentProfileId = user.currentSession?.profileId;
-
-    if (
-      last &&
-      last.type === entry.type &&
-      last.itemId === entry.itemId &&
-      now - (last.timestamp || 0) < 60000
-    ) {
-      last.timestamp = now;
-
-      if (!user.isGuest && currentProfileId) {
-        try {
-          const db = await dbPromise;
-
-          if (db.objectStoreNames.contains("history")) {
-            await db.put("history", toRaw(last));
-          }
-        } catch (e) {}
-      }
-
-      return;
-    }
-
-    const newRecord = {
-      id: `${now}-${Math.random().toString(36).substr(2, 5)}`,
-
+    const normalizedEntry = {
+      ...entry,
       type: entry.type || "song",
-
       itemId: entry.itemId || entry.id || String(now),
-
       title: entry.title,
-
       subtitle: entry.subtitle || "",
-
       cover: sanitizeCoverForStorage(entry.cover),
-
       duration: entry.duration || null,
-
-      timestamp: now,
-
       profileId: user.isGuest ? null : currentProfileId,
     };
 
-    listeningHistory.value.unshift(newRecord);
+    let newRecord;
+    if (normalizedEntry.type === "song") {
+      listeningHistory.value = appendListeningHistoryGroup(
+        listeningHistory.value,
+        normalizedEntry,
+        now,
+        () => `${now}-${Math.random().toString(36).slice(2, 7)}`,
+      );
+      newRecord = listeningHistory.value[0];
+    } else {
+      const last = listeningHistory.value[0];
+      if (
+        last && last.type === normalizedEntry.type &&
+        last.itemId === normalizedEntry.itemId && now - (last.timestamp || 0) < 60000
+      ) {
+        last.timestamp = now;
+        newRecord = last;
+      } else {
+        newRecord = {
+          ...normalizedEntry,
+          id: `${now}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: now,
+          playCount: 1,
+        };
+        listeningHistory.value.unshift(newRecord);
+      }
+    }
+    newRecord.playCount = Math.max(1, Number(newRecord.playCount) || 1);
 
     if (listeningHistory.value.length > 200) {
       listeningHistory.value = listeningHistory.value.slice(0, 200);
@@ -2089,36 +2123,8 @@ export const useLibraryStore = defineStore("library", () => {
     });
   }
 
-  async function removeHistoryItem(id) {
-    listeningHistory.value = listeningHistory.value.filter(
-      (item) => item.id !== id,
-    );
-
-    try {
-      const db = await dbPromise;
-
-      if (db.objectStoreNames.contains("history")) {
-        await db.delete("history", id);
-      }
-    } catch (e) {}
-  }
-
-  async function clearListeningHistory() {
-    listeningHistory.value = [];
-    historyQueue.value = [];
-
-    try {
-      const db = await dbPromise;
-
-      if (db.objectStoreNames.contains("history")) {
-        await db.clear("history");
-      }
-    } catch (e) {}
-  }
-
-  function clearHistory() {
-    clearListeningHistory();
-  }
+  // Listening history is append-only from the playback UI. It must never be
+  // cleared as a side effect of queue navigation or queue management.
 
   // =========================
   // QUEUE
@@ -2151,6 +2157,7 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function clearHistoryQueue() {
+    activeQueueHistory.value = [];
     historyQueue.value = [];
   }
 
@@ -2251,13 +2258,6 @@ export const useLibraryStore = defineStore("library", () => {
   function playQueueSong(index) {
     if (index < 0 || index >= playQueue.value.length) return;
 
-    if (playingSong.value) {
-      historyQueue.value = dedupeById([
-        ...historyQueue.value.filter((s) => s.id !== playingSong.value.id),
-        playingSong.value,
-      ]);
-    }
-
     const [targetSong] = playQueue.value.splice(index, 1);
 
     if (isShuffleEnabled.value && targetSong) {
@@ -2267,22 +2267,13 @@ export const useLibraryStore = defineStore("library", () => {
     }
 
     if (targetSong) {
-      playSong(targetSong, false);
+      playSong(targetSong, true);
     }
   }
 
   function playHistorySong(song) {
     if (!song) return;
-
-    if (playingSong.value) {
-      playQueue.value = dedupeById([
-        playingSong.value,
-        ...playQueue.value.filter((item) => item.id !== playingSong.value.id),
-      ]);
-    }
-
-    historyQueue.value = historyQueue.value.filter((s) => s.id !== song.id);
-    playSong(song, false);
+    playSong(song, true, { removeFromQueue: true });
   }
 
   // =========================
@@ -2313,6 +2304,7 @@ export const useLibraryStore = defineStore("library", () => {
         playingSongId: playingSong.value?.id || null,
         queueIds: (playQueue.value || []).map((s) => s.id).filter(Boolean),
         historyIds: (historyQueue.value || []).map((s) => s.id).filter(Boolean),
+        activeQueueHistoryIds: (activeQueueHistory.value || []).map((s) => s.id).filter(Boolean),
         isShuffleEnabled: Boolean(isShuffleEnabled.value),
         originalQueueIds: (originalQueueList.value || [])
           .map((s) => s.id)
@@ -2380,17 +2372,14 @@ export const useLibraryStore = defineStore("library", () => {
         }
       }
 
-      if (
-        Array.isArray(state.historyIds) &&
-        state.historyIds.length &&
-        (!historyQueue.value || historyQueue.value.length === 0)
-      ) {
-        const restoredHistory = state.historyIds
-          .map((id) => songs.value.find((s) => s.id === id))
-          .filter(Boolean);
-        if (restoredHistory.length) {
-          historyQueue.value = dedupeById(restoredHistory);
-        }
+      const activeHistoryIds = Array.isArray(state.activeQueueHistoryIds)
+        ? state.activeQueueHistoryIds
+        : [];
+      if (activeHistoryIds?.length && activeQueueHistory.value.length === 0) {
+        activeQueueHistory.value = dedupeById(
+          activeHistoryIds.map((id) => songs.value.find((s) => s.id === id)).filter(Boolean),
+        );
+        historyQueue.value = [...activeQueueHistory.value];
       }
 
       if (typeof state.isShuffleEnabled === "boolean") {
@@ -2427,6 +2416,7 @@ export const useLibraryStore = defineStore("library", () => {
       playingSong,
       playQueue,
       historyQueue,
+      activeQueueHistory,
       isShuffleEnabled,
       originalQueueList,
       autoplay,
@@ -2498,13 +2488,17 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function switchProfile() {
+    playbackRequestId++;
     flushCurrentListeningSession();
+    stopProgressUpdates();
+    isProgressScrubbing.value = false;
     audio.pause();
     audio.currentTime = 0;
     playingSong.value = null;
     isPlaying.value = false;
     playQueue.value = [];
     historyQueue.value = [];
+    activeQueueHistory.value = [];
 
     if (currentUrl) {
       URL.revokeObjectURL(currentUrl);
@@ -3019,8 +3013,6 @@ export const useLibraryStore = defineStore("library", () => {
   // Audio element -> MediaElementSource -> GainNode -> AnalyserNode -> AudioContext Destination
   // =========================
 
-  const audio = new Audio();
-
   let audioContext = null;
   let audioAnalyser = null;
   let audioSource = null;
@@ -3045,10 +3037,11 @@ export const useLibraryStore = defineStore("library", () => {
       audioAnalyser.fftSize = 256;
       audioAnalyser.smoothingTimeConstant = 0.78;
 
-      // Audio element -> MediaElementSource -> GainNode -> AnalyserNode -> Destination
+      // Analyze the unmodified music signal; only the audible path passes through
+      // the output gain. The visualizer applies its own visual volume scaling.
+      audioSource.connect(audioAnalyser);
       audioSource.connect(audioGainNode);
-      audioGainNode.connect(audioAnalyser);
-      audioAnalyser.connect(audioContext.destination);
+      audioGainNode.connect(audioContext.destination);
 
       applyAudioGain();
     } catch (e) {
@@ -3154,8 +3147,16 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
+  function countShortPlaybackAtEnd() {
+    if (currentSongPlayCounted || !playingSong.value) return;
+    currentSongPlayCounted = true;
+    recordSongPlay(playingSong.value, currentListeningAccumulatedSec);
+  }
+
   audio.addEventListener("play", () => {
     isPlaying.value = true;
+    handlingEnded = false;
+    startProgressUpdates();
     lastTimeUpdateTimestamp = performance.now();
     if (!audioContext) {
       initAudioEngine();
@@ -3166,6 +3167,7 @@ export const useLibraryStore = defineStore("library", () => {
 
   audio.addEventListener("pause", () => {
     isPlaying.value = false;
+    stopProgressUpdates();
     if (lastTimeUpdateTimestamp !== null) {
       const delta = (performance.now() - lastTimeUpdateTimestamp) / 1000;
       if (delta > 0 && delta < 10) {
@@ -3177,7 +3179,6 @@ export const useLibraryStore = defineStore("library", () => {
   });
 
   audio.addEventListener("timeupdate", () => {
-    currentTime.value = audio.currentTime;
     if (!audio.paused && isPlaying.value) {
       const now = performance.now();
       if (lastTimeUpdateTimestamp !== null) {
@@ -3193,28 +3194,31 @@ export const useLibraryStore = defineStore("library", () => {
     }
   });
 
-  audio.addEventListener("loadedmetadata", () => {
-    duration.value = audio.duration;
-  });
+  audio.addEventListener("loadedmetadata", syncAudioProgress);
+  audio.addEventListener("durationchange", syncAudioProgress);
+  audio.addEventListener("seeked", syncAudioProgress);
 
   audio.addEventListener("ended", () => {
-    if (
-      !currentSongPlayCounted &&
-      playingSong.value &&
-      currentListeningAccumulatedSec >= 5
-    ) {
-      currentSongPlayCounted = true;
-      recordSongPlay(playingSong.value, currentListeningAccumulatedSec);
-    }
+    syncAudioProgress();
+    if (handlingEnded) return;
+    handlingEnded = true;
+    stopProgressUpdates();
+    countShortPlaybackAtEnd();
     flushCurrentListeningSession();
 
     if (repeatMode.value === "one") {
+      currentListeningSessionId++;
+      currentListeningAccumulatedSec = 0;
+      currentSongPlayCounted = false;
+      lastTimeUpdateTimestamp = performance.now();
+      recordSongPlay(playingSong.value, 0);
       audio.currentTime = 0;
+      syncAudioProgress();
       audio.play().catch(console.error);
       return;
     }
 
-    playNextSong();
+    playNextSong(true);
   });
 
   // =========================
@@ -3223,20 +3227,22 @@ export const useLibraryStore = defineStore("library", () => {
 
   const VOLUME_STORAGE_KEY = "calliope:volume";
   const VOLUME_MUTED_STORAGE_KEY = "calliope:volume_muted";
+  const previousVolume = ref(0.7);
+  let saveVolumeTimeout = null;
 
   function applyAudioGain() {
     const gain = isMuted.value ? 0 : volumeToGain(volume.value);
 
-    // 1. Direct HTMLAudioElement volume & muted
-    try {
-      audio.volume = Math.max(0, Math.min(1, gain));
-      audio.muted = isMuted.value;
-    } catch (e) {
-      console.warn("Could not set audio.volume:", e);
-    }
+    // When Web Audio API is active, apply the perceptual gain curve ONLY ONCE via audioGainNode.
+    // HTMLAudioElement is kept at unity gain (1.0) so audioSource is not double-attenuated.
+    if (audioGainNode && audioContext && audioContext.state !== "closed") {
+      try {
+        audio.volume = 1.0;
+        audio.muted = false;
+      } catch (e) {
+        console.warn("Could not set audio.volume:", e);
+      }
 
-    // 2. Web Audio API GainNode (with smooth 15ms linear ramp to eliminate clicks)
-    if (audioGainNode && audioContext) {
       try {
         const now = audioContext.currentTime;
         audioGainNode.gain.cancelScheduledValues(now);
@@ -3244,6 +3250,14 @@ export const useLibraryStore = defineStore("library", () => {
         audioGainNode.gain.linearRampToValueAtTime(gain, now + 0.015);
       } catch (e) {
         audioGainNode.gain.value = gain;
+      }
+    } else {
+      // Direct HTMLAudioElement volume & muted when Web Audio is not available
+      try {
+        audio.volume = Math.max(0, Math.min(1, gain));
+        audio.muted = isMuted.value;
+      } catch (e) {
+        console.warn("Could not set audio.volume:", e);
       }
     }
   }
@@ -3255,6 +3269,9 @@ export const useLibraryStore = defineStore("library", () => {
         const parsed = Number(saved);
         if (Number.isFinite(parsed)) {
           volume.value = Math.min(1, Math.max(0, parsed));
+          if (volume.value > 0.005) {
+            previousVolume.value = volume.value;
+          }
         }
       }
 
@@ -3278,6 +3295,13 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
+  function debouncedSaveVolume(value) {
+    if (saveVolumeTimeout) clearTimeout(saveVolumeTimeout);
+    saveVolumeTimeout = setTimeout(() => {
+      saveVolume(value);
+    }, 200);
+  }
+
   function saveMuted(muted) {
     try {
       localStorage.setItem(VOLUME_MUTED_STORAGE_KEY, String(muted));
@@ -3290,14 +3314,19 @@ export const useLibraryStore = defineStore("library", () => {
     const normalized = Math.min(1, Math.max(0, Number(value) || 0));
     volume.value = normalized;
 
-    // Moving volume above 0 automatically unmutes
-    if (isMuted.value && normalized > 0) {
-      isMuted.value = false;
-      saveMuted(false);
+    if (normalized > 0) {
+      previousVolume.value = normalized;
+      if (isMuted.value) {
+        isMuted.value = false;
+        saveMuted(false);
+      }
+    } else {
+      isMuted.value = true;
+      saveMuted(true);
     }
 
     applyAudioGain();
-    saveVolume(normalized);
+    debouncedSaveVolume(normalized);
   }
 
   function setVolumeDb(db) {
@@ -3306,10 +3335,19 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function toggleMute() {
-    isMuted.value = !isMuted.value;
-    if (!isMuted.value && volume.value <= 0.005) {
-      volume.value = 0.5;
-      saveVolume(0.5);
+    if (isMuted.value) {
+      // Unmuting: restore previous listening level if current volume is near zero
+      isMuted.value = false;
+      if (volume.value === 0) {
+        volume.value = previousVolume.value > 0 ? previousVolume.value : 0.5;
+        saveVolume(volume.value);
+      }
+    } else {
+      // Muting: remember current non-zero volume for subsequent restore
+      if (volume.value > 0.005) {
+        previousVolume.value = volume.value;
+      }
+      isMuted.value = true;
     }
     applyAudioGain();
     saveMuted(isMuted.value);
@@ -3318,11 +3356,6 @@ export const useLibraryStore = defineStore("library", () => {
   function stepVolume(delta) {
     setVolume(volume.value + delta);
   }
-
-  watch(volume, (value) => {
-    saveVolume(value);
-    applyAudioGain();
-  });
 
   loadSavedVolume();
 
@@ -3563,6 +3596,7 @@ export const useLibraryStore = defineStore("library", () => {
   // =========================
 
   function playFromPlaylist(song, songsList, options = {}) {
+    const playlistRequestId = ++playbackRequestId;
     const releaseId = options.releaseId || song?.contextReleaseId || song?.primaryReleaseId;
     const contextualSong = applyReleaseContext(song, releaseId, releases.value, releaseTracks.value);
     const contextualList = (songsList || []).map((item) =>
@@ -3571,8 +3605,18 @@ export const useLibraryStore = defineStore("library", () => {
     const currentIndex = contextualList.findIndex((item) => item.id === contextualSong.id);
 
     const remaining = contextualList
-      .slice(currentIndex + 1)
+      .slice(currentIndex >= 0 ? currentIndex + 1 : 0)
       .filter((s) => getSongRating(s.id) !== "dislike");
+
+    const preceding = contextualList
+      .slice(0, currentIndex > 0 ? currentIndex : 0)
+      .filter((s) => getSongRating(s.id) !== "dislike");
+
+    const previousNavigation = [...activeQueueHistory.value];
+    const previousQueue = [...playQueue.value];
+    const previousOriginalQueue = [...originalQueueList.value];
+    activeQueueHistory.value = dedupeById(preceding);
+    historyQueue.value = [...activeQueueHistory.value];
 
     if (isShuffleEnabled.value) {
       originalQueueList.value = [...remaining];
@@ -3582,7 +3626,15 @@ export const useLibraryStore = defineStore("library", () => {
       originalQueueList.value = [];
     }
 
-    playSong(contextualSong, false, { releaseId });
+    const songLoadRequestId = playbackRequestId + 1;
+    playSong(contextualSong, false, { releaseId, shouldPlay: true }).then((loaded) => {
+      if (!loaded && playbackRequestId === songLoadRequestId) {
+        activeQueueHistory.value = previousNavigation;
+        historyQueue.value = [...previousNavigation];
+        playQueue.value = previousQueue;
+        originalQueueList.value = previousOriginalQueue;
+      }
+    });
   }
 
   async function ensureSongFile(song) {
@@ -3619,109 +3671,219 @@ export const useLibraryStore = defineStore("library", () => {
     return null;
   }
 
+  let playbackRequestId = 0;
+
   async function playSong(song, addToHistory = true, options = {}) {
-    const { removeFromQueue = false, releaseId = song?.contextReleaseId || song?.primaryReleaseId } = options;
+    if (!song) return false;
+
+    const thisRequestId = ++playbackRequestId;
+    const {
+      removeFromQueue = false,
+      releaseId = song?.contextReleaseId || song?.primaryReleaseId,
+      shouldPlay = true,
+    } = options;
+
     song = applyReleaseContext(song, releaseId, releases.value, releaseTracks.value);
-
-    await ensureSongFile(song);
-
-    if (!song.file) {
-      console.warn("Cannot play song: file not loaded", song);
-
-      return;
-    }
-
-    // Finalize listening tracker of previous track before switching
-    flushCurrentListeningSession();
-
-    if (addToHistory && playingSong.value && playingSong.value.id !== song.id) {
-      historyQueue.value = dedupeById([
-        ...historyQueue.value.filter(
-          (item) => item?.id !== playingSong.value.id,
-        ),
-
-        playingSong.value,
-      ]);
-    }
-
-    historyQueue.value = dedupeById(
-      historyQueue.value.filter((item) => item?.id !== song.id),
-    );
-
-    if (removeFromQueue) {
-      playQueue.value = dedupeById(
-        playQueue.value.filter((item) => item?.id !== song.id),
-      );
-    }
 
     // Remove any disliked tracks from the active queue
     playQueue.value = dedupeById(
       playQueue.value.filter((item) => getSongRating(item?.id) !== "dislike"),
     );
 
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl);
-    }
-
-    currentUrl = URL.createObjectURL(song.file);
-
-    audio.src = currentUrl;
-
-    currentTime.value = 0;
-
-    audio.play().catch((err) => {
-      console.error(err);
-    });
-
     if (song.rating === undefined) {
       song.rating = getSongRating(song.id);
     }
 
+    await ensureSongFile(song);
+
+    // Ignore stale/failed selections without disturbing the active track.
+    if (thisRequestId !== playbackRequestId) return false;
+    if (!song.file) {
+      console.warn("Cannot play song: file not loaded", song);
+      return false;
+    }
+
+    // Commit navigation and queue mutations only for the winning, loadable request.
+    if (addToHistory && playingSong.value && playingSong.value.id !== song.id) {
+      activeQueueHistory.value = dedupeById([
+        ...activeQueueHistory.value.filter((item) => item?.id !== playingSong.value.id),
+        playingSong.value,
+      ]);
+    }
+    if (!addToHistory) {
+      activeQueueHistory.value = activeQueueHistory.value.filter((item) => item?.id !== song.id);
+    }
+    historyQueue.value = [...activeQueueHistory.value];
+    if (removeFromQueue) {
+      playQueue.value = playQueue.value.filter((item) => item?.id !== song.id);
+    }
+
+    flushCurrentListeningSession();
     playingSong.value = song;
+    currentTime.value = 0;
+    duration.value = song.duration || 0;
+    isPlaying.value = false;
+
+    stopProgressUpdates();
+    isProgressScrubbing.value = false;
+    if (currentUrl) {
+      URL.revokeObjectURL(currentUrl);
+      currentUrl = null;
+    }
+
+    currentUrl = URL.createObjectURL(song.file);
+    audio.src = currentUrl;
+    audio.currentTime = 0;
+    currentTime.value = 0;
+    audio.load();
 
     // Reset real-time listening trackers for this track
     currentListeningSongId = song.id;
+    currentListeningSessionId++;
     currentListeningAccumulatedSec = 0;
     currentSongPlayCounted = false;
     lastTimeUpdateTimestamp = performance.now();
 
+    if (shouldPlay) {
+      try {
+        await audio.play();
+        isPlaying.value = true;
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Audio playback error:", err);
+        }
+      }
+    } else {
+      audio.pause();
+      isPlaying.value = false;
+    }
+
     if (autoplay.value) {
       fillAutoplayQueue();
     }
+    return true;
   }
 
-  function playPreviousSong() {
-    if (currentTime.value > 3) {
-      seek(0);
+  async function playPreviousSong() {
+    if (!playingSong.value && !audio.src) return;
+
+    // Cancel any track-file load still in flight before honoring this navigation request.
+    playbackRequestId++;
+    handlingEnded = false;
+    const wasPaused = audio.paused || !isPlaying.value;
+    // Use the real-time playback position of the audio element
+    const currentSec =
+      typeof audio.currentTime === "number" && !isNaN(audio.currentTime)
+        ? audio.currentTime
+        : (currentTime.value || 0);
+
+    // Restart the current track after 3 seconds; otherwise navigate to the previous track.
+    if (currentSec > 3.0) {
+      try {
+        audio.currentTime = 0;
+        currentTime.value = 0;
+      } catch (e) {
+        console.warn("Seek error in playPreviousSong:", e);
+      }
+
+      if (!wasPaused) {
+        audio.play().catch((err) => {
+          if (err.name !== "AbortError") console.error(err);
+        });
+        isPlaying.value = true;
+      } else {
+        audio.pause();
+        isPlaying.value = false;
+      }
       return;
     }
 
-    const previousSong = historyQueue.value.pop();
+    // Use only the active queue's navigation stack. Persistent history remains untouched.
+    const previousSong = activeQueueHistory.value[activeQueueHistory.value.length - 1];
 
-    if (!previousSong) {
-      seek(0);
+    if (previousSong) {
+      const queueSnapshot = [...playQueue.value];
+      const historySnapshot = [...activeQueueHistory.value];
+      const originalQueueSnapshot = [...originalQueueList.value];
+      const currentSong = playingSong.value;
+      if (currentSong) {
+        activeQueueHistory.value = activeQueueHistory.value.slice(0, -1);
+        historyQueue.value = [...activeQueueHistory.value];
+        playQueue.value = dedupeById([
+          currentSong,
+          ...playQueue.value.filter((item) => item?.id !== currentSong.id),
+        ]);
+        if (isShuffleEnabled.value && !originalQueueList.value.some((item) => item.id === currentSong.id)) {
+          originalQueueList.value.unshift(currentSong);
+        }
+      }
+
+      const loaded = await playSong(previousSong, false, {
+        removeFromQueue: true,
+        shouldPlay: !wasPaused,
+      });
+      if (loaded && isShuffleEnabled.value) {
+        originalQueueList.value = originalQueueList.value.filter((item) => item.id !== previousSong.id);
+      }
+      if (!loaded && currentSong && playingSong.value === currentSong) {
+        activeQueueHistory.value = historySnapshot;
+        historyQueue.value = [...historySnapshot];
+        playQueue.value = queueSnapshot;
+        originalQueueList.value = originalQueueSnapshot;
+      }
       return;
     }
 
-    if (playingSong.value) {
-      playQueue.value = dedupeById([
-        playingSong.value,
-
-        ...playQueue.value.filter((item) => item?.id !== playingSong.value.id),
-      ]);
+    // At the start of the list/history:
+    if (repeatMode.value === "all") {
+      // Wrap to the beginning of the active sequence.
+      const wrapSong = activeQueueHistory.value[activeQueueHistory.value.length - 1]
+        || playQueue.value[playQueue.value.length - 1];
+      if (wrapSong) {
+        playSong(wrapSong, false, { shouldPlay: !wasPaused });
+        return;
+      }
     }
 
-    playSong(previousSong, false, {
-      removeFromQueue: true,
-    });
+    // Boundary limit behavior: restart current song from beginning
+    try {
+      audio.currentTime = 0;
+      currentTime.value = 0;
+    } catch (e) {
+      console.warn("Seek error in playPreviousSong boundary:", e);
+    }
+
+    if (!wasPaused) {
+      audio.play().catch((err) => {
+        if (err.name !== "AbortError") console.error(err);
+      });
+      isPlaying.value = true;
+    } else {
+      audio.pause();
+      isPlaying.value = false;
+    }
   }
 
-  function playNextSong() {
+  async function playNextSong(autoAdvance = false) {
+    if (autoAdvance && handlingEnded === false) return;
+    playbackRequestId++;
+    if (!autoAdvance) handlingEnded = false;
+    else handlingEnded = true;
+    // A valid explicit next selection also invalidates pending file loads.
+    // The ended listener guards duplicate end events; autoAdvance must still run while audio.ended is true.
     // 1. Purge any disliked songs from queue
     playQueue.value = playQueue.value.filter(
       (s) => getSongRating(s.id) !== "dislike",
     );
+    const queueSnapshot = [...playQueue.value];
+    const historySnapshot = [...activeQueueHistory.value];
+    const originalQueueSnapshot = [...originalQueueList.value];
 
+    const wasPaused = !autoAdvance && (audio.paused || !isPlaying.value);
+    if (!autoAdvance && playingSong.value) {
+      activeQueueHistory.value = dedupeById([...activeQueueHistory.value, playingSong.value]);
+      historyQueue.value = [...activeQueueHistory.value];
+    }
     let nextSong = playQueue.value.shift();
 
     if (nextSong && isShuffleEnabled.value) {
@@ -3730,7 +3892,28 @@ export const useLibraryStore = defineStore("library", () => {
       );
     }
 
-    // 2. If queue ended and autoplay active, select next song using smart queue
+    // 2. Repeat only the current active sequence, not the persistent listening history.
+    if (!nextSong && repeatMode.value === "all") {
+      const allPlayed = dedupeById([...activeQueueHistory.value, ...(playingSong.value ? [playingSong.value] : [])]);
+      if (allPlayed.length > 0) {
+        const cleanAll = dedupeById(allPlayed).filter(
+          (s) => getSongRating(s.id) !== "dislike",
+        );
+        if (cleanAll.length === 1 && cleanAll[0].id === playingSong.value?.id) {
+          nextSong = cleanAll[0];
+        }
+        if (isShuffleEnabled.value) {
+          originalQueueList.value = [...cleanAll];
+          playQueue.value = shuffleArray(cleanAll);
+        } else {
+          playQueue.value = cleanAll;
+          originalQueueList.value = [];
+        }
+        if (!nextSong) nextSong = playQueue.value.shift();
+      }
+    }
+
+    // 3. If queue ended and autoplay active, select next song using smart queue
     if (!nextSong && autoplay.value) {
       fillAutoplayQueue();
       nextSong = playQueue.value.shift();
@@ -3742,11 +3925,23 @@ export const useLibraryStore = defineStore("library", () => {
     }
 
     if (!nextSong) {
+      handlingEnded = false;
       isPlaying.value = false;
+      audio.pause();
       return;
     }
 
-    playSong(nextSong, false);
+    // Advance to next song and ensure current song is added to the queue-navigation back-stack.
+    const requestBeforePlay = playbackRequestId;
+    const loaded = await playSong(nextSong, true, {
+      shouldPlay: !wasPaused,
+    });
+    if (!loaded && playbackRequestId === requestBeforePlay + 1) {
+      playQueue.value = queueSnapshot;
+      activeQueueHistory.value = historySnapshot;
+      historyQueue.value = [...historySnapshot];
+      originalQueueList.value = originalQueueSnapshot;
+    }
   }
 
   function togglePlay() {
@@ -3767,7 +3962,18 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function seek(time) {
-    audio.currentTime = time;
+    const requestedTime = Number(time);
+    if (!Number.isFinite(requestedTime)) return;
+    const maximum = Number.isFinite(audio.duration) ? audio.duration : requestedTime;
+    audio.currentTime = Math.max(0, Math.min(maximum, requestedTime));
+    syncAudioProgress();
+  }
+
+  function getAudioCurrentTime() {
+    if (audio && typeof audio.currentTime === "number" && !isNaN(audio.currentTime)) {
+      return audio.currentTime;
+    }
+    return currentTime.value || 0;
   }
 
   // =========================
@@ -4003,6 +4209,10 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function removeFolder() {
+    playbackRequestId++;
+    stopProgressUpdates();
+    isProgressScrubbing.value = false;
+    audio.pause();
     if (isNative) {
       try {
         await FolderPicker.clearSavedFolder();
@@ -4028,6 +4238,7 @@ export const useLibraryStore = defineStore("library", () => {
     playQueue.value = [];
 
     historyQueue.value = [];
+    activeQueueHistory.value = [];
 
     if (currentUrl) {
       URL.revokeObjectURL(currentUrl);
@@ -4541,6 +4752,10 @@ export const useLibraryStore = defineStore("library", () => {
 
     duration,
 
+    isProgressScrubbing,
+
+    setProgressScrubbing,
+
     volume,
 
     isNowPlayingOpen,
@@ -4595,11 +4810,6 @@ export const useLibraryStore = defineStore("library", () => {
 
     recordPlaylistPlayed,
 
-    removeHistoryItem,
-
-    clearListeningHistory,
-
-    clearHistory,
 
     // -------------------------
     // QUEUE
@@ -4662,6 +4872,8 @@ export const useLibraryStore = defineStore("library", () => {
     resumeAudioAnalyser,
 
     seek,
+
+    getAudioCurrentTime,
 
     // -------------------------
     // FOLDER

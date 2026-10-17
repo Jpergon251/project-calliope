@@ -16,6 +16,11 @@
             :value="library.currentTime"
             :style="{ '--progress': `${progressPercent}%` }"
             @input="handleSeek($event)"
+            @change="finishSeek"
+            @pointerdown="beginSeek"
+            @pointerup="finishSeek"
+            @pointercancel="finishSeek"
+            @blur="finishSeek"
             class="progress-bar"
             aria-label="Progreso de la canción"
         />
@@ -172,10 +177,21 @@ function openCurrentSong() {
   }
 }
 
+function beginSeek() {
+  library.setProgressScrubbing(true);
+}
+
 function handleSeek(event) {
   const nextTime = Number(event.target.value);
   library.currentTime = nextTime;
   library.seek(nextTime);
+}
+
+function finishSeek(event) {
+  if (library.isProgressScrubbing) {
+    if (event?.target?.value !== undefined) library.seek(Number(event.target.value));
+    library.setProgressScrubbing(false);
+  }
 }
 
 function formatTime(seconds) {

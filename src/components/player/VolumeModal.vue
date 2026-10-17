@@ -40,10 +40,10 @@
       :aria-valuetext="badgeText"
       tabindex="0"
       @keydown="handleKeydown"
+      @focus="isFocused = true"
+      @blur="isFocused = false"
       @mousedown="handleMouseDown"
       @touchstart="handleTouchStart"
-      @touchmove="handleTouchMove"
-      @touchend="handleTouchEnd"
     >
       <!-- Track Background -->
       <div class="vol-track">
@@ -74,10 +74,6 @@
       </Transition>
     </div>
 
-    <!-- Permanent text display for expanded layout (in PlayerPage / Now Playing) -->
-    <div v-if="layout === 'expanded'" class="vol-expanded-meta">
-      <span class="vol-db-label">{{ badgeText }}</span>
-    </div>
   </div>
 </template>
 
@@ -107,6 +103,7 @@ const isDragging = ref(false);
 const isFocused = ref(false);
 const showBadgeTemporary = ref(false);
 let hideBadgeTimeout = null;
+let activeDragCleanup = null;
 
 const isMuted = computed(() => Boolean(props.library.isMuted));
 const displayVolume = computed(() => (isMuted.value ? 0 : props.library.volume));
@@ -129,7 +126,7 @@ const badgeText = computed(() => {
 });
 
 const shouldShowBadge = computed(() => {
-  return isDragging.value || isHovered.value || showBadgeTemporary.value;
+  return isDragging.value || isHovered.value || isFocused.value || showBadgeTemporary.value;
 });
 
 function flashBadge() {
@@ -151,8 +148,12 @@ function handleMouseLeave() {
 function calculateRatio(clientX) {
   if (!sliderRef.value) return 0;
   const rect = sliderRef.value.getBoundingClientRect();
+  if (rect.width <= 0) return 0;
   const x = clientX - rect.left;
-  return Math.max(0, Math.min(1, x / rect.width));
+  const rawRatio = x / rect.width;
+  if (rawRatio <= 0.005) return 0;
+  if (rawRatio >= 0.995) return 1;
+  return Math.max(0, Math.min(1, Math.round(rawRatio * 1000) / 1000));
 }
 
 function updateVolumeFromPosition(clientX) {
@@ -161,9 +162,14 @@ function updateVolumeFromPosition(clientX) {
   flashBadge();
 }
 
+function cleanupActiveDrag() {
+  activeDragCleanup?.();
+}
+
 function handleMouseDown(e) {
   if (e.button !== 0) return;
   e.preventDefault();
+  cleanupActiveDrag();
   isDragging.value = true;
   updateVolumeFromPosition(e.clientX);
 
@@ -172,28 +178,41 @@ function handleMouseDown(e) {
   }
 
   function onMouseUp() {
-    isDragging.value = false;
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
+    if (activeDragCleanup === onMouseUp) activeDragCleanup = null;
+    isDragging.value = false;
   }
 
+  activeDragCleanup = onMouseUp;
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
 }
 
 function handleTouchStart(e) {
   if (!e.touches.length) return;
+  cleanupActiveDrag();
   isDragging.value = true;
   updateVolumeFromPosition(e.touches[0].clientX);
-}
 
-function handleTouchMove(e) {
-  if (!isDragging.value || !e.touches.length) return;
-  updateVolumeFromPosition(e.touches[0].clientX);
-}
+  function onTouchMove(moveEvent) {
+    if (!moveEvent.touches.length) return;
+    if (moveEvent.cancelable) moveEvent.preventDefault();
+    updateVolumeFromPosition(moveEvent.touches[0].clientX);
+  }
 
-function handleTouchEnd() {
-  isDragging.value = false;
+  function onTouchEnd() {
+    window.removeEventListener("touchmove", onTouchMove);
+    window.removeEventListener("touchend", onTouchEnd);
+    window.removeEventListener("touchcancel", onTouchEnd);
+    if (activeDragCleanup === onTouchEnd) activeDragCleanup = null;
+    isDragging.value = false;
+  }
+
+  activeDragCleanup = onTouchEnd;
+  window.addEventListener("touchmove", onTouchMove, { passive: false });
+  window.addEventListener("touchend", onTouchEnd);
+  window.addEventListener("touchcancel", onTouchEnd);
 }
 
 function handleWheel(e) {
@@ -236,5 +255,6 @@ function handleKeydown(e) {
 
 onBeforeUnmount(() => {
   if (hideBadgeTimeout) clearTimeout(hideBadgeTimeout);
+  cleanupActiveDrag();
 });
 </script>

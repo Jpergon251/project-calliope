@@ -9,16 +9,6 @@
         <p>Registro cronológico de las canciones, álbumes y playlists que has escuchado.</p>
       </div>
 
-      <div class="history-actions" v-if="library.listeningHistory.length > 0">
-        <button
-          class="clear-history-btn"
-          @click="confirmClearHistory"
-          title="Borrar todo el historial"
-        >
-          <Trash2 :size="15" />
-          <span>Borrar historial</span>
-        </button>
-      </div>
     </header>
 
     <!-- Grouped Chronological History List -->
@@ -59,7 +49,9 @@
 
             <!-- Details -->
             <div class="item-details">
-              <span class="item-title" :title="item.title">{{ item.title }}</span>
+              <span class="item-title" :title="item.title">
+                {{ item.title }}<span v-if="playCountLabel(item)" class="history-play-count">{{ playCountLabel(item) }}</span>
+              </span>
               <span
                 class="item-subtitle"
                 :class="{ 'clickable-artist': item.type === 'song' }"
@@ -83,15 +75,6 @@
               >
                 <Play fill="currentColor" :size="14" />
               </button>
-
-              <button
-                type="button"
-                class="remove-btn"
-                title="Quitar del historial"
-                @click="library.removeHistoryItem(item.id)"
-              >
-                <X :size="15" />
-              </button>
             </div>
           </li>
         </ul>
@@ -113,13 +96,18 @@ import { useRouter } from 'vue-router';
 import { useLibraryStore } from '../stores/libraryStore.js';
 import { resolveHistoryCover } from '../lib/covers.js';
 import CoverArt from '../components/common/CoverArt.vue';
-import { DiscAlbum, History, ListMusic, Music2, Play, Trash2, X } from 'lucide-vue-next';
+import { DiscAlbum, History, ListMusic, Music2, Play } from 'lucide-vue-next';
+import { formatPlayCount } from '../services/listeningHistory.js';
 
 const library = useLibraryStore();
 const router = useRouter();
 
 function historyItemCover(item) {
   return resolveHistoryCover(library, item);
+}
+
+function playCountLabel(item) {
+  return item.type === 'song' ? formatPlayCount(item.playCount) : '';
 }
 
 function formatTimeOfDay(timestamp) {
@@ -201,12 +189,6 @@ const groupedHistory = computed(() => {
   return groups;
 });
 
-function confirmClearHistory() {
-  if (confirm('¿Deseas vaciar todo tu historial de reproducción?')) {
-    library.clearListeningHistory();
-  }
-}
-
 function goToArtist(name) {
   if (!name || name === 'Unknown' || name === 'Artista desconocido') return;
   router.push({ name: 'artist', params: { name: encodeURIComponent(name.trim()) } });
@@ -216,7 +198,7 @@ function playHistoryItem(item) {
   if (item.type === 'song') {
     const song = library.songs.find(s => s.id === item.itemId);
     if (song) {
-      library.playSong(song, true, { releaseId: item.releaseId });
+      library.playSong(song, false, { releaseId: item.releaseId });
       if (typeof window !== 'undefined' && window.innerWidth <= 760) {
         library.openNowPlaying();
       }
