@@ -500,6 +500,31 @@
   flex-shrink: 0;
 }
 
+.theme-carousel {
+  width: min(100%, 480px);
+  flex-shrink: 0;
+}
+
+.accent-swatches.theme-carousel-track {
+  display: flex;
+  width: 100%;
+  grid-template-columns: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 3px;
+  }
+}
+
 .accent-swatch {
   position: relative;
   min-width: 0;
@@ -538,6 +563,59 @@
     top: 5px;
     right: 5px;
     color: var(--option-color);
+  }
+}
+
+.theme-carousel-track .accent-swatch {
+  box-sizing: border-box;
+  flex: 0 0 calc((100% - 16px) / 3);
+  scroll-snap-align: start;
+}
+
+.theme-carousel-track .profile-palette-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-carousel-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.theme-carousel-control {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.38;
   }
 }
 

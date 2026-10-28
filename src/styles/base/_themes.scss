@@ -1210,6 +1210,478 @@ html[data-theme="red-music"] {
   }
 }
 
+html[data-theme="chromatic-glass"] {
+  body,
+  .app-container,
+  .app-container .workspace,
+  .app-container .main {
+    background: var(--theme-main-background);
+  }
+
+  .app-container .main :is(
+    .home,
+    .library-page,
+    .profile-page,
+    .settings-page,
+    .songs-page,
+    .albums-page,
+    .artists-page,
+    .artist-detail-page,
+    .history-page,
+    .playlists-page,
+    .metadata-page,
+    .about-page,
+    .support-page,
+    .song-page,
+    .playlist-page,
+    .album-page
+  ) {
+    background: transparent;
+  }
+
+  .app-container .sidebar,
+  .app-container .app-header {
+    border-color: var(--border-color);
+  }
+
+  .app-container .main {
+    scrollbar-color: rgba(var(--accent-rgb), 0.24) transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(var(--accent-rgb), 0.24);
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(var(--accent-rgb), 0.38);
+    }
+  }
+
+  .app-container .sidebar {
+    background:
+      linear-gradient(180deg, rgba(244, 245, 247, 0.025), transparent 34%),
+      var(--theme-sidebar-background);
+    box-shadow:
+      inset -1px 0 rgba(255, 255, 255, 0.055),
+      inset 1px 0 rgba(var(--chromatic-cyan-rgb), 0.025);
+  }
+
+  .player {
+    border: 0;
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+    background: var(--theme-player-background);
+    background-color: rgba(9, 10, 13, 0.16);
+    background-clip: padding-box;
+  }
+
+  .audio-visualizer.active canvas {
+    filter:
+      drop-shadow(-2px 0 0 rgba(var(--chromatic-cyan-rgb), 0.78))
+      drop-shadow(2px 0 0 rgba(var(--chromatic-red-rgb), 0.68));
+  }
+
+  @media (min-width: 761px) {
+    .app-container > .bottom-section {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 20;
+    }
+
+    .app-container .main {
+      padding-bottom: 150px;
+    }
+  }
+
+  .player .controls .play-pause-btn {
+    border: 1px solid rgba(244, 245, 247, 0.52);
+    background: rgba(244, 245, 247, 0.075);
+    color: #F4F5F7;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 3px 14px rgba(0, 0, 0, 0.18);
+
+    .control-icon,
+    .control-icon * {
+      fill: currentColor;
+      stroke: currentColor;
+    }
+
+    &:hover {
+      border-color: rgba(244, 245, 247, 0.82);
+      background: rgba(244, 245, 247, 0.14);
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 4px 18px rgba(0, 0, 0, 0.22);
+    }
+
+    &:active {
+      background: rgba(244, 245, 247, 0.19);
+    }
+  }
+
+  .player-page-controls .main-control {
+    border: 1px solid rgba(244, 245, 247, 0.5);
+    background: rgba(244, 245, 247, 0.075) !important;
+    color: #F4F5F7 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 4px 18px rgba(0, 0, 0, 0.2) !important;
+
+    svg,
+    svg * {
+      fill: currentColor;
+      stroke: currentColor;
+    }
+
+    &:hover {
+      border-color: rgba(244, 245, 247, 0.82);
+      background: rgba(244, 245, 247, 0.14) !important;
+      color: #FFFFFF !important;
+    }
+
+    &:active {
+      background: rgba(244, 245, 247, 0.19) !important;
+    }
+  }
+
+  .player .progress input[type="range"] {
+    &::-webkit-slider-runnable-track {
+      background: linear-gradient(
+        to right,
+        rgba(244, 245, 247, 0.92) 0 var(--progress, 0%),
+        rgba(244, 245, 247, 0.28) var(--progress, 0%) 100%
+      );
+    }
+
+    &::-webkit-slider-thumb,
+    &::-moz-range-progress,
+    &::-moz-range-thumb {
+      background: #F4F5F7;
+    }
+  }
+
+  .app-header {
+    background:
+      linear-gradient(110deg, rgba(255, 255, 255, 0.045), transparent 38%),
+      var(--theme-main-background);
+  }
+
+  .app-container .main :is(
+    .jump-card,
+    .no-folder-card,
+    .album-mini-card,
+    .song-stats-card,
+    .stats-chart-card,
+    .recent-activity-panel,
+    .pref-card,
+    .settings-page .settings-card,
+    .queue-now-playing-card,
+    .create-playlist-card,
+    .playlist-edit-card,
+    .delete-confirm-card,
+    .modal-card,
+    .playlist-empty-state,
+    .welcome-profile-card,
+    .welcome-accent-card,
+    .artist-about-section
+  ) {
+    border-color: rgba(226, 232, 240, 0.15);
+    background-color: rgba(18, 21, 27, 0.64);
+    box-shadow:
+      inset 1px 0 rgba(var(--chromatic-cyan-rgb), 0.2),
+      inset -1px 0 rgba(var(--chromatic-red-rgb), 0.17),
+      0 12px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .app-container .main :is(
+    .library-search,
+    .search-input-wrapper,
+    .search-box,
+    .filter-bar,
+    .sort-control,
+    .profile-categories,
+    .artist-section,
+    .album-card,
+    .history-item,
+    .song-list-container
+  ) {
+    border-color: rgba(226, 232, 240, 0.12);
+    background-color: rgba(18, 21, 27, 0.38);
+  }
+
+  .app-container .main :is(
+    .jump-card,
+    .no-folder-card,
+    .album-mini-card,
+    .song-stats-card,
+    .stats-chart-card,
+    .recent-activity-panel,
+    .pref-card,
+    .settings-page .settings-card,
+    .queue-now-playing-card,
+    .create-playlist-card,
+    .playlist-edit-card,
+    .delete-confirm-card,
+    .modal-card,
+    .playlist-empty-state,
+    .welcome-profile-card,
+    .welcome-accent-card,
+    .artist-about-section,
+    .library-search,
+    .search-input-wrapper,
+    .search-box,
+    .filter-bar,
+    .sort-control,
+    .profile-categories,
+    .artist-section,
+    .album-card,
+    .history-item,
+    .song-list-container
+  ) {
+    transition:
+      background-color var(--transition-normal),
+      border-color var(--transition-normal),
+      box-shadow var(--transition-normal);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .app-container .main :is(
+      .jump-card,
+      .no-folder-card,
+      .album-mini-card,
+      .song-stats-card,
+      .stats-chart-card,
+      .recent-activity-panel,
+      .pref-card,
+      .settings-page .settings-card,
+      .queue-now-playing-card,
+      .create-playlist-card,
+      .playlist-edit-card,
+      .delete-confirm-card,
+      .modal-card,
+      .playlist-empty-state,
+      .welcome-profile-card,
+      .welcome-accent-card,
+      .artist-about-section,
+      .library-search,
+      .search-input-wrapper,
+      .search-box,
+      .filter-bar,
+      .sort-control,
+      .profile-categories,
+      .artist-section,
+      .album-card,
+      .history-item,
+      .song-list-container
+    ) {
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+  }
+
+  .profile-hero,
+  .pref-card,
+  .settings-page .settings-card,
+  .queue-now-playing-card,
+  .create-playlist-card,
+  .playlist-edit-card,
+  .delete-confirm-card,
+  .modal-card {
+    border-color: var(--border-color);
+    background-color: rgba(18, 21, 27, 0.82);
+    box-shadow: var(--theme-panel-shadow);
+  }
+
+  .player {
+    box-shadow: var(--theme-panel-shadow);
+  }
+
+  .profile-hero {
+    position: relative;
+    background:
+      linear-gradient(118deg, rgba(255, 255, 255, 0.045), transparent 28%),
+      var(--card-bg);
+  }
+
+  .profile-hero::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      radial-gradient(ellipse 20% 28% at 98% 5%, rgba(var(--chromatic-violet-rgb), 0.018), transparent 84%),
+      radial-gradient(ellipse 32% 42% at 100% 0%, rgba(var(--chromatic-cyan-rgb), 0.045), transparent 80%),
+      linear-gradient(110deg, transparent 0 74%, rgba(var(--chromatic-red-rgb), 0.025) 100%);
+    content: "";
+  }
+
+  .profile-hero::after {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    pointer-events: none;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    background:
+      linear-gradient(
+        132deg,
+        rgba(var(--chromatic-cyan-rgb), 0.82),
+        rgba(244, 245, 247, 0.12) 18%,
+        transparent 40% 66%,
+        rgba(var(--chromatic-red-rgb), 0.68) 88%,
+        rgba(244, 245, 247, 0.1)
+      )
+      border-box;
+    filter:
+      drop-shadow(1px 0 1px rgba(var(--chromatic-cyan-rgb), 0.3))
+      drop-shadow(-1px 0 1px rgba(var(--chromatic-red-rgb), 0.22));
+    content: "";
+    opacity: 0.82;
+  }
+
+  @supports ((-webkit-mask-composite: xor) or (mask-composite: exclude)) {
+    .profile-hero::after {
+      -webkit-mask:
+        linear-gradient(#FFFFFF 0 0) padding-box,
+        linear-gradient(#FFFFFF 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+  }
+
+  .profile-banner,
+  .profile-hero-body {
+    position: relative;
+    z-index: 1;
+  }
+
+  .profile-banner {
+    background:
+      radial-gradient(ellipse 72% 120% at 74% 100%, rgba(var(--chromatic-cyan-rgb), 0.07), transparent 72%),
+      linear-gradient(180deg, #191D24, #101217);
+  }
+
+  .pref-card,
+  .settings-page .settings-card {
+    border: 1px solid var(--border-color);
+  }
+
+  .app-container .main :is(
+    .media-card,
+    .quick-pick-song-card,
+    .home-album-card,
+    .home-playlist-card,
+    .history-mini-item,
+    .history-item,
+    .metadata-song-card,
+    .album-mini-card,
+    .playlist-empty-state
+  ) {
+    box-shadow:
+      inset 1px 0 rgba(var(--chromatic-cyan-rgb), 0.2),
+      inset -1px 0 rgba(var(--chromatic-red-rgb), 0.17),
+      inset 0 1px rgba(244, 245, 247, 0.035);
+  }
+
+  .app-container .main :is(
+    .media-card,
+    .quick-pick-song-card,
+    .home-album-card,
+    .home-playlist-card,
+    .history-mini-item,
+    .history-item,
+    .metadata-song-card,
+    .album-mini-card,
+    .playlist-empty-state
+  ):is(:hover, :focus-within) {
+    box-shadow:
+      inset 1px 0 rgba(var(--chromatic-cyan-rgb), 0.28),
+      inset -1px 0 rgba(var(--chromatic-red-rgb), 0.24),
+      inset 0 1px rgba(244, 245, 247, 0.055),
+      0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .media-card:hover {
+    border-color: rgba(226, 232, 240, 0.16);
+    box-shadow:
+      inset 1px 0 rgba(var(--chromatic-cyan-rgb), 0.28),
+      inset -1px 0 rgba(var(--chromatic-red-rgb), 0.24),
+      inset 0 1px rgba(244, 245, 247, 0.055),
+      0 12px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  .media-card .media-cover {
+    border-color: rgba(226, 232, 240, 0.13);
+  }
+
+  .accent-swatch.selected {
+    border-color: rgba(var(--chromatic-cyan-rgb), 0.58);
+    background:
+      linear-gradient(125deg, rgba(var(--chromatic-cyan-rgb), 0.07), transparent 48%),
+      linear-gradient(305deg, rgba(var(--chromatic-red-rgb), 0.035), transparent 54%),
+      var(--accent-surface);
+    box-shadow:
+      var(--theme-selected-shadow),
+      inset 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  :focus-visible {
+    outline-color: rgba(var(--chromatic-cyan-rgb), 0.82);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .profile-hero,
+    .pref-card,
+    .settings-page .settings-card,
+    .queue-now-playing-card,
+    .player,
+    .create-playlist-card,
+    .playlist-edit-card,
+    .delete-confirm-card,
+    .modal-card {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .player {
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .profile-hero,
+    .pref-card,
+    .settings-page .settings-card,
+    .queue-now-playing-card,
+    .player,
+    .create-playlist-card,
+    .playlist-edit-card,
+    .delete-confirm-card,
+    .modal-card {
+      background-color: #14171D;
+    }
+
+    .player {
+      background: linear-gradient(180deg, #242830, #15181D);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .theme-carousel-track {
+      scroll-behavior: auto;
+    }
+  }
+
+  &.reduced-motion .theme-carousel-track {
+    scroll-behavior: auto;
+  }
+}
+
 @keyframes neon-welcome-brand-intro {
   from {
     opacity: 0;

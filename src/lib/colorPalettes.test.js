@@ -45,7 +45,7 @@ function contrastRatio(foreground, background) {
   );
 }
 
-test("expone solo los tres temas con sus nombres y colores definidos", () => {
+test("expone los temas con sus nombres y colores definidos", () => {
   assert.deepEqual(
     COLOR_PALETTES.map(({ value, label, colors }) => [value, label, colors]),
     [
@@ -63,6 +63,11 @@ test("expone solo los tres temas con sus nombres y colores definidos", () => {
         "red-music",
         "Red Music",
         ["#030303", "#0F0F0F", "#212121", "#FF0033", "#FFFFFF", "#AAAAAA"],
+      ],
+      [
+        "chromatic-glass",
+        "Chromatic Glass",
+        ["#090A0D", "#171A20", "#89929F", "#FF4057", "#78DFFF", "#F4F5F7"],
       ],
     ]
   );
@@ -125,6 +130,19 @@ test("Miami Vice y Red Music no usan neón; Neon Wave conserva el acento verde s
   assert.equal(getColorPalette("red-music").tokens["--theme-control-shadow"], "none");
 });
 
+test("Chromatic Glass mantiene una base monocromática con refracción cromática discreta", () => {
+  const { tokens } = getColorPalette("chromatic-glass");
+  assert.equal(tokens["--bg-primary"], "#090A0D");
+  assert.equal(tokens["--text-primary"], "#F4F5F7");
+  assert.equal(tokens["--accent"], "#C4CBD4");
+  assert.equal(tokens["--visualizer-rgb"], "244, 245, 247");
+  assert.equal(tokens["--chromatic-red-rgb"], "255, 64, 87");
+  assert.equal(tokens["--chromatic-cyan-rgb"], "120, 223, 255");
+  assert.equal(tokens["--chromatic-violet-rgb"], "173, 140, 255");
+  assert.equal(tokens["--neon-glow"], "none");
+  assert.equal(getColorPalette("chromatic-glass").label, "Chromatic Glass");
+});
+
 test("normaliza preferencias antiguas al tema equivalente", () => {
   assert.equal(normalizePaletteId("neon"), "neon-wave");
   assert.equal(normalizePaletteId("cyan"), "miami-vice");
@@ -135,4 +153,5 @@ test("normaliza preferencias antiguas al tema equivalente", () => {
   assert.equal(normalizePaletteId("youtube-music"), "red-music");
   assert.equal(normalizePaletteId("unknown"), "miami-vice");
   assert.equal(getColorPalette("red-music").label, "Red Music");
+  assert.equal(normalizePaletteId("chromatic-glass"), "chromatic-glass");
 });

@@ -722,34 +722,63 @@
             <p>Elige el estilo visual de los fondos, superficies, botones y detalles.</p>
           </div>
 
-          <div class="accent-swatches">
-            <button
-              v-for="palette in COLOR_PALETTES"
-              :key="palette.value"
-              type="button"
-              class="accent-swatch"
-              :class="{
-                selected: user.profile.accentColor === palette.value,
-              }"
-              :style="{ '--option-color': palette.tokens['--accent'] }"
-              :aria-label="`Usar tema ${palette.label}`"
-              :aria-pressed="user.profile.accentColor === palette.value"
-              :title="palette.label"
-              @click="user.updateProfile({ accentColor: palette.value })"
+          <div class="theme-carousel">
+            <div
+              ref="themeCarouselTrack"
+              class="accent-swatches theme-carousel-track"
+              role="group"
+              aria-label="Temas disponibles"
+              tabindex="0"
+              @scroll="updateThemeCarouselControls"
             >
-              <span class="profile-palette-swatches" aria-hidden="true">
-                <span
-                  v-for="color in palette.colors"
-                  :key="color"
-                  :style="{ backgroundColor: color }"
-                ></span>
-              </span>
-              <span class="profile-palette-name">{{ palette.label }}</span>
-              <Check
-                v-if="user.profile.accentColor === palette.value"
-                :size="13"
-              />
-            </button>
+              <button
+                v-for="palette in COLOR_PALETTES"
+                :key="palette.value"
+                type="button"
+                class="accent-swatch"
+                :class="{
+                  selected: user.profile.accentColor === palette.value,
+                }"
+                :style="{ '--option-color': palette.tokens['--accent'] }"
+                :aria-label="`Usar tema ${palette.label}`"
+                :aria-pressed="user.profile.accentColor === palette.value"
+                :title="palette.label"
+                @click="user.updateProfile({ accentColor: palette.value })"
+              >
+                <span class="profile-palette-swatches" aria-hidden="true">
+                  <span
+                    v-for="color in palette.colors"
+                    :key="color"
+                    :style="{ backgroundColor: color }"
+                  ></span>
+                </span>
+                <span class="profile-palette-name">{{ palette.label }}</span>
+                <Check
+                  v-if="user.profile.accentColor === palette.value"
+                  :size="13"
+                />
+              </button>
+            </div>
+            <div class="theme-carousel-controls">
+              <button
+                type="button"
+                class="theme-carousel-control"
+                aria-label="Mostrar temas anteriores"
+                :disabled="!canScrollThemesBack"
+                @click="scrollThemeCarousel(-1)"
+              >
+                <ChevronLeft :size="16" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="theme-carousel-control"
+                aria-label="Mostrar más temas"
+                :disabled="!canScrollThemesForward"
+                @click="scrollThemeCarousel(1)"
+              >
+                <ChevronRight :size="16" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1474,7 +1503,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 import {
   AlertCircle,
   BarChart3,
@@ -1519,9 +1556,46 @@ import {
 const user = useUserStore();
 const library = useLibraryStore();
 const router = useRouter();
+const themeCarouselTrack = ref(null);
+const canScrollThemesBack = ref(false);
+const canScrollThemesForward = ref(false);
 const selectedVisualizerStyle = computed(() =>
   normalizeVisualizerStyle(user.profile.visualizerStyle),
 );
+
+function updateThemeCarouselControls() {
+  const track = themeCarouselTrack.value;
+  if (!track) return;
+  canScrollThemesBack.value = track.scrollLeft > 1;
+  canScrollThemesForward.value =
+    track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
+}
+
+function scrollThemeCarousel(direction) {
+  const track = themeCarouselTrack.value;
+  if (!track) return;
+  const reducedMotion =
+    user.profile.reducedMotion ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  track.scrollBy({
+    left: track.clientWidth * direction * 0.8,
+    behavior: reducedMotion ? "instant" : "smooth",
+  });
+}
+
+function revealSelectedTheme() {
+  const track = themeCarouselTrack.value;
+  const selected = track?.querySelector(".accent-swatch[aria-pressed='true']");
+  if (!track || !selected) return;
+
+  const trackBounds = track.getBoundingClientRect();
+  const selectedBounds = selected.getBoundingClientRect();
+  if (selectedBounds.left < trackBounds.left) {
+    track.scrollLeft -= trackBounds.left - selectedBounds.left;
+  } else if (selectedBounds.right > trackBounds.right) {
+    track.scrollLeft += selectedBounds.right - trackBounds.right;
+  }
+}
 
 const categories = [
   { id: "stats", label: "Estadísticas", icon: BarChart3 },
@@ -1533,6 +1607,12 @@ const categories = [
 ];
 
 const activeCategory = ref("stats");
+watch(activeCategory, async (category) => {
+  if (category !== "appearance") return;
+  await nextTick();
+  revealSelectedTheme();
+  updateThemeCarouselControls();
+});
 
 // ============================================================
 // ESTADÍSTICAS DEL PERFIL
@@ -2230,6 +2310,10 @@ async function confirmWipeProfile() {
 
 onMounted(async () => {
   await user.load();
+  await nextTick();
+  revealSelectedTheme();
+  updateThemeCarouselControls();
+  window.addEventListener("resize", updateThemeCarouselControls, { passive: true });
 
   try {
     const estimate = await navigator.storage?.estimate?.();
@@ -2242,5 +2326,9 @@ onMounted(async () => {
   } catch {
     // La estimación de almacenamiento es opcional.
   }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", updateThemeCarouselControls);
 });
 </script>
