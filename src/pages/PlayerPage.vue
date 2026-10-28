@@ -139,7 +139,7 @@
               <Pause v-if="library.isPlaying" fill="currentColor" />
               <Play v-else fill="currentColor" />
             </button>
-            <button type="button" class="ctrl-btn" aria-label="Siguiente canción" @click="library.playNextSong">
+            <button type="button" class="ctrl-btn" aria-label="Siguiente canción" @click="library.playNextSong()">
               <SkipForward fill="currentColor" />
             </button>
             <button

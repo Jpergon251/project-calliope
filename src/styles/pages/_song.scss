@@ -8,6 +8,11 @@
   background: var(--bg-primary);
 }
 
+.song-page.page-fade-enter-from,
+.song-page.page-fade-leave-to {
+  transform: none;
+}
+
 // El modal de metadatos usa <Teleport to="body">, así que normalmente no es
 // hijo de esta página. Si por algún motivo se montara aquí dentro, `.song-page`
 // tiene `isolation: isolate`, y todo su contenido quedaría en el nivel 0 frente

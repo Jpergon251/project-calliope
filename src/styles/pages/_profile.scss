@@ -562,9 +562,134 @@
   text-align: center;
 }
 
+.visualizer-pref-row {
+  align-items: flex-start;
+}
+
+.visualizer-style-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.visualizer-style-option {
+  position: relative;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--transition-normal),
+    background-color var(--transition-normal),
+    transform var(--transition-fast);
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 2px;
+  }
+
+  &.selected {
+    border-color: var(--accent);
+    background: var(--accent-surface);
+    box-shadow: var(--neon-glow-soft);
+  }
+
+  svg {
+    width: 44px;
+    height: 24px;
+    overflow: visible;
+    fill: none;
+    stroke: var(--accent-light);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  > svg:last-child {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 13px;
+    height: 13px;
+    color: var(--accent);
+  }
+}
+
+.visualizer-style-preview {
+  display: flex;
+  width: 44px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-light);
+
+  svg {
+    display: block;
+  }
+}
+
+.visualizer-preview-bars,
+.visualizer-preview-dots,
+.visualizer-preview-rounded-bars {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.visualizer-preview-bars i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-light);
+}
+
+.visualizer-preview-dots i {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent-light);
+}
+
+.visualizer-preview-rounded-bars i {
+  width: 4px;
+  border-radius: 999px;
+  background: var(--accent-light);
+}
+
+.visualizer-style-name {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
 /* ============================================================
    BADGE LOCAL
    ============================================================ */
+
+@media (max-width: 700px) {
+  .visualizer-pref-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visualizer-style-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
 .local-badge {
   display: inline-flex;

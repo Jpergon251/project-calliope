@@ -11,7 +11,8 @@ export function scaledVisualizerGain(volume) {
 
 export function visualizerAmplitude(level, volume) {
   const clampedLevel = Math.max(0, Math.min(1, Number(level) || 0));
-  return clampedLevel * scaledVisualizerGain(volume);
+  const emphasizedLevel = clampedLevel + 0.16 * clampedLevel * (1 - clampedLevel);
+  return emphasizedLevel * scaledVisualizerGain(volume);
 }
 
 export function smoothVisualizerValue(current, target, attack, release, deltaSeconds) {

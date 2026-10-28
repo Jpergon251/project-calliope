@@ -6,6 +6,10 @@ import {
   visualizerAmplitude,
   visualizerMode,
 } from "../../lib/visualizerMath.js";
+import {
+  normalizeVisualizerStyle,
+  VISUALIZER_STYLES,
+} from "../../lib/visualizerStyles.js";
 
 test("visualizer is off while paused, dim while muted, and active above 1% volume", () => {
   assert.equal(visualizerMode(false, false, 0.5), "off");
@@ -39,6 +43,16 @@ test("volume affects only amplitude; the signal level is independent of the gain
   assert.equal(musicalLevel, 0.7);
 });
 
+test("visualizer subtly emphasizes quiet, medium, and loud audio without changing its bounds", () => {
+  for (const level of [0.1, 0.5, 0.9]) {
+    const amplitude = visualizerAmplitude(level, 1);
+    assert.ok(amplitude > level);
+    assert.ok(amplitude <= 1);
+  }
+  assert.equal(visualizerAmplitude(0, 1), 0);
+  assert.equal(visualizerAmplitude(1, 1), 1);
+});
+
 test("visualizer smoothing limits frame-to-frame vocal/transient jumps", () => {
   const oneFrame = smoothVisualizerValue(0, 1, 4.2, 1.7, 1 / 60);
   assert.ok(oneFrame > 0 && oneFrame < 0.1);
@@ -48,4 +62,19 @@ test("visualizer smoothing limits frame-to-frame vocal/transient jumps", () => {
   }
   assert.ok(release < 0.25);
   assert.ok(release > 0);
+});
+
+test("available visualizer styles exclude retired styles and invalid preferences fall back to classic", () => {
+  assert.deepEqual(
+    VISUALIZER_STYLES.map(({ value }) => value),
+    ["classic", "bars", "dots", "rounded-bars"],
+  );
+  assert.equal(normalizeVisualizerStyle(undefined), "classic");
+  assert.equal(normalizeVisualizerStyle("unknown"), "classic");
+  assert.equal(normalizeVisualizerStyle("spiky"), "classic");
+  assert.equal(normalizeVisualizerStyle("sphere"), "classic");
+  assert.equal(normalizeVisualizerStyle("curved-bars"), "classic");
+  for (const { value } of VISUALIZER_STYLES) {
+    assert.equal(normalizeVisualizerStyle(value), value);
+  }
 });

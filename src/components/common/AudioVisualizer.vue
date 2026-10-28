@@ -21,8 +21,11 @@ import {
   visualizerAmplitude,
   visualizerMode,
 } from '../../lib/visualizerMath.js';
+import { normalizeVisualizerStyle } from '../../lib/visualizerStyles.js';
+import { useUserStore } from '../../stores/userStore.js';
 
 const library = useLibraryStore();
+const user = useUserStore();
 const canvas = ref(null);
 let analyser = null;
 let animationFrame = null;
@@ -33,6 +36,7 @@ let smoothedMotion = 0;
 let previousFrameTime = 0;
 const MIN_DB = -78;
 const MAX_DB = -18;
+const EMPTY_SPECTRUM = new Float32Array(0);
 
 function frequencyLevel(byteValue) {
   const db = (byteValue / 255) * (analyser?.maxDecibels ?? -20)
@@ -43,11 +47,86 @@ function frequencyLevel(byteValue) {
 const visualizerState = computed(() =>
   visualizerMode(library.isPlaying, library.isMuted, library.volume),
 );
+const visualizerStyle = computed(() =>
+  normalizeVisualizerStyle(user.profile.visualizerStyle),
+);
 
 function initAnalyser() {
   analyser = library.getAudioAnalyser();
   if (analyser && library.isPlaying) {
     library.resumeAudioAnalyser();
+  }
+}
+
+function drawAlternativeStyle(context, style, {
+  height,
+  startX,
+  availableWidth,
+  points,
+  smoothedSpectrum,
+  libraryVolume,
+  gainScale,
+  energyLevel,
+  visualizerColor,
+  visualizerRgba,
+}) {
+  context.shadowColor = visualizerColor;
+  context.shadowBlur = gainScale > 0 ? 5 + energyLevel * 12 : 0;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+
+  if (style === 'bars') {
+    const barCount = 32;
+    const gap = Math.max(2, availableWidth * 0.008);
+    const barWidth = Math.max(1, (availableWidth - gap * (barCount - 1)) / barCount);
+    const baseline = height * 0.82;
+    for (let index = 0; index < barCount; index++) {
+      const progress = index / (barCount - 1);
+      const frequencyIndex = Math.min(
+        Math.floor(Math.pow(progress, 1.3) * Math.max(0, smoothedSpectrum.length - 1) * 0.7),
+        smoothedSpectrum.length - 1,
+      );
+      const level = smoothedSpectrum[frequencyIndex] || 0;
+      const amplitude = visualizerAmplitude(level, libraryVolume);
+      const barHeight = Math.max(2, amplitude * height * 0.58);
+      const x = startX + index * (barWidth + gap);
+      context.fillStyle = visualizerRgba(0.35 + Math.min(0.55, amplitude * 0.5));
+      context.fillRect(x, baseline - barHeight, barWidth, barHeight);
+    }
+  } else if (style === 'dots') {
+    points.forEach((point) => {
+      const amplitude = Math.abs(point.totalAmp);
+      const radius = 1.3 + Math.min(3.2, amplitude / Math.max(1, height * 0.42) * 4.2);
+      context.globalAlpha = 0.45 + Math.min(0.5, amplitude / Math.max(1, height * 0.42));
+      context.fillStyle = visualizerColor;
+      context.beginPath();
+      context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.globalAlpha = 1;
+  } else if (style === 'rounded-bars') {
+    const barCount = Math.min(40, Math.max(16, Math.floor(availableWidth / 10)));
+    const gap = Math.max(2, availableWidth * 0.006);
+    const barWidth = (availableWidth - gap * (barCount - 1)) / barCount;
+    const baseline = height * 0.82;
+    for (let index = 0; index < barCount; index++) {
+      const progress = index / (barCount - 1);
+      const frequencyIndex = Math.min(
+        Math.floor(Math.pow(progress, 1.3) * Math.max(0, smoothedSpectrum.length - 1) * 0.7),
+        smoothedSpectrum.length - 1,
+      );
+      const amplitude = visualizerAmplitude(
+        smoothedSpectrum[frequencyIndex] || 0,
+        libraryVolume,
+      );
+      const barHeight = Math.min(height * 0.58, Math.max(4, amplitude * height * 0.58));
+      const x = startX + index * (barWidth + gap);
+      const y = baseline - barHeight;
+      context.fillStyle = visualizerRgba(0.45 + Math.min(0.5, amplitude * 0.5));
+      context.beginPath();
+      context.roundRect(x, y, barWidth, barHeight, Math.min(barWidth / 2, barHeight / 2));
+      context.fill();
+    }
   }
 }
 
@@ -168,6 +247,24 @@ function draw() {
     const y = centerY - totalAmp;
 
     points.push({ x, y, totalAmp, windowFactor });
+  }
+
+  if (visualizerStyle.value !== 'classic') {
+    drawAlternativeStyle(context, visualizerStyle.value, {
+      height,
+      startX,
+      availableWidth,
+      points,
+      smoothedSpectrum: smoothedSpectrum || EMPTY_SPECTRUM,
+      libraryVolume: library.volume,
+      gainScale,
+      energyLevel,
+      visualizerColor,
+      visualizerRgba,
+    });
+    context.restore();
+    animationFrame = requestAnimationFrame(draw);
+    return;
   }
 
   // 1. Relleno con gradiente bajo la onda (iluminación de campo de energía neon)

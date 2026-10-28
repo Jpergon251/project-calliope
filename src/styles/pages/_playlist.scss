@@ -25,6 +25,13 @@
     }
 }
 
+.playlist-page.page-fade-enter-from,
+.playlist-page.page-fade-leave-to,
+.album-page.page-fade-enter-from,
+.album-page.page-fade-leave-to {
+    transform: none;
+}
+
 .playlist-atmosphere,
 .album-atmosphere {
     position: fixed;

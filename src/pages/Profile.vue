@@ -753,6 +753,68 @@
           </div>
         </div>
 
+        <div class="pref-row visualizer-pref-row">
+          <div class="pref-text">
+            <strong>Estilo del visualizador</strong>
+            <p>Elige cómo se representa el audio durante la reproducción.</p>
+          </div>
+
+          <div
+            class="accent-swatches visualizer-style-options"
+            role="group"
+            aria-label="Estilo del visualizador"
+          >
+            <button
+              v-for="style in VISUALIZER_STYLES"
+              :key="style.value"
+              type="button"
+              class="visualizer-style-option"
+              :class="{ selected: selectedVisualizerStyle === style.value }"
+              :aria-label="`Usar visualizador ${style.label}`"
+              :aria-pressed="selectedVisualizerStyle === style.value"
+              :title="style.label"
+              @click="user.updateProfile({ visualizerStyle: style.value })"
+            >
+              <span
+                class="visualizer-style-preview"
+                :class="style.value"
+                aria-hidden="true"
+              >
+                <svg v-if="style.value === 'classic'" viewBox="0 0 44 24">
+                  <path d="M2 13 C7 13 7 6 12 6 S17 18 22 18 S27 8 32 8 S37 13 42 13" />
+                </svg>
+                <span v-else-if="style.value === 'bars'" class="visualizer-preview-bars">
+                  <i
+                    v-for="(height, index) in [8, 15, 11, 19, 13, 7]"
+                    :key="index"
+                    :style="{ height: `${height}px` }"
+                  ></i>
+                </span>
+                <span v-else-if="style.value === 'dots'" class="visualizer-preview-dots">
+                  <i
+                    v-for="(size, index) in [3, 5, 4, 7, 4, 3]"
+                    :key="index"
+                    :style="{ width: `${size}px`, height: `${size}px` }"
+                  ></i>
+                </span>
+                <span v-else class="visualizer-preview-rounded-bars">
+                  <i
+                    v-for="(height, index) in [7, 13, 9, 17, 12, 6]"
+                    :key="index"
+                    :style="{ height: `${height}px` }"
+                  ></i>
+                </span>
+              </span>
+              <span class="visualizer-style-name">{{ style.label }}</span>
+              <Check
+                v-if="selectedVisualizerStyle === style.value"
+                :size="13"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </div>
+
         <div class="pref-row">
           <div class="pref-text">
             <strong>Menos animaciones</strong>
@@ -1449,10 +1511,17 @@ import { downscaleImage } from "../lib/covers.js";
 import ToggleSwitch from "../components/common/ToggleSwitch.vue";
 import SongIconCover from "../components/common/SongIconCover.vue";
 import { COLOR_PALETTES } from "../lib/colorPalettes.js";
+import {
+  normalizeVisualizerStyle,
+  VISUALIZER_STYLES,
+} from "../lib/visualizerStyles.js";
 
 const user = useUserStore();
 const library = useLibraryStore();
 const router = useRouter();
+const selectedVisualizerStyle = computed(() =>
+  normalizeVisualizerStyle(user.profile.visualizerStyle),
+);
 
 const categories = [
   { id: "stats", label: "Estadísticas", icon: BarChart3 },

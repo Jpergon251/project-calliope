@@ -17,6 +17,7 @@ import {
   getColorPalette,
   normalizePaletteId,
 } from "../lib/colorPalettes.js";
+import { normalizeVisualizerStyle } from "../lib/visualizerStyles.js";
 import { useLibraryStore } from "./libraryStore.js";
 
 const LS_LEGACY_KEY = "calliope-user-profile";
@@ -33,6 +34,7 @@ export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 export const DEFAULT_PREFERENCES = {
   accentColor: "miami-vice",
+  visualizerStyle: "classic",
   reducedMotion: false,
   showVisualizer: true,
   autoplayOnStart: false,
@@ -127,6 +129,9 @@ export const useUserStore = defineStore("user", () => {
       preferences.accentColor = raw.accentColor;
     }
     preferences.accentColor = normalizePaletteId(preferences.accentColor);
+    preferences.visualizerStyle = normalizeVisualizerStyle(
+      preferences.visualizerStyle,
+    );
     // Una preferencia guardada como undefined no debe pisar el valor por defecto.
     for (const key of Object.keys(preferences)) {
       if (preferences[key] === undefined) {
@@ -412,6 +417,9 @@ export const useUserStore = defineStore("user", () => {
       };
       pendingPreferences.value.accentColor = normalizePaletteId(
         pendingPreferences.value.accentColor
+      );
+      pendingPreferences.value.visualizerStyle = normalizeVisualizerStyle(
+        pendingPreferences.value.visualizerStyle,
       );
 
       // `load()` se invoca desde el router, App.vue y varias páginas.

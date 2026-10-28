@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { formatPlayCount } from "./listeningHistory.js";
 
 /**
@@ -20,6 +21,7 @@ function createPlaybackEngine(initialSongs = []) {
   let repeatMode = "off"; // 'off' | 'all' | 'one'
   let isShuffleEnabled = false;
   let playbackRequestId = 0;
+  let handlingEnded = false;
 
   function dedupeById(list) {
     const seen = new Set();
@@ -117,6 +119,10 @@ function createPlaybackEngine(initialSongs = []) {
   }
 
   function playNextSong(autoAdvance = false) {
+    if (autoAdvance && !handlingEnded) {
+      return { action: "ignored_auto_advance", song: null, isPlaying };
+    }
+    if (!autoAdvance) handlingEnded = false;
     const wasPaused = !autoAdvance && !isPlaying;
 
     let nextSong = playQueue.shift();
@@ -140,6 +146,11 @@ function createPlaybackEngine(initialSongs = []) {
     return { action: "next_song", song: nextSong, isPlaying };
   }
 
+  function handleEnded() {
+    handlingEnded = true;
+    return playNextSong(true);
+  }
+
   return {
     get playingSong() { return playingSong; },
     get playQueue() { return playQueue; },
@@ -155,6 +166,7 @@ function createPlaybackEngine(initialSongs = []) {
     playFromPlaylist,
     playPreviousSong,
     playNextSong,
+    handleEnded,
   };
 }
 
@@ -275,10 +287,50 @@ test("next button preserves paused state when manually triggered while paused", 
   engine.playFromPlaylist(songs[0], songs);
   engine.isPlaying = false; // Paused
 
-  const res = engine.playNextSong(false);
+  const res = engine.playNextSong();
   assert.equal(res.song.id, "s2");
   assert.equal(res.isPlaying, false);
   assert.equal(engine.isPlaying, false);
+});
+
+test("manual next does not pass the click event as an ended-event flag", async () => {
+  const songs = [
+    { id: "s1", title: "Song 1" },
+    { id: "s2", title: "Song 2" },
+  ];
+  const engine = createPlaybackEngine(songs);
+  engine.playFromPlaylist(songs[0], songs);
+
+  const ignored = engine.playNextSong({ type: "click" });
+  assert.equal(ignored.action, "ignored_auto_advance");
+  assert.equal(engine.playQueue[0].id, "s2");
+
+  const playerPage = await readFile(
+    new URL("../pages/PlayerPage.vue", import.meta.url),
+    "utf8",
+  );
+  assert.match(playerPage, /aria-label="Siguiente canción"[^>]*@click="library\.playNextSong\(\)"/);
+
+  const manual = engine.playNextSong();
+  assert.equal(manual.song.id, "s2");
+});
+
+test("manual next follows the active playlist after the selected track", () => {
+  const songs = [
+    { id: "s1", title: "Song 1" },
+    { id: "s2", title: "Song 2" },
+    { id: "s3", title: "Song 3" },
+    { id: "s4", title: "Song 4" },
+  ];
+  const engine = createPlaybackEngine(songs);
+  engine.playFromPlaylist(songs[2], songs);
+  engine.isPlaying = false;
+
+  const result = engine.playNextSong();
+
+  assert.equal(result.song.id, "s4");
+  assert.equal(result.isPlaying, false);
+  assert.equal(engine.playQueue.length, 0);
 });
 
 test("next button auto-advancing on track end keeps playing", () => {
@@ -290,7 +342,7 @@ test("next button auto-advancing on track end keeps playing", () => {
   engine.playFromPlaylist(songs[0], songs);
   engine.isPlaying = true;
 
-  const res = engine.playNextSong(true);
+  const res = engine.handleEnded();
   assert.equal(res.song.id, "s2");
   assert.equal(res.isPlaying, true);
   assert.equal(engine.isPlaying, true);
@@ -306,13 +358,13 @@ test("repeatMode 'all' loops back to the start when queue finishes", () => {
   engine.playFromPlaylist(songs[0], songs);
 
   // Play s2
-  engine.playNextSong(true);
+  engine.handleEnded();
   assert.equal(engine.playingSong.id, "s2");
   assert.equal(engine.playQueue.length, 0);
 
   // A simulated ended event does not advance queue navigation history.
   engine.isPlaying = false;
-  const loopRes = engine.playNextSong(true);
+  const loopRes = engine.handleEnded();
   assert.equal(loopRes.song.id, "s1");
   assert.equal(engine.playingSong.id, "s1");
 });
