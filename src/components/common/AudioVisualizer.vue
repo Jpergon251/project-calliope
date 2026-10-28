@@ -37,6 +37,13 @@ let previousFrameTime = 0;
 const MIN_DB = -78;
 const MAX_DB = -18;
 const EMPTY_SPECTRUM = new Float32Array(0);
+const points = Array.from({ length: 64 }, () => ({
+  x: 0,
+  y: 0,
+  totalAmp: 0,
+  windowFactor: 0,
+}));
+let frequencyData = null;
 
 function frequencyLevel(byteValue) {
   const db = (byteValue / 255) * (analyser?.maxDecibels ?? -20)
@@ -183,9 +190,14 @@ function draw() {
   previousFrameTime = now;
   idlePhase += 0.025;
 
-  const pointsCount = 64;
-  const values = playing && analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
-  if (values) analyser.getByteFrequencyData(values);
+  let values = null;
+  if (playing && analyser) {
+    if (!frequencyData || frequencyData.length !== analyser.frequencyBinCount) {
+      frequencyData = new Uint8Array(analyser.frequencyBinCount);
+    }
+    values = frequencyData;
+    analyser.getByteFrequencyData(values);
+  }
   if (values) {
     if (!smoothedSpectrum || smoothedSpectrum.length !== values.length) {
       smoothedSpectrum = new Float32Array(values.length);
@@ -215,12 +227,11 @@ function draw() {
   const isMobile = width <= 768;
   const availableWidth = isMobile ? width : width * 0.96;
   const startX = (width - availableWidth) / 2;
-  const step = availableWidth / (pointsCount - 1);
+  const step = availableWidth / (points.length - 1);
 
-  const points = [];
-  for (let i = 0; i < pointsCount; i++) {
+  for (let i = 0; i < points.length; i++) {
     const x = startX + i * step;
-    const progress = i / (pointsCount - 1); // 0 a 1
+    const progress = i / (points.length - 1); // 0 a 1
     // Ventana Hann / campana suave para que los extremos caigan suavemente a cero
     const windowFactor = Math.sin(progress * Math.PI);
 
@@ -246,7 +257,10 @@ function draw() {
       : (amp + idleWave * (1 - energyLevel * 0.6)) * windowFactor;
     const y = centerY - totalAmp;
 
-    points.push({ x, y, totalAmp, windowFactor });
+    points[i].x = x;
+    points[i].y = y;
+    points[i].totalAmp = totalAmp;
+    points[i].windowFactor = windowFactor;
   }
 
   if (visualizerStyle.value !== 'classic') {
@@ -383,5 +397,6 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(animationFrame);
   }
   smoothedSpectrum = null;
+  frequencyData = null;
 });
 </script>

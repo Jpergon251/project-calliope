@@ -3,7 +3,6 @@ import { ref, watch, toRaw, computed } from "vue";
 import { parseBlob } from "music-metadata";
 
 import { dbPromise } from "../lib/db.js";
-import { writeAudioMetadata } from "../services/audioTagWriter.js";
 import { readFormat } from "taglib-wasm/simple";
 import { Capacitor } from "@capacitor/core";
 import FolderPicker from "../plugins/folderPicker.js";
@@ -4669,6 +4668,7 @@ export const useLibraryStore = defineStore("library", () => {
     const cover = updatedData.cover !== undefined ? sanitizeCoverForStorage(updatedData.cover) : sanitizeCoverForStorage(song.cover);
     const hasMetadata = Boolean(title || artist !== "Unknown");
     const previousSongId = song.id;
+    const { writeAudioMetadata } = await import("../services/audioTagWriter.js");
     const updatedFile = await writeAudioMetadata(song.fileHandle, {
       ...updatedData, title, artist, albumArtist, album, genre, year, track, trackTotal, disk, diskTotal, cover: cover || "",
       directoryHandle: song.directoryHandle,
