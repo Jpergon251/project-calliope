@@ -1289,6 +1289,11 @@ html[data-theme="chromatic-glass"] {
       z-index: 20;
     }
 
+    .app-container .sidebar .pages-list {
+      box-sizing: border-box;
+      padding-bottom: 150px;
+    }
+
     .app-container .main {
       padding-bottom: 150px;
     }
@@ -1638,18 +1643,11 @@ html[data-theme="chromatic-glass"] {
     .pref-card,
     .settings-page .settings-card,
     .queue-now-playing-card,
-    .player,
     .create-playlist-card,
     .playlist-edit-card,
     .delete-confirm-card,
     .modal-card {
       backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    .player {
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
     }
   }
 

@@ -1,5 +1,11 @@
 <template>
-  <section class="player" aria-label="Reproductor">
+  <section
+    class="player"
+    aria-label="Reproductor"
+    :style="{
+      backdropFilter: user.profile.accentColor === 'chromatic-glass' ? 'blur(14px)' : undefined,
+    }"
+  >
     <!-- Slim progress line for mobile mini-player -->
     <div class="mini-progress-track" aria-hidden="true">
       <div class="mini-progress-bar" :style="{ width: `${progressPercent}%` }"></div>
@@ -144,12 +150,14 @@ import {
   SkipForward,
 } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
+import { useUserStore } from "../../stores/userStore.js";
 import { useRouter } from "vue-router";
 import SongCover from "../library/SongCover.vue";
 import VolumeModal from "../player/VolumeModal.vue";
 import { computed } from "vue";
 
 const library = useLibraryStore();
+const user = useUserStore();
 const router = useRouter();
 
 const playingSongArtists = computed(() => {

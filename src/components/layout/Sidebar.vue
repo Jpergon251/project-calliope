@@ -34,6 +34,20 @@
         </router-link>
       </section>
 
+      <button
+        v-if="library.initialized && !library.folderHandle"
+        @click="library.selectFolder()"
+        class="folder-button"
+      >
+        Seleccionar carpeta
+      </button>
+      <span
+        v-if="library.initialized && !library.folderHandle"
+        class="advertisment"
+      >
+        Selecciona una carpeta para ver tu música.
+      </span>
+
       <!-- 2. Más información -->
       <section class="nav-section secondary-nav">
         <h2 class="nav-section-title">Más información</h2>
@@ -46,6 +60,11 @@
         <router-link to="/about" class="page-link">
           <Info class="page-icon" />
           <span class="page-name">Acerca de</span>
+        </router-link>
+
+        <router-link to="/support" class="page-link support-link">
+          <Heart class="page-icon" />
+          <span class="page-name">Ayúdame</span>
         </router-link>
       </section>
 
@@ -91,25 +110,6 @@
       </section>
     </div>
 
-    <button
-      v-if="library.initialized && !library.folderHandle"
-      @click="library.selectFolder()"
-      class="folder-button"
-    >
-      Seleccionar carpeta
-    </button>
-
-    <span
-      v-if="library.initialized && !library.folderHandle"
-      class="advertisment"
-    >
-      Selecciona una carpeta para ver tu música.
-    </span>
-
-    <router-link to="/support" class="page-link support-link">
-      <Heart class="page-icon" />
-      <span class="page-name">Ayúdame</span>
-    </router-link>
   </nav>
 </template>
 
