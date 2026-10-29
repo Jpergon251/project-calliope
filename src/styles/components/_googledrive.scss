@@ -126,6 +126,23 @@
   font-size: 0.78rem;
 }
 
+.google-drive-sync-state {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: var(--bg-tertiary);
+  font-size: 0.82rem;
+}
+
+.google-drive-sync-state span,
+.google-drive-sync-state small {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .google-drive-spinner {
   animation: google-drive-spin 0.9s linear infinite;
 }

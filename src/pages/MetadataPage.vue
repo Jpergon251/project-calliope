@@ -5,11 +5,10 @@
       <div class="header-titles">
         <div class="title-with-icon">
           <Tags class="title-icon" />
-          <h1>Gestión de Metadatos</h1>
+          <h1>Información de canciones</h1>
         </div>
         <p>
-          Consulta y edita los metadatos de tus canciones, o analiza su audio
-          para completar información faltante.
+          Revisa y completa los datos de tus canciones. También puedes buscar información para rellenar lo que falta.
         </p>
       </div>
 
@@ -76,7 +75,7 @@
           ]"
           @click="currentFilter = 'incomplete'"
         >
-          Incompletos ({{ incompleteMetadataCount }})
+          Por completar ({{ incompleteMetadataCount }})
         </button>
         <button
           type="button"
@@ -87,7 +86,7 @@
           ]"
           @click="currentFilter = 'necessary'"
         >
-          Necesarios ({{ necessaryMetadataCount }})
+          Información básica ({{ necessaryMetadataCount }})
         </button>
         <button
           type="button"
@@ -111,7 +110,7 @@
         <h2>No hay canciones en la biblioteca</h2>
         <p>
           Selecciona una carpeta con música para consultar y gestionar sus
-          metadatos.
+          información de sus canciones.
         </p>
         <button
           v-if="!library.folderHandle"
@@ -189,7 +188,7 @@
             </p>
 
             <div class="card-meta-bottom">
-              <!-- Indicador visual de 3 estados de metadatos -->
+              <!-- Indicador del estado de la información de la canción -->
               <span
                 :class="['status-pill', `pill-${getSongStatus(song).status}`]"
               >
@@ -210,7 +209,7 @@
     <section v-if="library.songs.length" class="metadata-auto-panel">
       <div class="metadata-auto-copy">
         <span class="metadata-auto-kicker">Modo automático</span>
-        <h2>Analizar y aplicar metadatos</h2>
+        <h2>Buscar y completar información</h2>
         <p>
           Analiza las canciones seleccionadas una por una y aplica la mejor
           coincidencia encontrada. Puede haber errores: revisa los resultados
@@ -366,7 +365,7 @@ function getSongStatus(song) {
   if (!meetsNecessary) {
     return {
       status: "incomplete",
-      label: "Metadatos incompletos",
+      label: "Información por completar",
       icon: AlertCircle,
     };
   }
@@ -380,14 +379,14 @@ function getSongStatus(song) {
   if (hasGenre && hasYear && hasTrack) {
     return {
       status: "complete",
-      label: "Metadatos completos",
+      label: "Información completa",
       icon: CheckCheck,
     };
   }
 
   return {
     status: "necessary",
-    label: "Metadatos necesarios",
+    label: "Información básica completa",
     icon: Check,
   };
 }

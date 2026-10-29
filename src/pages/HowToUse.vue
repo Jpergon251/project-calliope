@@ -106,7 +106,7 @@
             <h3>Selecciona tu carpeta de música local</h3>
             <p>
               Elige la carpeta de tu ordenador o almacenamiento donde guardas tus archivos de audio. Calliope
-              utiliza la API nativa del navegador para acceder a los ficheros con tu autorización.
+              te pedirá permiso para acceder a la carpeta y leer tus archivos.
             </p>
           </div>
         </article>
@@ -114,10 +114,9 @@
         <article class="guide-step">
           <span class="step-number">03</span>
           <div>
-            <h3>Lectura local y extracción de metadatos</h3>
+            <h3>Lectura de tu música</h3>
             <p>
-              Calliope analiza tus archivos en tiempo real y extrae carátulas en alta calidad, artistas,
-              álbumes, números de pista y formatos sin subir ni un solo byte a ningún servidor externo.
+              Calliope lee los títulos, artistas, álbumes y portadas de tus canciones. Tus archivos no se suben a internet.
             </p>
           </div>
         </article>
@@ -162,7 +161,7 @@
           <Disc3 class="card-icon" />
           <h3>Álbumes</h3>
           <p>
-            Calliope agrupa automáticamente tus pistas en discos completos a partir de sus metadatos ID3/FLAC,
+            Calliope agrupa tus canciones según la información guardada en los archivos,
             mostrando sus portadas originales en alta resolución.
           </p>
         </article>
@@ -464,14 +463,13 @@
           <HardDrive class="card-icon" />
           <h3>Biblioteca 100% en tu dispositivo</h3>
           <p>
-            Calliope opera como un reproductor local nativo. Tus pistas musicales jamás se transmiten por la red,
-            ni se analizan en servidores externos, ni requieren una cuenta en la nube.
+            Calliope reproduce tu música desde el dispositivo. Tus canciones no se suben ni se analizan en servidores externos.
           </p>
         </article>
 
         <article class="guide-card">
           <WifiOff class="card-icon" />
-          <h3>Funcionamiento offline real</h3>
+          <h3>Escucha sin conexión</h3>
           <p>
             Escucha toda tu música sin cobertura, en modo avión o sin gastar datos. Una vez cargada la carpeta,
             la aplicación funciona de forma completamente autónoma.
@@ -482,8 +480,7 @@
           <User class="card-icon" />
           <h3>Perfiles y datos aislados</h3>
           <p>
-            Tus listas de reproducción, valoraciones (Likes/Dislikes), historial y métricas se guardan
-            únicamente en el almacenamiento seguro de tu navegador mediante IndexedDB.
+            Tus listas, favoritos, historial y preferencias se guardan en Calliope. Puedes guardar una copia del perfil en Google Drive.
           </p>
         </article>
       </div>
@@ -532,9 +529,8 @@
 
           <div class="faq-content">
             <p>
-              Calliope obtiene las portadas desde los metadatos de tus archivos.
-              Si un archivo no contiene una portada incrustada, puede aparecer
-              sin artwork.
+              Calliope muestra la portada incluida en el archivo, si tiene una.
+              Si no, la canción aparecerá sin portada.
             </p>
           </div>
         </details>
@@ -547,7 +543,7 @@
 
           <div class="faq-content">
             <p>
-              Comprueba los metadatos del archivo original. Calliope utiliza
+              Comprueba la información del archivo original. Calliope utiliza
               esta información para identificar canciones, álbumes y artistas.
             </p>
           </div>
@@ -590,7 +586,7 @@
 
           <div class="faq-content">
             <p>
-              Vuelve a analizar la biblioteca después de modificar los metadatos
+              Vuelve a analizar la biblioteca después de modificar la información
               de tus archivos.
             </p>
           </div>

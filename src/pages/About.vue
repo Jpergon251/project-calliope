@@ -57,7 +57,7 @@
       </div>
     </section>
 
-    <!-- METADATOS Y ORGANIZACIÓN -->
+    <!-- INFORMACIÓN Y ORGANIZACIÓN -->
     <section class="about-section" aria-labelledby="metadata-title">
       <div class="section-heading">
         <div class="heading-icon-wrap">
@@ -65,9 +65,9 @@
         </div>
         <div>
           <span class="section-tag">BIBLIOTECA</span>
-          <h2 id="metadata-title">Metadatos y organización</h2>
+          <h2 id="metadata-title">Información y organización</h2>
           <p>
-            Calliope trabaja con los metadatos disponibles en tus archivos de
+            Calliope usa la información disponible en tus archivos de
             audio (título, artista, álbum y carátula) para catalogar y presentar
             tu música de manera ordenada.
           </p>

@@ -230,9 +230,11 @@ public class FolderPickerPlugin extends Plugin {
         String uriStr = call.getString("uri");
         String profileId = call.getString("profileId");
         String profileName = call.getString("profileName");
+        String fileName = call.getString("fileName");
         String content = call.getString("content");
 
-        if (uriStr == null || !isSafeProfileId(profileId) || !isSafeDirectoryName(profileName) || content == null) {
+        if (uriStr == null || !isSafeProfileId(profileId) || !isSafeDirectoryName(profileName)
+                || !isSafeExportName(fileName) || !fileName.endsWith("_profile_data.json") || content == null) {
             call.reject("Invalid profile data request");
             return;
         }
@@ -247,40 +249,81 @@ public class FolderPickerPlugin extends Plugin {
             return;
         }
 
-        DocumentFile profileDataRoot = findOrCreateDirectory(root, "profile_data");
-        if (profileDataRoot == null) {
-            call.reject("Could not access profile_data directory");
+        DocumentFile calliopeRoot = findOrCreateDirectory(root, "Calliope");
+        DocumentFile profilesRoot = calliopeRoot == null ? null : findOrCreateDirectory(calliopeRoot, "profiles");
+        if (profilesRoot == null) {
+            call.reject("Could not access Calliope/profiles directory");
             return;
         }
 
         DocumentFile previousProfileDir = null;
-        DocumentFile[] profileFolders = profileDataRoot.listFiles();
+        DocumentFile previousProfileFile = null;
+        DocumentFile previousProfilesRoot = profilesRoot;
+        DocumentFile[] profileFolders = profilesRoot.listFiles();
         for (DocumentFile candidate : profileFolders) {
             if (!candidate.isDirectory()) continue;
-            DocumentFile candidateFile = candidate.findFile("profile_data.json");
-            if (candidateFile != null && fileBelongsToProfile(candidateFile, profileId)) {
-                previousProfileDir = candidate;
-                break;
+            for (DocumentFile candidateFile : candidate.listFiles()) {
+                String candidateName = candidateFile.getName();
+                if (!candidateFile.isFile() || candidateName == null
+                        || !(candidateName.equals("profile_data.json") || candidateName.endsWith("_profile_data.json"))) {
+                    continue;
+                }
+                if (fileBelongsToProfile(candidateFile, profileId)) {
+                    if (previousProfileFile != null) {
+                        call.reject("Multiple local copies belong to this profile; resolve the conflict before syncing");
+                        return;
+                    }
+                    previousProfileDir = candidate;
+                    previousProfileFile = candidateFile;
+                    previousProfilesRoot = profilesRoot;
+                }
+            }
+        }
+        DocumentFile legacyProfilesRoot = root.findFile("profile_data");
+        if (legacyProfilesRoot != null && legacyProfilesRoot.isDirectory()) {
+            for (DocumentFile candidate : legacyProfilesRoot.listFiles()) {
+                if (!candidate.isDirectory()) continue;
+                for (DocumentFile candidateFile : candidate.listFiles()) {
+                    if (!candidateFile.isFile()) continue;
+                    String candidateName = candidateFile.getName();
+                    if (candidateName == null
+                            || !(candidateName.equals("profile_data.json") || candidateName.endsWith("_profile_data.json"))) {
+                        continue;
+                    }
+                    if (fileBelongsToProfile(candidateFile, profileId)) {
+                        if (previousProfileFile != null) {
+                            call.reject("Multiple local copies belong to this profile; resolve the conflict before syncing");
+                            return;
+                        }
+                        previousProfileDir = candidate;
+                        previousProfileFile = candidateFile;
+                        previousProfilesRoot = legacyProfilesRoot;
+                    }
+                }
             }
         }
 
         String targetName = profileName;
-        DocumentFile profileDir = findDirectoryIgnoringCase(profileDataRoot, targetName);
+        DocumentFile profileDir = findDirectoryIgnoringCase(profilesRoot, targetName);
         if (profileDir != null) {
-            DocumentFile existing = profileDir.findFile("profile_data.json");
+            DocumentFile existing = profileDir.findFile(fileName);
             if (existing != null && !fileBelongsToProfile(existing, profileId)) {
-                targetName = collisionSafeName(profileName, profileId, profileDataRoot);
-                profileDir = findDirectoryIgnoringCase(profileDataRoot, targetName);
+                targetName = collisionSafeName(profileName, profileId, profilesRoot);
+                profileDir = findDirectoryIgnoringCase(profilesRoot, targetName);
             } else if (existing != null) {
                 targetName = profileDir.getName();
             } else if (existing == null && profileDir.listFiles().length > 0) {
-                targetName = collisionSafeName(profileName, profileId, profileDataRoot);
-                profileDir = findDirectoryIgnoringCase(profileDataRoot, targetName);
+                boolean containsPreviousCopy = previousProfileDir != null
+                        && previousProfileDir.getUri().equals(profileDir.getUri());
+                if (!containsPreviousCopy) {
+                    targetName = collisionSafeName(profileName, profileId, profilesRoot);
+                    profileDir = findDirectoryIgnoringCase(profilesRoot, targetName);
+                }
             }
         }
         boolean createdProfileDir = false;
         if (profileDir == null) {
-            profileDir = profileDataRoot.createDirectory(targetName);
+            profileDir = profilesRoot.createDirectory(targetName);
             createdProfileDir = profileDir != null;
         }
         if (profileDir == null || !profileDir.isDirectory()) {
@@ -288,7 +331,7 @@ public class FolderPickerPlugin extends Plugin {
             return;
         }
 
-        DocumentFile destination = profileDir.findFile("profile_data.json");
+        DocumentFile destination = profileDir.findFile(fileName);
         if (destination != null) {
             if (!destination.isFile() || !fileBelongsToProfile(destination, profileId)) {
                 call.reject("Refusing to overwrite profile data that belongs to another profile");
@@ -299,7 +342,9 @@ public class FolderPickerPlugin extends Plugin {
             return;
         }
 
-        DocumentFile temporary = profileDir.findFile("profile_data.json.tmp");
+        String temporaryName = fileName.substring(0, fileName.length() - 5) + ".tmp";
+        String backupName = fileName.substring(0, fileName.length() - 5) + ".backup";
+        DocumentFile temporary = profileDir.findFile(temporaryName);
         if (temporary != null) {
             if (!temporary.isFile() || !fileBelongsToProfile(temporary, profileId)) {
                 call.reject("Temporary profile file belongs to unknown data");
@@ -307,7 +352,7 @@ public class FolderPickerPlugin extends Plugin {
             }
             temporary.delete();
         }
-        temporary = profileDir.createFile("application/json", "profile_data.json.tmp");
+        temporary = profileDir.createFile("application/json", temporaryName);
         if (temporary == null) {
             call.reject("Could not create temporary profile file");
             return;
@@ -325,45 +370,53 @@ public class FolderPickerPlugin extends Plugin {
                 return;
             }
 
-            DocumentFile backup = profileDir.findFile("profile_data.json.backup");
+            DocumentFile backup = profileDir.findFile(backupName);
             if (backup != null && !fileBelongsToProfile(backup, profileId)) {
                 call.reject("Existing backup belongs to unknown profile data");
                 return;
             }
             if (destination != null) {
                 if (backup != null) backup.delete();
-                if (!destination.renameTo("profile_data.json.backup")) {
+                if (!destination.renameTo(backupName)) {
                     call.reject("Could not safely preserve the previous profile file");
                     return;
                 }
-                backup = profileDir.findFile("profile_data.json.backup");
+                backup = profileDir.findFile(backupName);
                 if (backup == null) {
                     call.reject("Could not verify the previous profile file");
                     return;
                 }
             }
 
-            if (!temporary.renameTo("profile_data.json")) {
-                if (backup != null) backup.renameTo("profile_data.json");
+            if (!temporary.renameTo(fileName)) {
+                if (backup != null) backup.renameTo(fileName);
                 call.reject("The selected storage provider cannot safely replace profile files");
                 return;
             }
-            destination = profileDir.findFile("profile_data.json");
+            destination = profileDir.findFile(fileName);
             if (destination == null || !fileBelongsToProfile(destination, profileId)) {
                 if (destination != null) destination.delete();
-                if (backup != null) backup.renameTo("profile_data.json");
+                if (backup != null) backup.renameTo(fileName);
                 call.reject("New profile file failed verification; the previous copy was restored when possible");
                 return;
             }
             if (backup != null) backup.delete();
-            if (previousProfileDir != null && profileDir != null
-                    && !previousProfileDir.getUri().equals(profileDir.getUri())) {
+            if (previousProfileDir != null && previousProfileFile != null
+                    && (!previousProfilesRoot.getUri().equals(profilesRoot.getUri())
+                    || !previousProfileDir.getUri().equals(profileDir.getUri())
+                    || !fileName.equals(previousProfileFile.getName()))) {
+                if (!fileBelongsToProfile(previousProfileFile, profileId)) {
+                    call.reject("Previous profile copy changed before it could be safely replaced");
+                    return;
+                }
+                previousProfileFile.delete();
                 DocumentFile[] oldEntries = previousProfileDir.listFiles();
-                if (oldEntries.length == 1
-                        && "profile_data.json".equals(oldEntries[0].getName())
-                        && fileBelongsToProfile(oldEntries[0], profileId)) {
-                    oldEntries[0].delete();
+                if (oldEntries.length == 0) {
                     previousProfileDir.delete();
+                    if (!previousProfilesRoot.getUri().equals(profilesRoot.getUri())
+                            && previousProfilesRoot.listFiles().length == 0) {
+                        previousProfilesRoot.delete();
+                    }
                 }
             }
             JSObject ret = new JSObject();
@@ -448,7 +501,9 @@ public class FolderPickerPlugin extends Plugin {
     }
 
     private String collisionSafeName(String profileName, String profileId, DocumentFile parent) {
-        String suffix = profileId.substring(0, Math.min(8, profileId.length()));
+        String normalizedId = profileId.replaceAll("[^A-Za-z0-9]", "");
+        String suffix = normalizedId.substring(0, Math.min(8, normalizedId.length()));
+        if (suffix.isEmpty()) suffix = "local";
         String base = profileName.substring(0, Math.min(profileName.length(), 64 - suffix.length() - 1));
         String candidate = base + "-" + suffix;
         int index = 2;

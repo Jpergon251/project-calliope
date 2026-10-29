@@ -2,7 +2,7 @@
   <main class="settings-page">
 
     <section class="settings-header">
-      <h1>Configuración</h1>
+      <h1>Ajustes</h1>
       <p>
         Gestiona tu biblioteca, archivos y opciones de Calliope.
       </p>
@@ -12,14 +12,12 @@
       <div class="settings-card-header">
         <h2>Perfiles musicales</h2>
         <p>
-          Cada perfil conserva sus preferencias, listas, favoritos, valoraciones,
-          historial y métricas. La biblioteca y los metadatos de las canciones
-          siguen siendo compartidos en esta instalación.
+          Cada perfil tiene sus propias preferencias, listas y favoritos. La biblioteca de canciones es compartida.
         </p>
       </div>
 
       <p v-if="user.isGuest" class="health-description">
-        Crea un perfil local para guardar y gestionar bibliotecas independientes.
+        Crea un perfil para guardar tus preferencias y listas por separado.
       </p>
 
       <template v-else>
@@ -27,10 +25,10 @@
           Perfil activo: <strong>{{ user.profile.displayName || user.profile.name }}</strong>
           <span>
             {{ !library.folderHandle
-              ? "Sin carpeta asociada"
+              ? "Sin carpeta musical"
               : library.folderHandle.canWrite === false
-                ? "Carpeta asociada; sin permiso de escritura persistente"
-                : "Carpeta musical asociada" }}
+                ? "No se puede guardar en esta carpeta"
+                : "Carpeta musical conectada" }}
           </span>
         </div>
 
@@ -42,26 +40,26 @@
             Asociar carpeta musical
           </button>
           <button type="button" class="settings-button" @click="exportProfile">
-            Exportar JSON
+            Exportar perfil
           </button>
           <button type="button" class="settings-button" @click="importInput?.click()">
-            Importar JSON
+            Importar perfil
           </button>
           <input
             ref="importInput"
             class="profile-import-input"
             type="file"
             accept="application/json,.json"
-            aria-label="Seleccionar archivo JSON de perfil"
+            aria-label="Seleccionar archivo de perfil"
             @change="importProfile"
           />
         </div>
 
         <div class="profile-sync" aria-live="polite">
           <span>
-            Copia externa:
+            Copia en tu dispositivo:
             <strong>{{ syncStatusLabel }}</strong>
-            <template v-if="syncStatus?.message"> — {{ syncStatus.message }}</template>
+            <template v-if="syncStatusMessage"> — {{ syncStatusMessage }}</template>
           </span>
           <button
             v-if="syncStatus?.status === 'error' || syncStatus?.status === 'pending'"
@@ -69,7 +67,7 @@
             class="settings-button"
             @click="retrySync"
           >
-            Actualizar copia externa
+            Guardar copia
           </button>
         </div>
 
@@ -78,9 +76,9 @@
             <div class="profile-list-info">
               <strong>{{ item.displayName || item.name }}</strong>
               <span v-if="item.username">@{{ item.username }}</span>
-              <span v-else class="profile-username-pending">Nombre de usuario pendiente</span>
+              <span v-else class="profile-username-pending">Falta el nombre de usuario</span>
               <span v-if="item.id === activeProfileId">Activo</span>
-              <span v-else>Perfil local</span>
+              <span v-else>Disponible</span>
             </div>
             <div class="profile-list-actions">
               <button
@@ -89,7 +87,7 @@
                 class="settings-button"
                 @click="selectProfile(item)"
               >
-                Seleccionar
+                Activar
               </button>
               <button type="button" class="settings-button" @click="renameProfile(item)">
                 Renombrar
@@ -181,7 +179,7 @@
       <div class="metadata-status">
 
         <span>
-          Canciones sin metadatos
+          Canciones por completar
         </span>
 
         <strong>
@@ -193,8 +191,8 @@
 
 
       <p class="health-description">
-        Los metadatos contienen información como título, artista, álbum o portada.
-        Calliope los utiliza para organizar tu biblioteca correctamente.
+        Puedes completar datos como el título, el artista, el álbum y la portada.
+        Calliope usa esta información para organizar tu biblioteca.
       </p>
 
 
@@ -209,12 +207,12 @@
             :disabled="!library.folderHandle"
             class="settings-button"
           >
-            Gestionar metadatos
+            Editar información de canciones
           </button>
 
 
           <p>
-            Consulta, edita y analiza los metadatos de tus canciones para completar información faltante.
+            Revisa y completa la información de tus canciones.
           </p>
 
         </div>
@@ -280,7 +278,7 @@ import {
   collectProfileArchive,
   flushProfileSync,
   MAX_PROFILE_ARCHIVE_BYTES,
-  normalizeProfileDirectoryName,
+  profileArchiveFileName,
   profileSyncStatuses,
   resolveProfileSongReferences,
   validateProfileArchive,
@@ -296,12 +294,20 @@ const importInput = ref(null);
 const activeProfileId = computed(() => user.currentSession?.profileId || null);
 const syncStatus = computed(() => profileSyncStatuses[activeProfileId.value] || null);
 const syncStatusLabel = computed(() => ({
-  syncing: "Sincronizando",
-  synced: "Sincronizada",
+  syncing: "Guardando…",
+  synced: "Guardada",
   pending: "Pendiente",
-  error: "No sincronizada",
-  unavailable: "Solo almacenamiento interno",
-}[syncStatus.value?.status] || (library.folderHandle ? "Lista para sincronizar" : "No configurada")));
+  error: "No se pudo guardar",
+  unavailable: "Sin carpeta",
+}[syncStatus.value?.status] || (library.folderHandle ? "Lista para guardar" : "Sin carpeta")));
+
+const syncStatusMessage = computed(() => ({
+  syncing: "Guardando una copia de tu perfil.",
+  synced: "Tu copia está actualizada.",
+  pending: "Hay cambios por guardar.",
+  error: "Comprueba los permisos de la carpeta e inténtalo de nuevo.",
+  unavailable: "Puedes guardar una copia en tu dispositivo.",
+}[syncStatus.value?.status] || ""));
 
 
 const songsWithoutMetadata = computed(() =>
@@ -309,11 +315,20 @@ const songsWithoutMetadata = computed(() =>
 );
 
 function reportError(error) {
-  window.alert(error?.message || "No se pudo completar la operación.");
-}
-
-function safeExportName(name, id) {
-  return `${normalizeProfileDirectoryName(name, id).replace(/[. ]+$/g, "")}.json`;
+  console.error("[Settings] No se pudo completar la acción:", error);
+  const detail = String(error?.message || "");
+  const message = /nombre de usuario.*(ya está en uso|pertenece)|ya está en uso/i.test(detail)
+    ? "Ese nombre de usuario ya está en uso."
+    : /entre 3 y 30|letras, números|nombre de usuario.*(válido|obligatorio)/i.test(detail)
+      ? "El nombre de usuario no es válido. Usa entre 3 y 30 caracteres."
+      : /contraseña|password/i.test(detail)
+        ? "No se pudo abrir el perfil. Comprueba la contraseña e inténtalo de nuevo."
+        : /permiso|escritura/i.test(detail)
+          ? "No se pudo guardar. Revisa los permisos de la carpeta e inténtalo de nuevo."
+          : /ID|identificador|identidad|archivo|JSON|respaldo|exportación|estructura|referencia|versión/i.test(detail)
+            ? "No se pudo leer el archivo de perfil. Elige un archivo válido e inténtalo de nuevo."
+            : "No se pudo completar. Inténtalo de nuevo.";
+  window.alert(message);
 }
 
 async function createProfile() {
@@ -361,7 +376,7 @@ async function renameProfile(item) {
 async function deleteProfile(item) {
   const active = item.id === activeProfileId.value;
   const confirmed = window.confirm(
-    `Se eliminará el perfil «${item.displayName || item.name}» y sus preferencias, listas, favoritos, valoraciones, historial y métricas internas. La biblioteca compartida no se borrará. La copia JSON externa no se eliminará.`
+    `Se eliminará el perfil «${item.displayName || item.name}» y sus datos. No se borrarán las canciones ni las copias guardadas.`
     + (active ? "\n\nLa sesión actual se cerrará." : "")
     + "\n\n¿Continuar?",
   );
@@ -388,7 +403,7 @@ async function exportProfile() {
     if (new TextEncoder().encode(content).byteLength > MAX_PROFILE_ARCHIVE_BYTES) {
       throw new Error("El perfil supera el tamaño máximo permitido para exportar.");
     }
-    const fileName = safeExportName(user.profile.displayName || user.profile.name, activeProfileId.value);
+    const fileName = profileArchiveFileName(user.profile);
     if (Capacitor.isNativePlatform()) {
       await FolderPicker.saveProfileExport({ fileName, content });
     } else {
@@ -422,7 +437,7 @@ async function importProfile(event) {
     let importArchive = validated;
     if (identity.type === "split-identity") {
       throw new Error(
-        `El ID pertenece a «${identity.idOwner.displayName || identity.idOwner.name}» y @${identity.usernameOwner.username} pertenece a «${identity.usernameOwner.displayName || identity.usernameOwner.name}». Resuelve este conflicto desde Welcome; no se modificó ningún perfil.`,
+        `Los datos del archivo corresponden a perfiles distintos: «${identity.idOwner.displayName || identity.idOwner.name}» y «${identity.usernameOwner.displayName || identity.usernameOwner.name}». No se modificó ningún perfil.`,
       );
     }
     if (identity.type === "id-match") {
@@ -430,7 +445,7 @@ async function importProfile(event) {
       let username = validated.profile.username || target.username || "";
       if (!username) {
         const proposed = window.prompt(
-          `El perfil «${target.displayName || target.name}» no tiene nombre de usuario. Elige uno para completar la restauración:`,
+          `El perfil «${target.displayName || target.name}» no tiene nombre de usuario. Elige uno para continuar:`,
         );
         if (proposed === null) return;
         const validation = validateUsername(proposed);
@@ -444,7 +459,7 @@ async function importProfile(event) {
         username = validation.username;
       }
       if (!window.confirm(
-        `El perfil «${target.displayName || target.name}» (@${username || "sin username"}) ya existe. Se reemplazarán sus datos personales por los del archivo; la biblioteca compartida no se modificará. ¿Continuar?`,
+        `El perfil «${target.displayName || target.name}» (@${username || "sin nombre de usuario"}) ya existe. Se reemplazarán sus datos por los del archivo. La biblioteca de canciones no cambiará. ¿Continuar?`,
       )) return;
       importArchive = {
         ...validated,
@@ -454,8 +469,8 @@ async function importProfile(event) {
       targetProfileId = target.id;
     } else if (identity.type === "username-match" || identity.type === "username-required") {
       const prompt = identity.type === "username-match"
-        ? `@${identity.usernameOwner.username} ya pertenece a «${identity.usernameOwner.displayName || identity.usernameOwner.name}». Escribe un nombre de usuario alternativo para importar:`
-        : "Este archivo antiguo no contiene un nombre de usuario. Elige uno único para importar:";
+        ? `@${identity.usernameOwner.username} ya pertenece a «${identity.usernameOwner.displayName || identity.usernameOwner.name}». Elige otro nombre de usuario:`
+        : "Este archivo no tiene nombre de usuario. Elige uno para continuar:";
       const username = window.prompt(prompt);
       if (username === null) return;
       const validation = validateUsername(username);
@@ -472,8 +487,8 @@ async function importProfile(event) {
         profile: { ...validated.profile, username: validation.username },
       };
     } else if (!window.confirm(
-      `Importar «${name}» como perfil nuevo?\n${validated.playlists.length} listas, ${validated.history.length} entradas de historial y ${resolution.resolvedCount + resolution.unresolvedCount} referencias de canciones.\n`
-      + `${resolution.resolvedCount} referencias coinciden con la biblioteca actual; ${resolution.unresolvedCount} se conservarán sin vincularse hasta que la canción esté disponible.`,
+      `¿Quieres importar «${name}» como perfil nuevo?\nIncluye ${validated.playlists.length} listas y ${validated.history.length} reproducciones recientes.\n`
+      + `${resolution.unresolvedCount ? `${resolution.unresolvedCount} canciones no están disponibles en esta biblioteca.` : "Las canciones coinciden con la biblioteca actual."}`,
     )) {
       return;
     }
@@ -489,7 +504,7 @@ async function importProfile(event) {
     if (mode === "update" && targetProfileId === activeProfileId.value) {
       await user.reloadActiveProfile(targetProfileId);
     } else {
-      const shouldActivate = window.confirm("Importación completada. ¿Quieres activar este perfil ahora?");
+      const shouldActivate = window.confirm("Perfil importado. ¿Quieres activarlo ahora?");
       if (shouldActivate) {
         const login = await user.loginProfile(result.profileId);
         if (!login.success) throw new Error(login.error || "El perfil se importó, pero no se pudo activar.");

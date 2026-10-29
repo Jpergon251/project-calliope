@@ -28,7 +28,10 @@ import {
 } from "../lib/profileIdentity.js";
 import { useLibraryStore } from "./libraryStore.js";
 import { scheduleProfileSync } from "../services/profileArchives.js";
-import { clearGoogleDriveToken } from "../services/googleDriveProfiles.js";
+import {
+  clearGoogleDriveToken,
+  resumeDriveProfileSync,
+} from "../services/googleDriveProfiles.js";
 
 const LS_LEGACY_KEY = "calliope-user-profile";
 const LS_SESSION_KEY = "calliope-active-session";
@@ -426,6 +429,9 @@ export const useUserStore = defineStore("user", () => {
               currentSession.value = session;
               updateSessionActivity();
               applyPreferences();
+              void resumeDriveProfileSync(found.id).catch((error) => {
+                console.error("[userStore] No se pudo reanudar la sincronización de Drive:", error);
+              });
               return true;
             }
           }
@@ -598,6 +604,9 @@ export const useUserStore = defineStore("user", () => {
       await library.switchProfile();
     } catch {}
 
+    void resumeDriveProfileSync(profileId).catch((error) => {
+      console.error("[userStore] No se pudo reanudar la sincronización de Drive:", error);
+    });
     return { success: true };
   }
 
@@ -1097,6 +1106,7 @@ export const useUserStore = defineStore("user", () => {
       }
       tx.objectStore("settings").delete(`music-folder-${targetId}`);
       tx.objectStore("settings").delete(`google-drive-profile:${targetId}`);
+      tx.objectStore("settings").delete(`google-drive-sync:${targetId}`);
       await tx.done;
       clearGoogleDriveToken(targetId);
       if (Capacitor.isNativePlatform()) {

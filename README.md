@@ -11,9 +11,9 @@ Tu música es tuya.
 Calliope no sube tus archivos a ningún servidor, no necesita una cuenta y no recopila tu biblioteca musical.
 
 La aplicación solo utiliza la carpeta que tú eliges para leer la información
-necesaria de tus canciones y reproducirlas localmente. Opcionalmente, si
-vinculas Google Drive y pulsas guardar, sube únicamente el JSON portátil del
-perfil; nunca sube canciones.
+necesaria de tus canciones y reproducirlas localmente. Con Google Drive
+vinculado, sincroniza únicamente el JSON portátil del perfil tras una decisión
+inicial explícita; nunca sube canciones.
 
 ## ✨ Características
 
@@ -85,15 +85,24 @@ comparan solo por ID estable; las que no existen en la biblioteca de destino
 se conservan como referencias opacas pendientes y se vuelven a resolver cuando
 se selecciona una biblioteca. No se vinculan a otra canción por nombre o ruta.
 
-La copia externa conserva la estructura
-`profile_data/<nombre-del-perfil>/profile_data.json`, pero solo se escribe
-cuando el usuario solicita expresamente «Exportar perfil» o «Actualizar copia
-externa». Los cambios de las stores se guardan en IndexedDB y marcan la copia
-como pendiente; no hay sincronización automática ni tareas en segundo plano.
+La copia externa local conserva la estructura
+`Calliope/profiles/<nombre-del-perfil>/<username>_profile_data.json`, tanto en
+la web como en Android. El username se normaliza con las mismas reglas que la
+identidad del perfil. Solo se escribe cuando el usuario solicita expresamente
+«Exportar perfil» o «Actualizar copia externa». Los cambios de las stores se
+guardan en IndexedDB y solo actualizan el indicador de la copia externa; no hay
+sincronización automática ni tareas en segundo plano para esta exportación.
 La operación manual verifica el archivo y evita reemplazar una copia
 perteneciente a otro ID. Si se pierde el permiso o falla la escritura, los datos
-internos permanecen intactos y Ajustes informa del estado. Tras renombrar un
-perfil, la ubicación externa solo cambia en la siguiente exportación manual.
+internos permanecen intactos y Ajustes informa del estado. La carpeta se
+ajusta al nombre visible y el archivo al username en la siguiente exportación
+manual; la copia anterior solo se retira después de verificar que la nueva
+contiene el mismo ID de perfil.
+
+La estructura antigua `profile_data/<nombre>/profile_data.json` se migra de
+forma segura al nuevo destino al exportar, verificando el ID antes de retirar
+la copia anterior. La exportación JSON descargable sigue permitiendo elegir
+una ubicación y usa el mismo nombre de archivo por username.
 
 La web utiliza File System Access API solo cuando está disponible y autorizado;
 en caso contrario conserva el perfil en IndexedDB y permite exportar JSON de
@@ -122,14 +131,18 @@ Desde Perfil → Ajustes, «Exportar perfil» guarda los cambios pendientes y
 actualiza la copia JSON asociada únicamente por acción manual; si no hay carpeta
 disponible, informa que los datos siguen guardados internamente.
 
-### Copias manuales en Google Drive
+### Copias y sincronización de Google Drive
 
 Cada perfil local puede vincular una cuenta de Google independiente desde la
-pantalla de bienvenida o Perfil → Ajustes. La vinculación y los IDs técnicos de
+pantalla de bienvenida o Perfil → Conexiones. La vinculación y los IDs técnicos de
 Drive se guardan en IndexedDB bajo el ID estable del perfil; los tokens OAuth
-solo permanecen en memoria y nunca se incluyen en el archivo portable. Google
-Drive no se modifica al conectar o desvincular una cuenta. Guardar y restaurar
-son acciones manuales y requieren autorización vigente.
+solo permanecen en memoria y nunca se incluyen en el archivo portable. Vincular
+una cuenta no sube ningún dato por sí solo. Después de una escritura local
+confirmada, Calliope agrupa los cambios durante tres segundos y sincroniza
+automáticamente cuando hay una autorización vigente. La primera vinculación
+inspecciona la copia remota y exige elegir qué versión conservar; si no hay una
+copia visible, pide confirmación antes de inicializar Drive. También comprueba
+la copia remota al activar un perfil y al recuperar la conexión.
 Desvincular elimina la asociación local de ese perfil, pero no borra el archivo
 remoto ni revoca permisos de Google que puedan estar compartidos con otros
 perfiles de la misma instalación; el usuario puede retirar el permiso desde su
@@ -145,6 +158,27 @@ la operación se detiene sin sobrescribir ni borrar ninguno.
 Restaurar valida el archivo y la identidad por ID y username, muestra un resumen
 y requiere confirmación antes de reemplazar los datos personales del perfil.
 No se descargan canciones ni se reemplaza la biblioteca compartida.
+Calliope conserva en IndexedDB solo los metadatos de la cola pendiente, hashes
+de las versiones local/remota confirmadas, el ID y los metadatos de modificación
+del archivo, la fecha de sincronización y el estado. Las stores operativas que
+la aplicación necesita para perfiles, reproducción y funcionamiento normal se
+mantienen; no se genera en segundo plano un JSON de respaldo local completo.
+Durante un conflicto se conservan temporalmente las dos instantáneas necesarias
+para que el usuario pueda resolverlo o descargarlas. No se altera el JSON
+`calliope-profile` v3.
+Si solo cambió una copia, se actualiza Drive o se importa la copia remota
+validada. Si ambas cambiaron, Calliope muestra un conflicto y no elige por fecha
+ni combina los datos. La importación valida formato e identidad. Las escrituras
+usan `If-Match` cuando Drive devuelve ETag; si no hay ETag, se vuelve a leer y
+comparar inmediatamente antes y después de escribir, aunque Google Drive no
+ofrece una garantía condicional en ese caso y permanece un riesgo de carrera.
+Los perfiles sin Drive siguen usando el almacenamiento operativo necesario de
+la aplicación, pero no mantienen una copia JSON automática; el usuario puede
+exportar ese archivo manualmente.
+Como Google Identity Services no permite persistir el token de acceso, al
+recargar puede ser necesario volver a autorizar Google. Hasta entonces, los
+datos operativos y la cola mínima pendiente permanecen en IndexedDB. La conexión OAuth y la sincronización de Drive
+siguen sin estar disponibles dentro de Android WebView.
 
 Para desarrollo, copia `.env.example` a `.env` y define
 `VITE_GOOGLE_CLIENT_ID`. En GitHub Pages define también la variable de

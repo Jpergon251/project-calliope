@@ -170,7 +170,7 @@
                 class="welcome-profile-import-input"
                 type="file"
                 accept="application/json,.json"
-                aria-label="Seleccionar archivo JSON de perfil"
+                aria-label="Seleccionar archivo de perfil"
                 @change="importProfile"
               />
               <button
@@ -195,19 +195,19 @@
               <p v-if="profileImportMessage" class="welcome-import-message" role="status">
                 {{ profileImportMessage }}
               </p>
-              <section class="welcome-drive-section" aria-label="Copias de perfil en Google Drive">
-                <h2>Google Drive por perfil</h2>
-                <p>Vincula cuentas diferentes a perfiles distintos. Conectar no sube ningún dato.</p>
+              <section class="welcome-drive-section" aria-label="Conectar Google Drive">
+                <h2>Google Drive</h2>
+                <p>Conecta una cuenta para guardar perfiles en Drive.</p>
                 <label v-if="user.profilesList.length" class="welcome-drive-profile-select">
-                  <span>Perfil que quieres gestionar</span>
+                  <span>Perfil</span>
                   <select v-model="driveProfileId">
                     <option v-for="profileOption in user.profilesList" :key="profileOption.id" :value="profileOption.id">
-                      {{ profileOption.displayName || profileOption.name }}{{ profileOption.username ? ` (@${profileOption.username})` : ` · ${profileOption.id.slice(0, 8)}` }}
+                      {{ profileOption.displayName || profileOption.name }}{{ profileOption.username ? ` (@${profileOption.username})` : " · Sin nombre de usuario" }}
                     </option>
                   </select>
                 </label>
                 <p v-else class="welcome-drive-empty">
-                  Crea un perfil local para poder vincularlo a Google Drive.
+                  Crea un perfil para conectar una cuenta de Google.
                 </p>
                 <GoogleDriveProfile
                   v-if="selectedDriveProfile"
@@ -680,7 +680,7 @@
                 ? "Nombre de usuario en uso"
                 : pendingProfileImport.type === "username-required"
                   ? "Elige un nombre de usuario"
-                  : "Conflicto de identidad"
+                  : "El archivo no coincide"
           }}
         </h2>
         <p id="welcome-import-dialog-description">
@@ -693,30 +693,28 @@
             reemplazados por los del archivo importado. Esta acción no se puede
             deshacer desde la aplicación.
             <template v-if="pendingProfileImport.type === 'overwrite-username-required'">
-              El archivo y el perfil no tienen username; elige uno único para completar la restauración.
+              El archivo y el perfil no tienen nombre de usuario. Elige uno para continuar.
             </template>
             <template v-else>¿Quieres continuar?</template>
           </template>
           <template v-else-if="pendingProfileImport.type === 'username-conflict'">
-            El nombre de usuario @{{ pendingProfileImport.conflictingUsername }}
-            ya pertenece a «{{ pendingProfileImport.conflictingProfileName }}».
-            No se modificará ese perfil. Elige otro nombre de usuario para importar.
+            @{{ pendingProfileImport.conflictingUsername }} ya pertenece a
+            «{{ pendingProfileImport.conflictingProfileName }}». Elige otro nombre de usuario.
           </template>
           <template v-else-if="pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'">
-            Este archivo antiguo no contiene un nombre de usuario. Elige uno único
-            para {{ pendingProfileImport.type === "overwrite-username-required" ? "restaurar el perfil existente" : "crear el perfil sin cambiar su ID" }}.
+            Este archivo no tiene nombre de usuario. Elige uno para
+            {{ pendingProfileImport.type === "overwrite-username-required" ? "restaurar el perfil existente" : "crear el perfil" }}.
           </template>
           <template v-else>
-            El ID y el nombre de usuario del archivo pertenecen a perfiles distintos.
-            No es posible continuar de forma segura sin arriesgar la identidad de
-            uno de ellos. No se modificará ningún perfil.
+            Los datos del archivo corresponden a perfiles distintos.
+            No se modificará ninguno. Revisa el nombre del perfil y el nombre de usuario.
           </template>
         </p>
         <p
           v-if="pendingProfileImport.type === 'overwrite' || pendingProfileImport.type === 'overwrite-username-required'"
           class="welcome-import-folder-note"
         >
-          La carpeta de música asociada a este perfil en este dispositivo se conservará. Las carpetas no se incluyen en el archivo de perfil.
+          Se conservará la carpeta de música de este dispositivo.
         </p>
         <label
           v-if="pendingProfileImport.type === 'username-conflict' || pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'"
@@ -1267,8 +1265,9 @@ async function saveImportedProfile(archive, {
     router.push("/");
   } catch (error) {
     profileImportError.value = saved
-      ? `Los datos se guardaron, pero no se pudo activar el perfil: ${error?.message || "error desconocido"}`
-      : error?.message || "No se pudo importar el perfil.";
+      ? "El perfil se guardó, pero no se pudo activar. Vuelve a seleccionarlo."
+      : friendlyProfileImportError(error);
+    console.error("[WelcomeScreen] No se pudo importar el perfil:", error);
   } finally {
     await holdImportLoadingScreen(loadingStartedAt);
     isImportingProfile.value = false;
@@ -1280,6 +1279,23 @@ function holdImportLoadingScreen(startedAt) {
   return remaining > 0
     ? new Promise((resolve) => setTimeout(resolve, remaining))
     : Promise.resolve();
+}
+
+function friendlyProfileImportError(error) {
+  const detail = String(error?.message || "");
+  if (/supera el límite|25 MiB|demasiado grande/i.test(detail)) {
+    return "El archivo es demasiado grande para importarlo.";
+  }
+  if (/nombre de usuario.*(válido|obligatorio)|usa entre|letras, números/i.test(detail)) {
+    return "El nombre de usuario no es válido. Usa entre 3 y 30 caracteres.";
+  }
+  if (/nombre de usuario.*(ya está en uso|pertenece)|ya está en uso/i.test(detail)) {
+    return "Ese nombre de usuario ya está en uso.";
+  }
+  if (/ID|identificador|identidad|username/i.test(detail)) {
+    return "El archivo no coincide con los perfiles existentes. Revisa el perfil y el nombre de usuario.";
+  }
+  return "No se pudo importar el perfil. Revisa el archivo e inténtalo de nuevo.";
 }
 
 function confirmOverwriteProfile() {
@@ -1386,7 +1402,8 @@ async function importProfile(event) {
       preserveSourceId: true,
     });
   } catch (error) {
-    profileImportError.value = error?.message || "No se pudo importar el perfil.";
+    profileImportError.value = friendlyProfileImportError(error);
+    console.error("[WelcomeScreen] No se pudo importar el perfil:", error);
   } finally {
     await holdImportLoadingScreen(loadingStartedAt);
     isImportingProfile.value = false;

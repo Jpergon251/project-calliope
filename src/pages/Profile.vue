@@ -213,24 +213,6 @@
             perfil.
           </p>
         </div>
-
-        <!-- Period selector pills -->
-        <div
-          class="stats-period-selector"
-          role="group"
-          aria-label="Periodo de estadísticas"
-        >
-          <button
-            v-for="p in periodOptions"
-            :key="p.id"
-            type="button"
-            class="period-pill"
-            :class="{ active: selectedPeriod === p.id }"
-            @click="selectPeriod(p.id)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
       </div>
 
       <!-- Hero KPI Metrics Grid -->
@@ -408,9 +390,27 @@
             <h3>Actividad de escucha</h3>
             <p>Distribución de la métrica seleccionada en este periodo</p>
           </div>
-          <div class="chart-legend">
-            <span class="legend-dot"></span>
-            <span>{{ selectedMetricLabel }}</span>
+          <div class="chart-header-controls">
+            <div
+              class="stats-period-selector"
+              role="group"
+              aria-label="Periodo de estadísticas"
+            >
+              <button
+                v-for="p in periodOptions"
+                :key="p.id"
+                type="button"
+                class="period-pill"
+                :class="{ active: selectedPeriod === p.id }"
+                @click="selectPeriod(p.id)"
+              >
+                {{ p.label }}
+              </button>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-dot"></span>
+              <span>{{ selectedMetricLabel }}</span>
+            </div>
           </div>
         </div>
         <div class="chart-controls">
@@ -1061,10 +1061,7 @@
         <div class="pref-row">
           <div class="pref-text">
             <strong>Exportar perfil</strong>
-            <p>
-              Guarda los cambios pendientes y actualiza la copia JSON asociada
-              a la carpeta musical, si está disponible.
-            </p>
+            <p>Guarda una copia de tu perfil en tu dispositivo.</p>
           </div>
           <button
             type="button"
@@ -1072,7 +1069,7 @@
             :disabled="user.isGuest || isExportingProfile"
             @click="exportProfileChanges"
           >
-            {{ isExportingProfile ? "Guardando..." : "Exportar perfil" }}
+            {{ isExportingProfile ? "Guardando…" : "Exportar perfil" }}
           </button>
         </div>
         <p
@@ -1209,7 +1206,7 @@
         Conexiones
       </h2>
       <p class="section-description">
-        Administra los servicios vinculados a este perfil.
+        Gestiona las cuentas conectadas a este perfil.
       </p>
       <GoogleDriveProfile :profile="user.profile" />
     </section>
@@ -1658,17 +1655,20 @@ async function exportProfileChanges() {
 
     const syncStatus = profileSyncStatuses[profileId];
     if (syncStatus?.status === "synced") {
-      profileExportMessage.value = "Cambios guardados y copia JSON actualizada.";
+      profileExportMessage.value = "Se guardó una copia de tu perfil.";
     } else {
-      profileExportMessage.value = syncStatus?.message
-        || "Cambios guardados internamente; no hay una copia externa configurada.";
+      profileExportMessage.value = syncStatus?.status === "unavailable"
+        ? "No hay una carpeta asociada. Puedes exportar el perfil a tu dispositivo."
+        : syncStatus?.status === "error"
+          ? "No se pudo guardar la copia. Comprueba los permisos e inténtalo de nuevo."
+          : "Los cambios están guardados en Calliope. Exporta el perfil para guardar una copia.";
     }
     profileExportFailed.value = syncStatus?.status === "error";
   } catch (error) {
     profileExportFailed.value = true;
     profileExportMessage.value = internalSaveComplete
-      ? `Cambios guardados internamente; no se pudo actualizar la copia JSON: ${error.message}`
-      : `No se pudo completar el guardado del perfil: ${error.message}`;
+      ? "No se pudo guardar la copia. Comprueba los permisos e inténtalo de nuevo."
+      : "No se pudo guardar el perfil. Inténtalo de nuevo.";
   } finally {
     isExportingProfile.value = false;
   }

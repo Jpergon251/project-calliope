@@ -2,7 +2,7 @@ import { reactive } from "vue";
 import { Capacitor } from "@capacitor/core";
 import FolderPicker from "../plugins/folderPicker.js";
 import { DEFAULT_PREFERENCES } from "../lib/profilePreferences.js";
-import { validateUsername } from "../lib/profileIdentity.js";
+import { normalizeUsername, validateUsername } from "../lib/profileIdentity.js";
 
 export const PROFILE_ARCHIVE_FORMAT = "calliope-profile";
 export const PROFILE_ARCHIVE_VERSION = 3;
@@ -142,6 +142,14 @@ export function normalizeProfileDirectoryName(name, profileId, occupiedNames = [
   let index = 2;
   while (occupied.has(`${candidate.slice(0, 60)}-${index}`.toLocaleLowerCase())) index += 1;
   return `${candidate.slice(0, 60)}-${index}`;
+}
+
+export function profileArchiveFileName(profile) {
+  const username = normalizeUsername(profile?.username);
+  if (!username) {
+    throw new Error("El perfil necesita un nombre de usuario válido para generar el nombre del archivo.");
+  }
+  return `${username}_profile_data.json`;
 }
 
 function archivePlaylist(playlist, order) {
@@ -1114,11 +1122,15 @@ export async function serializeProfileArchive(profileId) {
   return JSON.stringify(archive);
 }
 
-function importIds(archive, profileId) {
+function importIds(archive, profileId, { preserveIds = false } = {}) {
   const playlistIds = new Map(archive.playlists
     .map((playlist, index) => [
       playlist.id,
-      playlist.id === "favorites" ? `favorites_${profileId}` : `playlist_${profileId}_${index}`,
+      playlist.id === "favorites"
+        ? `favorites_${profileId}`
+        : preserveIds
+          ? playlist.id
+          : `playlist_${profileId}_${index}`,
     ]));
   const playlists = archive.playlists.map((playlist) => ({
     ...playlist,
@@ -1127,7 +1139,7 @@ function importIds(archive, profileId) {
   }));
   const history = archive.history.map((item, index) => ({
     ...item,
-    id: `${profileId}:history:${index}`,
+    id: preserveIds && item.id ? item.id : `${profileId}:history:${index}`,
     profileId,
     ...(item.type === "playlist" && playlistIds.has(item.itemId)
       ? { itemId: playlistIds.get(item.itemId) }
@@ -1138,7 +1150,7 @@ function importIds(archive, profileId) {
     : null;
   const events = archive.metrics.events.map((item, index) => ({
     ...item,
-    id: `event_${profileId}_${index}`,
+    id: preserveIds && item.id ? item.id : `event_${profileId}_${index}`,
     profileId,
   }));
   const ratings = archive.ratings.map((item) => ({
@@ -1155,6 +1167,7 @@ export async function importProfileArchive(archive, {
   preserveSourceId = false,
   currentSongs = [],
   currentAlbums = [],
+  syncSource = "local",
 } = {}) {
   const { archive: canonical } = validateProfileArchive(archive);
   const { archive: validated } = resolveProfileSongReferences(canonical, currentSongs, currentAlbums);
@@ -1167,7 +1180,9 @@ export async function importProfileArchive(archive, {
     : globalThis.crypto?.randomUUID?.() || `prof_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   if (!profileId) throw new Error("No se pudo determinar el perfil de destino.");
 
-  const records = importIds(validated, profileId);
+  const records = importIds(validated, profileId, {
+    preserveIds: syncSource === "drive" && mode === "update",
+  });
   const stores = ["profiles", "playlists", "history", "playback_stats", "song_ratings"];
   const tx = db.transaction(stores, "readwrite");
   const transactionDone = tx.done;
@@ -1211,16 +1226,35 @@ export async function importProfileArchive(archive, {
     throw new Error(`El nombre de usuario @${usernameResult.username} ya pertenece a otro perfil.`);
   }
 
-  let latestQueueTimestamp = Date.now();
+  if (syncSource === "drive" && mode === "update") {
+    for (const [storeName, incoming] of [
+      ["playlists", records.playlists],
+      ["history", records.history],
+      ["playback_stats", [...records.events, ...(records.summary ? [records.summary] : [])]],
+      ["song_ratings", records.ratings],
+    ]) {
+      const store = tx.objectStore(storeName);
+      for (const item of incoming) {
+        const existing = await store.get(item.id);
+        if (existing && existing.profileId !== profileId) {
+          throw new Error(`El identificador «${item.id}» ya pertenece a otro perfil; no se importó la copia de Drive.`);
+        }
+      }
+    }
+  }
+
+  let latestQueueTimestamp = syncSource === "drive"
+    ? Number(validated.queue?.savedAt) || 0
+    : Date.now();
   const targetQueueTimestamp = Number(target?.queueState?.savedAt || 0);
-  if (Number.isFinite(targetQueueTimestamp)) {
+  if (syncSource !== "drive" && Number.isFinite(targetQueueTimestamp)) {
     latestQueueTimestamp = Math.max(latestQueueTimestamp, targetQueueTimestamp + 1);
   }
   if (typeof localStorage !== "undefined") {
     try {
       const currentQueue = JSON.parse(localStorage.getItem(`calliope:queue_state:${profileId}`) || "null");
       const currentQueueTimestamp = Number(currentQueue?.savedAt || 0);
-      if (Number.isFinite(currentQueueTimestamp)) {
+      if (syncSource !== "drive" && Number.isFinite(currentQueueTimestamp)) {
         latestQueueTimestamp = Math.max(latestQueueTimestamp, currentQueueTimestamp + 1);
       }
     } catch (error) {
@@ -1254,7 +1288,7 @@ export async function importProfileArchive(archive, {
       preferences: validated.profile.preferences,
         queueState,
         portableReferencesPending: archiveHasPortableReferences(validated),
-        updatedAt: Date.now(),
+        updatedAt: syncSource === "drive" ? validated.profile.updatedAt : Date.now(),
       }
       : {
         ...validated.profile.preferences,
@@ -1266,7 +1300,7 @@ export async function importProfileArchive(archive, {
         avatarBlob: null,
         bio: validated.profile.bio || "",
         createdAt: validated.profile.createdAt,
-        updatedAt: Date.now(),
+        updatedAt: syncSource === "drive" ? validated.profile.updatedAt : Date.now(),
         isPrivate: false,
         private: false,
         credential: null,
@@ -1310,7 +1344,7 @@ export async function importProfileArchive(archive, {
       console.warn("[profileArchives] No se pudo actualizar la copia local de la cola:", error);
     }
   }
-  scheduleProfileSync(profileId);
+  scheduleProfileSync(profileId, { syncDrive: syncSource !== "drive" });
   return { profileId, profile, mode };
 }
 
@@ -1318,7 +1352,9 @@ function setSyncStatus(profileId, status, message = "") {
   profileSyncStatuses[profileId] = { status, message, updatedAt: Date.now() };
 }
 
-async function writeWebProfileArchive(profileId, profileName, serialized) {
+async function writeWebProfileArchive(profile, serialized) {
+  const { id: profileId } = profile;
+  const fileName = profileArchiveFileName(profile);
   const db = await openProfileDb();
   const root = await db.get("settings", `music-folder-${profileId}`);
   if (!root?.getDirectoryHandle) {
@@ -1329,52 +1365,93 @@ async function writeWebProfileArchive(profileId, profileName, serialized) {
     throw new Error("Se necesita permiso de escritura. Pulsa «Reintentar sincronización» para volver a autorizarlo.");
   }
 
-  const profileData = await root.getDirectoryHandle("profile_data", { create: true });
-  const existingFolders = [];
-  for await (const entry of profileData.values()) {
-    if (entry.kind === "directory") existingFolders.push(entry.name);
-  }
-  const preferred = normalizeProfileDirectoryName(profileName, profileId);
-  let targetName = preferred;
-  const caseMatch = existingFolders.find((name) =>
-    name.toLocaleLowerCase() === preferred.toLocaleLowerCase(),
+  const calliope = await root.getDirectoryHandle("Calliope", { create: true });
+  const profilesRoot = await calliope.getDirectoryHandle("profiles", { create: true });
+  const legacyProfilesRoot = await root.getDirectoryHandle("profile_data", { create: false }).catch((error) => {
+    if (error?.name === "NotFoundError") return null;
+    throw error;
+  });
+  const preferredName = normalizeProfileDirectoryName(
+    profile.displayName || profile.name,
+    profileId,
   );
-  if (caseMatch && caseMatch !== preferred) {
-    targetName = normalizeProfileDirectoryName(profileName, profileId, existingFolders);
-  }
-  const targetHandle = await profileData.getDirectoryHandle(targetName, { create: false }).catch(() => null);
-  if (targetHandle) {
-    const existing = await targetHandle.getFileHandle("profile_data.json", { create: false }).catch(() => null);
-    if (existing) {
-      const stored = JSON.parse(await (await existing.getFile()).text());
-      if (stored?.profile?.id !== profileId) {
-        targetName = normalizeProfileDirectoryName(profileName, profileId, existingFolders);
-      }
-    } else if (existingFolders.some((name) => name.toLocaleLowerCase() === targetName.toLocaleLowerCase())) {
-      targetName = normalizeProfileDirectoryName(profileName, profileId, existingFolders);
-    }
+  const profileDirectories = [];
+  for await (const entry of profilesRoot.values()) {
+    if (entry.kind === "directory") profileDirectories.push(entry);
   }
 
-  let priorDirectory = null;
-  let priorName = null;
-  for (const directoryName of existingFolders) {
-    const directory = await profileData.getDirectoryHandle(directoryName);
-    const file = await directory.getFileHandle("profile_data.json", { create: false }).catch(() => null);
-    if (!file) continue;
-    try {
-      const stored = JSON.parse(await (await file.getFile()).text());
-      if (stored?.profile?.id === profileId) {
-        priorDirectory = directory;
-        priorName = directoryName;
+  const identityFiles = [];
+  const scanProfileDirectory = async (directory, parent, canonical) => {
+    for await (const entry of directory.values()) {
+      if (entry.kind !== "file" || !(entry.name === "profile_data.json" || entry.name.endsWith("_profile_data.json"))) continue;
+      try {
+        const archive = JSON.parse(await (await entry.getFile()).text());
+        if (archive?.profile?.id === profileId) {
+          identityFiles.push({ directory, parent, fileName: entry.name, canonical });
+        }
+      } catch {
+        continue;
+      }
+    }
+  };
+  for (const directory of profileDirectories) {
+    await scanProfileDirectory(directory, profilesRoot, true);
+  }
+  if (legacyProfilesRoot) {
+    for await (const entry of legacyProfilesRoot.values()) {
+      if (entry.kind === "directory") await scanProfileDirectory(entry, legacyProfilesRoot, false);
+    }
+  }
+  if (identityFiles.length > 1) {
+    throw new Error("Hay varias copias locales de este perfil en Calliope/profiles. Resuelve el conflicto antes de sincronizar.");
+  }
+
+  const previous = identityFiles[0] || null;
+  const existingNames = profileDirectories.map((directory) => directory.name);
+  const preferredMatch = profileDirectories.find(
+    (directory) => directory.name.toLocaleLowerCase() === preferredName.toLocaleLowerCase(),
+  );
+  let targetName = preferredName;
+  if (preferredMatch) {
+    const sameIdentity = previous?.canonical
+      && previous.directory.name === preferredMatch.name;
+    let hasUnknownFiles = false;
+    if (!sameIdentity) {
+      for await (const entry of preferredMatch.values()) {
+        hasUnknownFiles = true;
         break;
       }
-    } catch {
-      continue;
+    }
+    if (hasUnknownFiles) {
+      targetName = normalizeProfileDirectoryName(preferredName, profileId, existingNames);
+    } else if (preferredMatch.name !== preferredName && !sameIdentity) {
+      targetName = normalizeProfileDirectoryName(preferredName, profileId, existingNames);
+    } else {
+      targetName = preferredMatch.name;
     }
   }
 
-  const destination = await profileData.getDirectoryHandle(targetName, { create: true });
-  const fileHandle = await destination.getFileHandle("profile_data.json", { create: true });
+  const destination = await profilesRoot.getDirectoryHandle(targetName, { create: true });
+  const existingExpected = await destination.getFileHandle(fileName, { create: false }).catch((error) => {
+    if (error?.name === "NotFoundError") return null;
+    throw error;
+  });
+  const samePreviousFile = previous?.canonical
+    && previous.directory.name === targetName
+    && previous.fileName === fileName;
+  if (existingExpected && !samePreviousFile) {
+    let existingArchive;
+    try {
+      existingArchive = JSON.parse(await (await existingExpected.getFile()).text());
+    } catch {
+      throw new Error(`El archivo ${fileName} ya existe, pero no es un JSON válido; no se sobrescribió.`);
+    }
+    if (existingArchive?.profile?.id !== profileId) {
+      throw new Error(`El archivo ${fileName} pertenece a otro perfil; no se sobrescribió.`);
+    }
+  }
+
+  const fileHandle = existingExpected || await destination.getFileHandle(fileName, { create: true });
   const writable = await fileHandle.createWritable();
   try {
     await writable.write(serialized);
@@ -1386,29 +1463,39 @@ async function writeWebProfileArchive(profileId, profileName, serialized) {
   const check = JSON.parse(await (await fileHandle.getFile()).text());
   if (check?.profile?.id !== profileId) throw new Error("No se pudo verificar el archivo sincronizado.");
 
-  if (priorDirectory && priorName !== targetName) {
-    const entries = [];
-    for await (const entry of priorDirectory.values()) entries.push(entry.name);
-    if (entries.length === 1 && entries[0] === "profile_data.json") {
-      const oldFile = await priorDirectory.getFileHandle("profile_data.json", { create: false }).catch(() => null);
-      if (oldFile) {
-        const oldArchive = JSON.parse(await (await oldFile.getFile()).text());
-        if (oldArchive?.profile?.id === profileId) {
-          await profileData.removeEntry(priorName, { recursive: true });
+  if (previous && (!previous.canonical || !samePreviousFile)) {
+    const previousStillExists = await previous.directory.getFileHandle(previous.fileName, { create: false }).catch((error) => {
+      if (error?.name === "NotFoundError") return null;
+      throw error;
+    });
+    if (previousStillExists) {
+      const previousArchive = JSON.parse(await (await previousStillExists.getFile()).text());
+      if (previousArchive?.profile?.id === profileId) {
+        await previous.directory.removeEntry(previous.fileName);
+        const remainingEntries = [];
+        for await (const entry of previous.directory.values()) remainingEntries.push(entry.name);
+        if (!remainingEntries.length && (previous.parent !== profilesRoot || previous.directory.name !== targetName)) {
+          await previous.parent.removeEntry(previous.directory.name);
+          if (previous.parent === legacyProfilesRoot) {
+            const legacyEntries = [];
+            for await (const entry of legacyProfilesRoot.values()) legacyEntries.push(entry.name);
+            if (!legacyEntries.length) await root.removeEntry("profile_data");
+          }
         }
       }
     }
   }
 }
 
-async function writeNativeProfileArchive(profileId, profileName, serialized) {
+async function writeNativeProfileArchive(profile, serialized) {
+  const { id: profileId } = profile;
   const result = await FolderPicker.getSavedFolder({ profileId });
   if (!result?.uri) throw new Error("No hay una carpeta asociada a este perfil.");
-  const folderName = normalizeProfileDirectoryName(profileName, profileId);
   await FolderPicker.writeProfileData({
     uri: result.uri,
     profileId,
-    profileName: folderName,
+    profileName: normalizeProfileDirectoryName(profile.displayName || profile.name, profileId),
+    fileName: profileArchiveFileName(profile),
     content: serialized,
   });
 }
@@ -1440,9 +1527,9 @@ async function performProfileSync(profileId) {
       throw new Error("El respaldo supera el tamaño máximo permitido.");
     }
     if (Capacitor.isNativePlatform()) {
-      await writeNativeProfileArchive(profileId, profile.displayName || profile.name, serialized);
+      await writeNativeProfileArchive(profile, serialized);
     } else {
-      await writeWebProfileArchive(profileId, profile.displayName || profile.name, serialized);
+      await writeWebProfileArchive(profile, serialized);
     }
     setSyncStatus(profileId, "synced", "Copia externa sincronizada.");
   } catch (error) {
@@ -1451,10 +1538,17 @@ async function performProfileSync(profileId) {
   }
 }
 
-export function scheduleProfileSync(profileId) {
+export function scheduleProfileSync(profileId, { syncDrive = true } = {}) {
   if (!profileId) return;
   syncRevisions.set(profileId, (syncRevisions.get(profileId) || 0) + 1);
-  setSyncStatus(profileId, "pending", "Cambios guardados internamente; actualiza la copia externa manualmente.");
+  setSyncStatus(profileId, "pending", "Cambios en el almacenamiento operativo. La copia JSON externa solo se actualiza al exportarla manualmente.");
+  if (syncDrive) {
+    void import("./googleDriveProfiles.js")
+      .then(({ scheduleDriveProfileSync }) => scheduleDriveProfileSync(profileId))
+      .catch((error) => {
+        console.error("[profileArchives] No se pudo encolar la sincronización de Google Drive:", error);
+      });
+  }
 }
 
 export async function flushProfileSync(profileId, { requestPermission = false } = {}) {

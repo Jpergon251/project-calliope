@@ -275,8 +275,6 @@ export const useLibraryStore = defineStore("library", () => {
   }
   const songRatings = ref({}); // { [songId]: 'like' | 'dislike' | 'neutral' }
   const playbackEvents = ref([]); // all playback events for current profile
-  const currentStatsPeriod = ref("all"); // 'day' | 'week' | 'month' | 'all'
-
   function createEmptyStatsSummary(profileId = null) {
     return {
       id: `summary_${profileId || "default"}`,
@@ -1222,7 +1220,7 @@ export const useLibraryStore = defineStore("library", () => {
           const h = evDate.getHours();
           if (buckets[h]) {
             buckets[h].plays++;
-            buckets[h].minutes += Math.round((ev.listenTime || 0) / 60);
+            buckets[h].minutes += (Number(ev.listenTime) || 0) / 60;
           }
         }
       }
@@ -1255,7 +1253,7 @@ export const useLibraryStore = defineStore("library", () => {
         const b = buckets.find((item) => item.date === evDate);
         if (b) {
           b.plays++;
-          b.minutes += Math.round((ev.listenTime || 0) / 60);
+          b.minutes += (Number(ev.listenTime) || 0) / 60;
         }
       }
     } else if (period === "month") {
@@ -1284,7 +1282,7 @@ export const useLibraryStore = defineStore("library", () => {
           const day = evDate.getDate();
           if (buckets[day - 1]) {
             buckets[day - 1].plays++;
-            buckets[day - 1].minutes += Math.round((ev.listenTime || 0) / 60);
+            buckets[day - 1].minutes += (Number(ev.listenTime) || 0) / 60;
           }
         }
       }
@@ -1323,7 +1321,7 @@ export const useLibraryStore = defineStore("library", () => {
           const b = buckets[evDate.getMonth()];
           if (b) {
             b.plays++;
-            b.minutes += Math.round((ev.listenTime || 0) / 60);
+            b.minutes += (Number(ev.listenTime) || 0) / 60;
           }
         }
       }
@@ -1605,7 +1603,7 @@ export const useLibraryStore = defineStore("library", () => {
       };
     });
 
-      const chartData = generateChartData(events, period, start);
+      const chartData = generateChartData(events, period, reference);
       return {
         period,
         totalPlays,
@@ -5292,8 +5290,6 @@ export const useLibraryStore = defineStore("library", () => {
     playbackEvents,
 
     profileStatsSummary,
-
-    currentStatsPeriod,
 
     loadStats,
 

@@ -5,6 +5,7 @@ import {
   archiveHasPortableReferences,
   buildProfileArchive,
   normalizeProfileDirectoryName,
+  profileArchiveFileName,
   profileMetricArtistId,
   profileSongReferenceId,
   resolveProfileSongReferences,
@@ -354,6 +355,11 @@ test("profile directory names cannot escape the profile data folder", () => {
     normalizeProfileDirectoryName("Jazz", "profile-1", ["jazz"]),
     "Jazz-profile1",
   );
+});
+
+test("local profile archive filenames use the normalized profile username", () => {
+  assert.equal(profileArchiveFileName({ username: "@JosePerz.00" }), "joseperz.00_profile_data.json");
+  assert.throws(() => profileArchiveFileName({ username: "not a valid username" }), /nombre de usuario válido/);
 });
 
 test("song resolution uses only stable IDs and never guesses from filenames", () => {

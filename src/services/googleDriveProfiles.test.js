@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createGoogleDriveApi,
+  classifyDriveProfileVersions,
+  findProfileArchiveFile,
   getDriveProfileArchiveName,
   GOOGLE_DRIVE_PROFILE_SCOPE,
+  normalizeDriveArchiveForHash,
   selectDriveProfileArchiveFile,
   validateDriveProfileArchiveIdentity,
 } from "./googleDriveProfiles.js";
@@ -64,6 +67,113 @@ test("Drive archive identity must match both the stable profile ID and username"
   }), /nombre de usuario/);
 });
 
+test("Drive version comparison identifies unchanged, one-sided and concurrent changes", () => {
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "base",
+    remoteHash: "base",
+    baseHash: "base",
+  }), "same");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local-new",
+    remoteHash: "base",
+    baseHash: "base",
+  }), "upload-local");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "base",
+    remoteHash: "remote-new",
+    baseHash: "base",
+  }), "download-remote");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local-new",
+    remoteHash: "remote-new",
+    baseHash: "base",
+  }), "conflict");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local",
+    remoteHash: "remote",
+    baseHash: "",
+  }), "conflict");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local",
+    remoteHash: "",
+    baseHash: "base",
+  }), "remote-missing");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local-imported",
+    remoteHash: "drive",
+    baseLocalHash: "local-imported",
+    baseRemoteHash: "drive",
+  }), "same");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local-new",
+    remoteHash: "drive",
+    baseLocalHash: "local-imported",
+    baseRemoteHash: "drive",
+  }), "upload-local");
+  assert.equal(classifyDriveProfileVersions({
+    localHash: "local-imported",
+    remoteHash: "drive-new",
+    baseLocalHash: "local-imported",
+    baseRemoteHash: "drive",
+  }), "download-remote");
+});
+
+test("concurrent changes are always classified as a conflict, independent of timestamps", () => {
+  const baseline = { baseLocalHash: "base-local", baseRemoteHash: "base-drive" };
+  assert.equal(classifyDriveProfileVersions({
+    ...baseline,
+    localHash: "local-new",
+    remoteHash: "drive-new",
+    localChangedAt: 9999999999999,
+    remoteModifiedTime: "2000-01-01T00:00:00.000Z",
+  }), "conflict");
+  assert.equal(classifyDriveProfileVersions({
+    ...baseline,
+    localHash: "local-new",
+    remoteHash: "drive-new",
+    localChangedAt: 0,
+    remoteModifiedTime: "2999-01-01T00:00:00.000Z",
+  }), "conflict");
+});
+
+test("Drive conflict hashes ignore export and save timestamps but preserve profile data", () => {
+  const first = JSON.stringify({
+    format: "calliope-profile",
+    formatVersion: 3,
+    exportedAt: "2026-01-01T00:00:00.000Z",
+    profile: { id: "profile-1", updatedAt: 1, preferences: { theme: "dark" } },
+    queue: { savedAt: 1, queueIds: ["song-1"] },
+  });
+  const second = JSON.stringify({
+    format: "calliope-profile",
+    formatVersion: 3,
+    exportedAt: "2026-01-02T00:00:00.000Z",
+    profile: { id: "profile-1", updatedAt: 2, preferences: { theme: "dark" } },
+    queue: { savedAt: 2, queueIds: ["song-1"] },
+  });
+  assert.equal(normalizeDriveArchiveForHash(first), normalizeDriveArchiveForHash(second));
+  assert.notEqual(
+    normalizeDriveArchiveForHash(first),
+    normalizeDriveArchiveForHash(JSON.stringify({
+      format: "calliope-profile",
+      formatVersion: 3,
+      exportedAt: "2026-01-02T00:00:00.000Z",
+      profile: { id: "profile-1", updatedAt: 2, preferences: { theme: "light" } },
+      queue: { savedAt: 2, queueIds: ["song-1"] },
+    })),
+  );
+  assert.notEqual(
+    normalizeDriveArchiveForHash(first),
+    normalizeDriveArchiveForHash(JSON.stringify({
+      format: "calliope-profile",
+      formatVersion: 3,
+      exportedAt: "2026-01-02T00:00:00.000Z",
+      profile: { id: "profile-1", updatedAt: 2, preferences: { theme: "dark" } },
+      queue: { savedAt: 2, queueIds: ["song-2"] },
+    })),
+  );
+});
+
 test("Drive archive filename uses the normalized unique username", () => {
   assert.equal(getDriveProfileArchiveName({ username: "@JosePerz.00" }), "joseperz.00_profile_data.json");
   assert.throws(() => getDriveProfileArchiveName({ username: "invalid username" }), /nombre de usuario válido/);
@@ -77,33 +187,51 @@ test("archive selection reuses a single legacy file and rejects ambiguous candid
     parents: ["profile-folder"],
   };
   assert.equal(
-    selectDriveProfileArchiveFile([legacy], null, "profile-folder", ["jose_profile_data.json", "profile_data.json"]),
+    selectDriveProfileArchiveFile([legacy]),
     legacy,
   );
   assert.throws(
     () => selectDriveProfileArchiveFile([
       legacy,
       { ...legacy, id: "new-id", name: "jose_profile_data.json" },
-    ], null, "profile-folder", ["jose_profile_data.json", "profile_data.json"]),
+    ]),
     /varios archivos candidatos/,
   );
 });
 
-test("a registered file can be renamed in place only within its profile folder", () => {
-  const oldUserFile = {
-    id: "registered-file",
-    name: "old_user_profile_data.json",
+test("missing or trashed linked JSON is ignored and a new file can be created without querying its ID", async () => {
+  let getFileCalled = false;
+  const api = {
+    findChildren: async () => [],
+    getFile: async () => {
+      getFileCalled = true;
+      throw new Error("Should not query the linked file");
+    },
+  };
+  const file = await findProfileArchiveFile(
+    api,
+    "profile-folder",
+    { fileId: "deleted-or-trashed-id", fileName: "old_user_profile_data.json" },
+    "new_user_profile_data.json",
+  );
+  assert.equal(file, null);
+  assert.equal(getFileCalled, false);
+});
+
+test("one active candidate is reused even when the previous stored file ID is stale", async () => {
+  const existing = {
+    id: "current-active-file",
+    name: "new_user_profile_data.json",
     mimeType: "application/json",
     parents: ["profile-folder"],
   };
-  assert.equal(
-    selectDriveProfileArchiveFile([], oldUserFile, "profile-folder", ["old_user_profile_data.json", "new_user_profile_data.json", "profile_data.json"]),
-    oldUserFile,
+  const file = await findProfileArchiveFile(
+    { findChildren: async () => [existing] },
+    "profile-folder",
+    { fileId: "deleted-or-trashed-id" },
+    "new_user_profile_data.json",
   );
-  assert.throws(
-    () => selectDriveProfileArchiveFile([], { ...oldUserFile, parents: ["other-folder"] }, "profile-folder", ["old_user_profile_data.json"]),
-    /movido o cambió de nombre/,
-  );
+  assert.equal(file.id, existing.id);
 });
 
 test("folder lookup is scoped to the expected parent and reuses a unique folder", async () => {
@@ -121,6 +249,23 @@ test("folder lookup is scoped to the expected parent and reuses a unique folder"
     const query = decodeURIComponent(new URL(urls[0]).searchParams.get("q"));
     assert.match(query, /'profiles-folder' in parents/);
     assert.match(query, /name = 'Jose'/);
+  });
+});
+
+test("registered root folder is validated against Drive's root query, not the literal root alias in parents", async () => {
+  const rootFolder = {
+    id: "calliope-root-id",
+    name: "Calliope",
+    mimeType: "application/vnd.google-apps.folder",
+    parents: ["my-drive-id"],
+  };
+  await withMockFetch(async (url) => {
+    if (String(url).includes("/files/calliope-root-id?")) return jsonResponse(rootFolder);
+    return jsonResponse({ files: [rootFolder] });
+  }, async () => {
+    const api = createGoogleDriveApi("token-for-test");
+    const folder = await api.findOrCreateFolder("Calliope", null, "calliope-root-id", true);
+    assert.equal(folder.id, "calliope-root-id");
   });
 });
 
@@ -204,6 +349,39 @@ test("expired authorization errors are explicit and never include the token", as
       assert.equal(error.message.includes("secret-token"), false);
       return true;
     });
+  });
+});
+
+test("Drive file updates use the fetched ETag as an If-Match condition", async () => {
+  let requestOptions;
+  await withMockFetch(async (_url, options = {}) => {
+    requestOptions = options;
+    return jsonResponse({
+      id: "profile-json-id",
+      name: "jose_profile_data.json",
+      mimeType: "application/json",
+      parents: ["profile-folder"],
+    });
+  }, async () => {
+    const api = createGoogleDriveApi("token-for-test");
+    await api.uploadFile(
+      "profile-folder",
+      "profile-json-id",
+      "{\"format\":\"calliope-profile\"}",
+      "jose_profile_data.json",
+      { ifMatch: "\"revision-4\"" },
+    );
+    assert.equal(requestOptions.headers["If-Match"], "\"revision-4\"");
+  });
+});
+
+test("Drive conditional update failures are surfaced as concurrent changes", async () => {
+  await withMockFetch(async () => jsonResponse({}, 412), async () => {
+    const api = createGoogleDriveApi("token-for-test");
+    await assert.rejects(
+      api.uploadFile("profile-folder", "profile-json-id", "{}", "profile.json", { ifMatch: "etag" }),
+      (error) => error.code === "drive-precondition-failed",
+    );
   });
 });
 
