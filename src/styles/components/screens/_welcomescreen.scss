@@ -816,6 +816,86 @@
   line-height: 1.5;
 }
 
+.welcome-import-folder-note {
+  margin: -8px 0 20px;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.welcome-import-loading {
+  position: fixed;
+  z-index: 11000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--theme-main-background, #101010) 84%, #000 16%);
+  color: var(--text-primary, #fff);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.welcome-import-loading-card {
+  width: min(100%, 380px);
+  padding: 36px 30px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 20px;
+  background: var(--bg-secondary, #151515);
+  box-shadow: var(--theme-panel-shadow, 0 24px 70px rgba(0, 0, 0, 0.4));
+  text-align: center;
+}
+
+.welcome-import-loading-indicator {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  margin: 0 auto 22px;
+  border: 1px solid var(--accent-border, rgba(255, 255, 255, 0.2));
+  border-radius: 50%;
+  background: var(--accent-surface, rgba(255, 255, 255, 0.06));
+  color: var(--accent, #25d866);
+}
+
+.welcome-import-loading-spinner {
+  animation: welcome-spin 1s linear infinite;
+}
+
+.welcome-import-loading-card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+}
+
+.welcome-import-loading-card p {
+  min-height: 1.5em;
+  margin: 10px 0 0;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.welcome-import-loading-enter-active,
+.welcome-import-loading-leave-active {
+  transition: opacity 220ms ease;
+}
+
+.welcome-import-loading-enter-from,
+.welcome-import-loading-leave-to {
+  opacity: 0;
+}
+
+.welcome-import-loading-enter-active .welcome-import-loading-card,
+.welcome-import-loading-leave-active .welcome-import-loading-card {
+  transition: transform 220ms ease;
+}
+
+.welcome-import-loading-enter-from .welcome-import-loading-card,
+.welcome-import-loading-leave-to .welcome-import-loading-card {
+  transform: translateY(8px) scale(0.98);
+}
+
 .welcome-import-dialog-backdrop {
   position: fixed;
   z-index: 10000;
@@ -1586,6 +1666,17 @@
 
   .welcome-spinner {
     animation: none;
+  }
+
+  .welcome-import-loading-spinner {
+    animation: none;
+  }
+
+  .welcome-import-loading-enter-active,
+  .welcome-import-loading-leave-active,
+  .welcome-import-loading-enter-active .welcome-import-loading-card,
+  .welcome-import-loading-leave-active .welcome-import-loading-card {
+    transition-duration: 0.01ms;
   }
 
   .welcome-button,

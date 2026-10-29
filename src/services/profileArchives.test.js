@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  archiveHasPortableReferences,
   buildProfileArchive,
   normalizeProfileDirectoryName,
   profileMetricArtistId,
@@ -17,6 +18,7 @@ function createArchive(overrides = {}) {
       name: "Biblioteca personal",
       username: "listener",
       bio: "Música favorita",
+      avatarUrl: "data:image/png;base64,aGVsbG8=",
       createdAt: 1,
       updatedAt: 2,
       credential: { hash: "private" },
@@ -26,7 +28,7 @@ function createArchive(overrides = {}) {
       id: "favorites",
       name: "Favoritos",
       songIds: ["song-1"],
-      cover: "data:image/png;base64,private-image",
+      cover: "data:image/webp;base64,aGVsbG8=",
     }],
     history: [{
       id: "history-1",
@@ -35,6 +37,10 @@ function createArchive(overrides = {}) {
       title: "Canción privada",
       subtitle: "Artista privado",
       cover: "data:image/png;base64,private-image",
+      duration: 180,
+      releaseId: "album-1",
+      releaseType: "album",
+      albumId: "album-1",
       timestamp: 10,
       playCount: 2,
     }],
@@ -122,9 +128,18 @@ test("v3 archive includes profile data and statistics but only opaque song refer
   assert.equal(parsed.profile.bio, "Música favorita");
   assert.equal("library" in parsed, false);
   assert.equal("favorites" in parsed, false);
-  assert.deepEqual(Object.keys(parsed.playlists[0]).sort(), ["id", "name", "order", "songIds"]);
+  assert.deepEqual(Object.keys(parsed.playlists[0]).sort(), ["cover", "id", "name", "order", "songIds"]);
   assert.deepEqual(parsed.playlists[0].songIds, [profileSongReferenceId("song-1")]);
-  assert.deepEqual(Object.keys(parsed.history[0]).sort(), ["id", "itemId", "playCount", "timestamp", "type"]);
+  assert.equal(parsed.playlists[0].cover, "data:image/webp;base64,aGVsbG8=");
+  assert.equal(parsed.profile.avatarUrl, "data:image/png;base64,aGVsbG8=");
+  assert.deepEqual(Object.keys(parsed.history[0]).sort(), [
+    "albumId", "duration", "id", "itemId", "playCount", "releaseId",
+    "releaseType", "subtitle", "timestamp", "title", "type",
+  ]);
+  assert.equal(parsed.history[0].title, "Canción privada");
+  assert.equal(parsed.history[0].subtitle, "Artista privado");
+  assert.equal(parsed.history[0].duration, 180);
+  assert.match(parsed.history[0].releaseId, /^album-ref-[a-f0-9]{16}$/);
   assert.deepEqual(Object.keys(parsed.metrics.events[0]).sort(), ["dateStr", "id", "listenTime", "songId", "timestamp"]);
   assert.deepEqual(Object.keys(parsed.metrics.summary.songStats[profileSongReferenceId("song-1")]).sort(), [
     "firstPlayedAt", "lastPlayedAt", "playCount", "totalListenTime",
@@ -138,6 +153,64 @@ test("v3 archive includes profile data and statistics but only opaque song refer
   assert.equal(JSON.stringify(parsed).includes("Evento con artista"), false);
   assert.equal(JSON.stringify(parsed).includes("Artista agregado"), false);
   assert.equal(JSON.stringify(parsed).includes("private-image"), false);
+});
+
+test("archive validation accepts only safe portable image data for profile and playlist artwork", () => {
+  const archive = createArchive();
+  archive.profile.avatarUrl = "data:image/svg+xml;base64,PHNjcmlwdD4=";
+  assert.throws(() => validateProfileArchive(archive), /Faltan datos obligatorios/);
+
+  const badPlaylistCover = createArchive();
+  badPlaylistCover.playlists[0].cover = "data:text/html;base64,PHNjcmlwdD4=";
+  assert.throws(() => validateProfileArchive(badPlaylistCover), /lista de reproducción no válida/);
+});
+
+test("portable reference detection supports the Set returned by profile reference collection", () => {
+  assert.equal(archiveHasPortableReferences(createArchive()), true);
+  assert.equal(archiveHasPortableReferences(buildProfileArchive({
+    profile: { id: "profile-empty", name: "Empty" },
+    playlists: [],
+    history: [],
+    stats: { summary: null, events: [] },
+    ratings: [],
+    queue: null,
+  })), false);
+});
+
+test("history snapshots keep song labels and resolve album references without exposing local IDs", () => {
+  const localSongId = "/home/listener/Music/private/track.flac";
+  const localAlbumId = "/home/listener/Music/private/album";
+  const archive = createArchive({
+    history: [{
+      type: "song",
+      itemId: localSongId,
+      title: "Canción guardada",
+      subtitle: "Artista guardado",
+      duration: 123,
+      releaseId: localAlbumId,
+      albumId: localAlbumId,
+      timestamp: 50,
+      playCount: 3,
+    }],
+  });
+  const serialized = JSON.stringify(archive);
+  const resolved = resolveProfileSongReferences(
+    archive,
+    [{ id: localSongId }],
+    [{ id: localAlbumId }],
+  );
+  const restoredRecord = resolved.archive.history[0];
+
+  assert.equal(serialized.includes(localSongId), false);
+  assert.equal(serialized.includes(localAlbumId), false);
+  assert.equal(restoredRecord.itemId, localSongId);
+  assert.equal(restoredRecord.title, "Canción guardada");
+  assert.equal(restoredRecord.subtitle, "Artista guardado");
+  assert.equal(restoredRecord.duration, 123);
+  assert.equal(restoredRecord.releaseId, localAlbumId);
+  assert.equal(restoredRecord.albumId, localAlbumId);
+  assert.equal(restoredRecord.timestamp, 50);
+  assert.equal(restoredRecord.playCount, 3);
 });
 
 test("v1 archives migrate while removing copied library metadata and embedded song details", () => {
@@ -211,6 +284,9 @@ test("v1 archives migrate while removing copied library metadata and embedded so
   assert.equal(serialized.includes("legacy library title"), false);
   assert.equal(serialized.includes("legacy event artist"), false);
   assert.equal(serialized.includes("legacy queue title"), false);
+  assert.equal(archive.history[0].title, "legacy history title");
+  assert.equal(archive.history[0].subtitle, "legacy history artist");
+  assert.equal(archive.history[0].duration, 180);
   assert.ok(migratedBytes < legacyBytes);
 });
 
@@ -253,6 +329,8 @@ test("v2 archives migrate their old raw IDs and embedded music details to opaque
   assert.equal(archive.formatVersion, 3);
   assert.deepEqual(archive.playlists[0].songIds, [portableId]);
   assert.equal(archive.history[0].itemId, portableId);
+  assert.equal(archive.history[0].title, "legacy title");
+  assert.equal(archive.history[0].subtitle, "Artista privado");
   assert.equal(archive.ratings[0].songId, portableId);
   assert.equal(archive.metrics.events[0].songId, portableId);
   assert.equal(archive.metrics.summary.songStats[portableId].playCount, 2);
@@ -286,7 +364,14 @@ test("portable references do not disclose local file paths and resolve by the ex
   const localId = "/home/listener/Music/private/track.flac";
   const archive = createArchive({
     playlists: [{ id: "list-1", name: "Mix", songIds: [localId] }],
-    history: [{ type: "song", itemId: localId, timestamp: 1, playCount: 1 }],
+    history: [{
+      type: "song",
+      itemId: localId,
+      title: "Canción privada",
+      subtitle: "Artista privado",
+      timestamp: 1,
+      playCount: 1,
+    }],
     ratings: [{ songId: localId, rating: "like", updatedAt: 1 }],
   });
   const serialized = JSON.stringify(archive);
@@ -295,6 +380,8 @@ test("portable references do not disclose local file paths and resolve by the ex
   assert.equal(serialized.includes("/home/listener/Music/private/track.flac"), false);
   assert.deepEqual(resolved.archive.playlists[0].songIds, [localId]);
   assert.equal(resolved.archive.history[0].itemId, localId);
+  assert.equal(resolved.archive.history[0].title, "Canción privada");
+  assert.equal(resolved.archive.history[0].subtitle, "Artista privado");
   assert.equal(resolved.archive.ratings[0].songId, localId);
   assert.equal(resolved.resolvedCount, 1);
 });

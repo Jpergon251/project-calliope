@@ -1441,9 +1441,13 @@ html[data-theme="chromatic-glass"] {
     .sort-control,
     .artist-section,
     .album-card,
-    .history-item,
-    .song-list-container
+    .history-item
   ) {
+    border-color: rgba(226, 232, 240, 0.12);
+    background-color: rgba(18, 21, 27, 0.38);
+  }
+
+  .app-container .main .album-page > .song-list-container {
     border-color: rgba(226, 232, 240, 0.12);
     background-color: rgba(18, 21, 27, 0.38);
   }
@@ -1514,6 +1518,12 @@ html[data-theme="chromatic-glass"] {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
     }
+  }
+
+  .app-container .main .playlist-page > .song-list-container {
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .profile-hero,

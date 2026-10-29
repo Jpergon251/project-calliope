@@ -7,8 +7,16 @@ import { validateUsername } from "../lib/profileIdentity.js";
 export const PROFILE_ARCHIVE_FORMAT = "calliope-profile";
 export const PROFILE_ARCHIVE_VERSION = 3;
 export const MAX_PROFILE_ARCHIVE_BYTES = 25 * 1024 * 1024;
+export const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_RECORDS = 100_000;
 const SENSITIVE_KEYS = /(credential|password|token|secret|api.?key|authorization|cookie|avatarblob|bannerblob|directoryhandle|filehandle|nativeuri|filepath|^path$|^uri$)/i;
+const PORTABLE_IMAGE_MIME_TYPES = new Set([
+  "image/avif",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 const syncPromises = new Map();
 const syncRevisions = new Map();
 
@@ -63,6 +71,38 @@ function archivePreferences(preferences = {}) {
   return result;
 }
 
+function portableImageSource(value) {
+  if (typeof value !== "string" || value.length > MAX_PROFILE_IMAGE_BYTES * 1.4) return "";
+  const source = value.trim();
+  if (/^https?:\/\/\S+$/i.test(source)) return source;
+  const dataUrlMatch = source.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/]*={0,2})$/i);
+  if (!dataUrlMatch || !PORTABLE_IMAGE_MIME_TYPES.has(dataUrlMatch[1].toLowerCase())) return "";
+  const base64 = dataUrlMatch[2];
+  if (!base64 || base64.length % 4 !== 0 || Math.floor((base64.length * 3) / 4) > MAX_PROFILE_IMAGE_BYTES) {
+    return "";
+  }
+  return source;
+}
+
+async function blobToPortableImage(blob) {
+  if (!(blob instanceof Blob) || !PORTABLE_IMAGE_MIME_TYPES.has(blob.type.toLowerCase())) return "";
+  if (blob.size > MAX_PROFILE_IMAGE_BYTES) {
+    throw new Error("Una imagen del perfil supera el límite de 5 MiB.");
+  }
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return `data:${blob.type.toLowerCase()};base64,${btoa(binary)}`;
+}
+
+async function portableImageValue(value) {
+  if (value instanceof Blob) return blobToPortableImage(value);
+  return portableImageSource(value);
+}
+
 function assertSafeJsonTree(value, depth = 0, budget = { nodes: 0 }) {
   budget.nodes += 1;
   if (budget.nodes > 250_000 || depth > 40) {
@@ -111,19 +151,44 @@ function archivePlaylist(playlist, order) {
     songIds: Array.isArray(playlist.songIds)
       ? playlist.songIds.filter((id) => typeof id === "string" && id).map(profileSongReferenceId)
       : [],
+    ...(portableImageSource(playlist.cover) ? { cover: portableImageSource(playlist.cover) } : {}),
     order,
   };
 }
 
-function archiveHistoryRecord(item) {
+function archiveHistoryRecord(item, profileId) {
+  const itemId = String(item.itemId || "");
   return {
     id: typeof item.id === "string" ? item.id : "",
     type: String(item.type || "song"),
     itemId: item.type === "song"
-      ? profileSongReferenceId(item.itemId)
+      ? profileSongReferenceId(itemId)
       : item.type === "album"
-        ? profileAlbumReferenceId(item.itemId)
-        : String(item.itemId || ""),
+        ? profileAlbumReferenceId(itemId)
+        : item.type === "playlist" && itemId === `favorites_${profileId}`
+          ? "favorites"
+          : itemId,
+    ...(typeof item.title === "string" ? { title: item.title } : {}),
+    ...(typeof item.subtitle === "string"
+      ? { subtitle: item.subtitle }
+      : typeof item.artist === "string"
+        ? { subtitle: item.artist }
+        : {}),
+    ...(item.duration !== null
+      && item.duration !== ""
+      && Number.isFinite(Number(item.duration))
+      && Number(item.duration) >= 0
+      ? { duration: Number(item.duration) }
+      : {}),
+    ...(typeof item.releaseId === "string" && item.releaseId
+      ? { releaseId: profileAlbumReferenceId(item.releaseId) }
+      : {}),
+    ...(typeof item.releaseType === "string" && item.releaseType
+      ? { releaseType: item.releaseType }
+      : {}),
+    ...(typeof item.albumId === "string" && item.albumId
+      ? { albumId: profileAlbumReferenceId(item.albumId) }
+      : {}),
     timestamp: Number(item.timestamp) || 0,
     playCount: Math.max(1, Number(item.playCount) || 1),
   };
@@ -264,10 +329,12 @@ function isPortableAlbumReference(id) {
   return typeof id === "string" && /^album-ref-[a-f0-9]{16}$/.test(id);
 }
 
-function archiveHasPortableReferences(archive) {
-  return collectProfileSongReferences(archive).some(isPortableSongReference)
+export function archiveHasPortableReferences(archive) {
+  return [...collectProfileSongReferences(archive)].some(isPortableSongReference)
     || (archive.history || []).some((item) =>
-      item.type === "album" && isPortableAlbumReference(item.itemId),
+      (item.type === "album" && isPortableAlbumReference(item.itemId))
+      || isPortableAlbumReference(item.releaseId)
+      || isPortableAlbumReference(item.albumId),
     );
 }
 
@@ -323,9 +390,10 @@ export function buildProfileArchive({ profile, playlists, history, stats, rating
       ? (validateUsername(profile.username).valid ? validateUsername(profile.username).username : "")
       : "",
     bio: typeof profile.bio === "string" ? profile.bio : "",
+    ...(portableImageSource(profile.avatarUrl) ? { avatarUrl: portableImageSource(profile.avatarUrl) } : {}),
   };
   const cleanPlaylists = (playlists || []).map((item, index) => archivePlaylist(item, index));
-  const cleanHistory = (history || []).map(archiveHistoryRecord);
+  const cleanHistory = (history || []).map((item) => archiveHistoryRecord(item, profile.id));
   const cleanStats = {
     summary: archiveStatsSummary(stats?.summary),
     events: (stats?.events || []).map(archivePlaybackEvent),
@@ -394,6 +462,9 @@ export function validateProfileArchive(input) {
       && (typeof archive.profile.username !== "string" || archive.profile.username.length > 30))
     || (archive.profile.bio !== undefined
       && (typeof archive.profile.bio !== "string" || archive.profile.bio.length > 240))
+    || (archive.profile.avatarUrl !== undefined
+      && (typeof archive.profile.avatarUrl !== "string"
+        || (archive.profile.avatarUrl !== "" && !portableImageSource(archive.profile.avatarUrl))))
     || !Number.isFinite(archive.profile.createdAt)
     || !Number.isFinite(archive.profile.updatedAt)
     || !archive.profile.preferences
@@ -431,6 +502,8 @@ export function validateProfileArchive(input) {
       || !Array.isArray(playlist.songIds)
       || playlist.songIds.some((id) => typeof id !== "string" || !id)
       || !Number.isInteger(playlist.order)
+      || (playlist.cover !== undefined && typeof playlist.cover !== "string")
+      || (playlist.cover && !portableImageSource(playlist.cover))
     ) {
       throw new Error("Hay una lista de reproducción no válida.");
     }
@@ -446,6 +519,16 @@ export function validateProfileArchive(input) {
       || !Number.isFinite(record.playCount)
     ) {
       throw new Error("Hay un registro de historial no válido.");
+    }
+    if (
+      (record.title !== undefined && typeof record.title !== "string")
+      || (record.subtitle !== undefined && typeof record.subtitle !== "string")
+      || (record.duration !== undefined && (!Number.isFinite(record.duration) || record.duration < 0))
+      || (record.releaseId !== undefined && (typeof record.releaseId !== "string" || !record.releaseId))
+      || (record.releaseType !== undefined && typeof record.releaseType !== "string")
+      || (record.albumId !== undefined && (typeof record.albumId !== "string" || !record.albumId))
+    ) {
+      throw new Error("Los datos descriptivos del historial no son válidos.");
     }
   }
   for (const rating of archive.ratings) {
@@ -539,6 +622,8 @@ export function resolveProfileSongReferences(archive, currentSongs = [], current
         : item.type === "album"
           ? resolveAlbumId(item.itemId)
           : item.itemId,
+      ...(item.releaseId ? { releaseId: resolveAlbumId(item.releaseId) } : {}),
+      ...(item.albumId ? { albumId: resolveAlbumId(item.albumId) } : {}),
     })),
     ratings: archive.ratings.map((rating) => ({ ...rating, songId: resolveSongId(rating.songId) })),
     metrics: {
@@ -637,6 +722,8 @@ export async function resolveStoredProfileSongReferences(profileId, currentSongs
         : record.type === "album"
           ? resolveAlbumId(record.itemId)
           : record.itemId,
+      ...(record.releaseId ? { releaseId: resolveAlbumId(record.releaseId) } : {}),
+      ...(record.albumId ? { albumId: resolveAlbumId(record.albumId) } : {}),
     })],
     ["playback_stats", (record) => {
       if (record.id === `summary_${profileId}` && record.songStats) {
@@ -679,6 +766,8 @@ export async function resolveStoredProfileSongReferences(profileId, currentSongs
       ...(resolvedRecords.history || []).flatMap((record) => [
         record.type === "song" ? record.itemId : null,
         record.type === "album" ? record.itemId : null,
+        record.releaseId,
+        record.albumId,
       ]),
       ...(resolvedRecords.playback_stats || []).flatMap((record) => [
         record.songId,
@@ -987,10 +1076,13 @@ export async function collectProfileArchive(profileId) {
     db.getAll("playback_stats"),
     db.getAll("song_ratings"),
   ]);
-  const playlists = allPlaylists.filter((item) => item.profileId === profileId).map((item) => ({
-    ...item,
-    id: item.id === `favorites_${profileId}` ? "favorites" : item.id,
-  }));
+  const playlists = await Promise.all(allPlaylists
+    .filter((item) => item.profileId === profileId)
+    .map(async (item) => ({
+      ...item,
+      id: item.id === `favorites_${profileId}` ? "favorites" : item.id,
+      cover: await portableImageValue(item.cover),
+    })));
   const stats = allStats.filter((item) => item.profileId === profileId);
   const summary = stats.find((item) => item.id === `summary_${profileId}`) || null;
   const events = stats.filter((item) => item.id !== `summary_${profileId}`);
@@ -1004,7 +1096,10 @@ export async function collectProfileArchive(profileId) {
   }
 
   const archive = buildProfileArchive({
-    profile,
+    profile: {
+      ...profile,
+      avatarUrl: await portableImageValue(profile.avatarBlob || profile.avatarUrl),
+    },
     playlists,
     history: allHistory.filter((item) => item.profileId === profileId),
     stats: { summary, events },
@@ -1021,13 +1116,13 @@ export async function serializeProfileArchive(profileId) {
 
 function importIds(archive, profileId) {
   const playlistIds = new Map(archive.playlists
-    .filter((playlist) => playlist.id !== "favorites")
-    .map((playlist, index) => [playlist.id, `playlist_${profileId}_${index}`]));
+    .map((playlist, index) => [
+      playlist.id,
+      playlist.id === "favorites" ? `favorites_${profileId}` : `playlist_${profileId}_${index}`,
+    ]));
   const playlists = archive.playlists.map((playlist) => ({
     ...playlist,
-    id: playlist.id === "favorites"
-      ? `favorites_${profileId}`
-      : playlistIds.get(playlist.id),
+    id: playlistIds.get(playlist.id),
     profileId,
   }));
   const history = archive.history.map((item, index) => ({
@@ -1152,6 +1247,8 @@ export async function importProfileArchive(archive, {
       name: validated.profile.name.trim(),
       displayName: validated.profile.name.trim(),
       username: usernameResult.username,
+      avatarUrl: validated.profile.avatarUrl || "",
+      avatarBlob: null,
       bio: validated.profile.bio || "",
       createdAt: validated.profile.createdAt,
       preferences: validated.profile.preferences,
@@ -1165,6 +1262,8 @@ export async function importProfileArchive(archive, {
         name: validated.profile.name.trim(),
         displayName: validated.profile.name.trim(),
         username: usernameResult.username,
+        avatarUrl: validated.profile.avatarUrl || "",
+        avatarBlob: null,
         bio: validated.profile.bio || "",
         createdAt: validated.profile.createdAt,
         updatedAt: Date.now(),

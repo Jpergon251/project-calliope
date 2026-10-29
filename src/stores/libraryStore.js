@@ -3079,15 +3079,14 @@ export const useLibraryStore = defineStore("library", () => {
     // Migración segura de carpeta global antigua
     if (!savedHandle) {
       try {
-        const globalHandle = await db.get("settings", "music-folder");
+        const tx = db.transaction("settings", "readwrite");
+        const globalHandle = await tx.store.get("music-folder");
         if (globalHandle) {
+          await tx.store.put(globalHandle, `music-folder-${currentProfileId}`);
+          await tx.store.delete("music-folder");
           savedHandle = globalHandle;
-          await db.put(
-            "settings",
-            globalHandle,
-            `music-folder-${currentProfileId}`,
-          );
         }
+        await tx.done;
       } catch (e) {
         console.warn("No se pudo migrar la carpeta previa al perfil:", e);
       }

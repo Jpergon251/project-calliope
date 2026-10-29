@@ -44,10 +44,18 @@ acceso y archivos de audio no se exportan.
 
 El documento JSON usa `format: "calliope-profile"` y `formatVersion: 3`.
 Incluye ID estable, nombre visible, username normalizado y preferencias del perfil, listas/favoritos, valoraciones,
-métricas e historial. Las listas, el historial, los eventos, los ratings y la
-cola conservan solo los IDs estables de canciones; no incluyen la caché ni
-metadatos musicales. Los títulos de listas sí se conservan porque son datos
-creados por el usuario. Las referencias de canciones y álbumes se serializan
+métricas e historial. Incluye la foto de perfil y portadas personalizadas de
+playlists cuando son imágenes rasterizadas compatibles; imágenes locales se
+incrustan en el JSON y las URLs HTTP(S) se conservan como referencias. Cada
+imagen incrustada está limitada a 5 MiB y el archivo completo a 25 MiB. No se
+incluyen imágenes de la biblioteca musical compartida. Las entradas de historial
+conservan sus campos propios de presentación (título, artista/subtítulo,
+duración, fecha, contador y tipo de publicación) además de las referencias;
+así siguen siendo legibles aunque la canción todavía no esté disponible en el
+dispositivo. No se exporta la caché compartida de metadatos ni las portadas
+musicales del historial. Los eventos, las valoraciones y la cola conservan
+referencias a canciones, no copias de sus metadatos. Los títulos de listas sí
+se conservan porque son datos creados por el usuario. Las referencias de canciones y álbumes se serializan
 como identificadores opacos deterministas derivados de los IDs internos, para
 no exponer rutas locales; al importar, se resuelven únicamente comparándolos
 con los IDs actuales de la biblioteca, nunca por nombre o ruta. Las estadísticas
@@ -92,6 +100,14 @@ reemplazos seguros, la actualización manual de la copia externa falla sin
 alterar los datos internos; la exportación manual permite elegir un destino. Eliminar un perfil borra sus
 datos internos personales y su asociación local, pero no elimina la copia JSON
 externa ni modifica archivos de música.
+
+La carpeta musical se recuerda localmente por ID de perfil, junto con los
+permisos que la plataforma pueda conservar. No se incluye su ruta ni URI en el
+JSON portable. Restaurar un perfil existente en el mismo dispositivo conserva
+su asociación local; un perfil importado como nuevo tendrá que seleccionar y
+autorizar su carpeta en ese dispositivo. Las asociaciones globales antiguas se
+migran una sola vez al primer perfil que las recupere, para evitar compartirlas
+accidentalmente con perfiles posteriores.
 
 La pantalla de bienvenida permite importar un perfil JSON. Si no coincide el ID
 ni el username, crea el perfil con el ID del archivo y lo activa al terminar. Si

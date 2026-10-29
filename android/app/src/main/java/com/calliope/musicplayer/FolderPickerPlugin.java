@@ -93,8 +93,20 @@ public class FolderPickerPlugin extends Plugin {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String profileId = call.getString("profileId");
         String uriStr = prefs.getString(folderPreferenceKey(profileId), null);
-        if (uriStr == null && profileId != null) {
-            uriStr = prefs.getString(PREF_FOLDER_URI, null);
+        if (uriStr == null && isSafeProfileId(profileId)) {
+            String legacyUri = prefs.getString(PREF_FOLDER_URI, null);
+            if (legacyUri != null) {
+                boolean legacyCanWrite = prefs.getBoolean(writePermissionKey(null), false);
+                boolean migrated = prefs.edit()
+                        .putString(folderPreferenceKey(profileId), legacyUri)
+                        .putBoolean(writePermissionKey(profileId), legacyCanWrite)
+                        .remove(PREF_FOLDER_URI)
+                        .remove(writePermissionKey(null))
+                        .commit();
+                if (migrated) {
+                    uriStr = legacyUri;
+                }
+            }
         }
         JSObject ret = new JSObject();
         ret.put("uri", uriStr);

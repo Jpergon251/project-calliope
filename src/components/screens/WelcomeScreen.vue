@@ -619,6 +619,24 @@
 
     </div>
 
+    <Transition name="welcome-import-loading">
+      <div
+        v-if="isImportingProfile"
+        class="welcome-import-loading"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div class="welcome-import-loading-card">
+          <div class="welcome-import-loading-indicator" aria-hidden="true">
+            <LoaderCircle :size="34" class="welcome-import-loading-spinner" />
+          </div>
+          <h2>Preparando tu perfil</h2>
+          <p>{{ profileImportStage }}</p>
+        </div>
+      </div>
+    </Transition>
+
     <div
       v-if="pendingProfileImport"
       class="welcome-import-dialog-backdrop"
@@ -672,6 +690,12 @@
             No es posible continuar de forma segura sin arriesgar la identidad de
             uno de ellos. No se modificará ningún perfil.
           </template>
+        </p>
+        <p
+          v-if="pendingProfileImport.type === 'overwrite' || pendingProfileImport.type === 'overwrite-username-required'"
+          class="welcome-import-folder-note"
+        >
+          La carpeta de música asociada a este perfil en este dispositivo se conservará. Las carpetas no se incluyen en el archivo de perfil.
         </p>
         <label
           v-if="pendingProfileImport.type === 'username-conflict' || pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'"
@@ -808,6 +832,8 @@ const profileImportInput = ref(null);
 const profileImportButton = ref(null);
 const cancelProfileImportButton = ref(null);
 const isImportingProfile = ref(false);
+const profileImportStage = ref("Leyendo y validando el archivo…");
+const PROFILE_IMPORT_MIN_LOADING_MS = 1000;
 const profileImportError = ref("");
 const profileImportMessage = ref("");
 const pendingProfileImport = ref(null);
@@ -1160,7 +1186,9 @@ async function saveImportedProfile(archive, {
   preserveSourceId = false,
 } = {}) {
   if (isImportingProfile.value) return;
+  const loadingStartedAt = Date.now();
   isImportingProfile.value = true;
+  profileImportStage.value = "Restaurando listas, historial y preferencias…";
   profileImportError.value = "";
   profileImportMessage.value = "";
   let saved = false;
@@ -1173,16 +1201,20 @@ async function saveImportedProfile(archive, {
       currentAlbums: library.albums,
     });
     saved = true;
+    profileImportStage.value = "Preparando el perfil restaurado…";
     pendingProfileImport.value = null;
     await user.loadProfiles();
 
     const importedProfile = user.profilesList.find((item) => item.id === result.profileId);
     if (user.currentSession?.profileId === result.profileId) {
+      profileImportStage.value = "Activando el perfil…";
       await user.reloadActiveProfile(result.profileId);
+      await holdImportLoadingScreen(loadingStartedAt);
       router.push("/");
       return;
     }
     if (importedProfile?.private ?? importedProfile?.isPrivate) {
+      await holdImportLoadingScreen(loadingStartedAt);
       unlockingProfile.value = importedProfile;
       selectedProfileId.value = importedProfile.id;
       unlockPassword.value = "";
@@ -1191,18 +1223,28 @@ async function saveImportedProfile(archive, {
       return;
     }
 
+    profileImportStage.value = "Activando el perfil…";
     const login = await user.loginProfile(result.profileId);
     if (!login.success) {
       throw new Error(login.error || "No se pudo activar el perfil restaurado.");
     }
+    await holdImportLoadingScreen(loadingStartedAt);
     router.push("/");
   } catch (error) {
     profileImportError.value = saved
       ? `Los datos se guardaron, pero no se pudo activar el perfil: ${error?.message || "error desconocido"}`
       : error?.message || "No se pudo importar el perfil.";
   } finally {
+    await holdImportLoadingScreen(loadingStartedAt);
     isImportingProfile.value = false;
   }
+}
+
+function holdImportLoadingScreen(startedAt) {
+  const remaining = PROFILE_IMPORT_MIN_LOADING_MS - (Date.now() - startedAt);
+  return remaining > 0
+    ? new Promise((resolve) => setTimeout(resolve, remaining))
+    : Promise.resolve();
 }
 
 function confirmOverwriteProfile() {
@@ -1239,7 +1281,9 @@ async function importProfile(event) {
   profileImportMessage.value = "";
   if (!file) return;
 
+  const loadingStartedAt = Date.now();
   isImportingProfile.value = true;
+  profileImportStage.value = "Leyendo y validando el archivo…";
   try {
     if (file.size > MAX_PROFILE_ARCHIVE_BYTES) {
       throw new Error("El archivo supera el límite de 25 MiB.");
@@ -1309,7 +1353,9 @@ async function importProfile(event) {
   } catch (error) {
     profileImportError.value = error?.message || "No se pudo importar el perfil.";
   } finally {
+    await holdImportLoadingScreen(loadingStartedAt);
     isImportingProfile.value = false;
+    profileImportStage.value = "Leyendo y validando el archivo…";
   }
 }
 
