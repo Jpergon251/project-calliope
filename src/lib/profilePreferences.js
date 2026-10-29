@@ -1,0 +1,17 @@
+export const DEFAULT_PREFERENCES = {
+  accentColor: "miami-vice",
+  visualizerStyle: "classic",
+  reducedMotion: false,
+  showVisualizer: true,
+  autoplayOnStart: false,
+  keepQueueWhenClosing: true,
+  homeShowHistory: true,
+  homeShowTopAlbums: true,
+  homeShowTopPlaylists: true,
+  librarySortMode: "name",
+  saveListeningHistory: true,
+  localDataOnly: true,
+  autoplay: true,
+  volume: 0.7,
+  volumeMuted: false,
+};

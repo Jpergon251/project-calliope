@@ -28,6 +28,12 @@ import {
 import { useUserStore } from "./userStore.js";
 import { appendListeningHistoryGroup } from "../services/listeningHistory.js";
 import {
+  scheduleProfileSync,
+  profileMetricArtistId,
+  profileMetricAlbumId,
+  resolveStoredProfileSongReferences,
+} from "../services/profileArchives.js";
+import {
   createRecording,
   createRelease,
   createReleaseGroup,
@@ -898,6 +904,7 @@ export const useLibraryStore = defineStore("library", () => {
           updatedAt: Date.now(),
         };
         await db.put("playback_stats", summaryToSave);
+        scheduleProfileSync(currentProfileId);
       }
     } catch (err) {
       console.warn("⚠️ Could not save profile stats summary:", err);
@@ -980,6 +987,7 @@ export const useLibraryStore = defineStore("library", () => {
             rating: normalizedRating,
             updatedAt: Date.now(),
           });
+          scheduleProfileSync(currentProfileId);
         }
       } catch (err) {
         console.warn("⚠️ Could not persist song rating:", err);
@@ -1066,23 +1074,24 @@ export const useLibraryStore = defineStore("library", () => {
     const artistNames = parseArtistNames(artist);
     const primaryArtist = artistNames[0] || artist;
     for (const aName of artistNames.length ? artistNames : [primaryArtist]) {
-      if (!summary.artistStats[aName]) {
-        summary.artistStats[aName] = {
-          name: aName,
+      const artistStatsKey = profileMetricArtistId(aName);
+      if (!summary.artistStats[artistStatsKey]) {
+        summary.artistStats[artistStatsKey] = {
           playCount: 0,
           totalListenTime: 0,
           lastPlayedAt: now,
         };
       }
-      summary.artistStats[aName].playCount =
-        (summary.artistStats[aName].playCount || 0) + 1;
-      summary.artistStats[aName].lastPlayedAt = now;
+      summary.artistStats[artistStatsKey].playCount =
+        (summary.artistStats[artistStatsKey].playCount || 0) + 1;
+      summary.artistStats[artistStatsKey].lastPlayedAt = now;
     }
 
     const albumKey = releaseId || albumId || album;
-    if (!summary.albumStats[albumKey]) {
-      summary.albumStats[albumKey] = {
-        id: albumKey,
+    const albumStatsKey = profileMetricAlbumId(albumKey);
+    if (!summary.albumStats[albumStatsKey]) {
+      summary.albumStats[albumStatsKey] = {
+        id: albumStatsKey,
         name: album,
         artist: primaryArtist,
         releaseId,
@@ -1093,11 +1102,11 @@ export const useLibraryStore = defineStore("library", () => {
         lastPlayedAt: now,
       };
     }
-    summary.albumStats[albumKey].playCount =
-      (summary.albumStats[albumKey].playCount || 0) + 1;
-    summary.albumStats[albumKey].lastPlayedAt = now;
-    if (!summary.albumStats[albumKey].cover && cover) {
-      summary.albumStats[albumKey].cover = sanitizeCoverForStorage(cover);
+    summary.albumStats[albumStatsKey].playCount =
+      (summary.albumStats[albumStatsKey].playCount || 0) + 1;
+    summary.albumStats[albumStatsKey].lastPlayedAt = now;
+    if (!summary.albumStats[albumStatsKey].cover && cover) {
+      summary.albumStats[albumStatsKey].cover = sanitizeCoverForStorage(cover);
     }
 
     if (!summary.dayStats[dateStr]) {
@@ -1150,6 +1159,7 @@ export const useLibraryStore = defineStore("library", () => {
         if (db.objectStoreNames.contains("playback_stats")) {
           await db.put("playback_stats", toRaw(event));
           await saveProfileStatsSummary();
+          scheduleProfileSync(currentProfileId);
         }
       } catch (err) {
         console.warn("⚠️ Could not save playback event:", err);
@@ -1392,13 +1402,14 @@ export const useLibraryStore = defineStore("library", () => {
       totalListenTime += listenTime;
 
       const sId = ev.songId;
+      const librarySong = sId ? songs.value.find((song) => song.id === sId) : null;
       if (sId) {
         if (!songAgg.has(sId)) {
           songAgg.set(sId, {
             id: sId,
-            title: ev.title || "Canción",
-            artist: ev.artist || "Artista",
-            album: ev.album || "",
+            title: ev.title || librarySong?.title || librarySong?.name || "Canción",
+            artist: ev.artist || librarySong?.artist || "Artista",
+            album: ev.album || librarySong?.album || "",
             cover: null,
             plays: 0,
             listenTime: 0,
@@ -1411,10 +1422,9 @@ export const useLibraryStore = defineStore("library", () => {
         if (ev.timestamp > item.lastPlayedAt) item.lastPlayedAt = ev.timestamp;
       }
 
-      const artistNames =
-        Array.isArray(ev.artists) && ev.artists.length
-          ? ev.artists
-          : [ev.artist || "Desconocido"];
+      const artistNames = Array.isArray(ev.artists) && ev.artists.length
+        ? ev.artists
+        : parseArtistNames(librarySong?.artist || ev.artist || "Desconocido");
       for (const aName of artistNames) {
         if (!aName) continue;
         if (!artistAgg.has(aName)) {
@@ -1442,12 +1452,13 @@ export const useLibraryStore = defineStore("library", () => {
       if (sum.songStats) {
         for (const [sId, sData] of Object.entries(sum.songStats)) {
           if (!songAgg.has(sId)) {
+            const librarySong = songs.value.find((song) => song.id === sId);
             songAgg.set(sId, {
               id: sId,
-              title: sData.title || "Canción",
-              artist: sData.artist || "Artista",
-              album: sData.album || "",
-              cover: sData.cover || null,
+              title: librarySong?.title || librarySong?.name || "Canción",
+              artist: librarySong?.artist || "Artista",
+              album: librarySong?.album || "",
+              cover: librarySong?.cover || null,
               plays: sData.playCount || 0,
               listenTime: sData.totalListenTime || 0,
               lastPlayedAt: sData.lastPlayedAt || 0,
@@ -1463,10 +1474,14 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       if (sum.artistStats) {
-        for (const [aName, aData] of Object.entries(sum.artistStats)) {
+        for (const [artistKey, aData] of Object.entries(sum.artistStats)) {
+          const libraryArtist = artistKey.startsWith("artist-stat-")
+            ? artists.value.find((artist) => profileMetricArtistId(artist.name) === artistKey)
+            : null;
+          const aName = libraryArtist?.name || artistKey;
           if (!artistAgg.has(aName)) {
             artistAgg.set(aName, {
-              name: aName,
+              name: libraryArtist?.name || "Artista no disponible",
               plays: aData.playCount || 0,
               listenTime: aData.totalListenTime || 0,
               lastPlayedAt: aData.lastPlayedAt || 0,
@@ -2016,13 +2031,53 @@ export const useLibraryStore = defineStore("library", () => {
           }
         }
 
-        listeningHistory.value = profileRecords.sort(
+        listeningHistory.value = hydrateHistoryRecords(profileRecords.sort(
           (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
-        );
+        ));
       }
     } catch (e) {
       console.warn("Could not load history from db:", e);
     }
+  }
+
+  function hydrateHistoryRecords(records = listeningHistory.value) {
+    return records.map((record) => {
+      if (record.type === "song") {
+        const song = songs.value.find((item) => item.id === record.itemId);
+        if (!song) return record;
+        return {
+          ...record,
+          title: record.title || song.title || song.name || "Canción",
+          subtitle: record.subtitle || song.artist || "",
+          cover: record.cover || song.cover || null,
+          duration: record.duration || song.duration || null,
+        };
+      }
+      if (record.type === "playlist") {
+        const playlist = playlists.value.find((item) => item.id === record.itemId);
+        if (!playlist) return record;
+        return {
+          ...record,
+          title: record.title || playlist.name,
+          cover: record.cover || playlist.cover || null,
+        };
+      }
+      if (record.type === "album") {
+        const album = albums.value.find((item) => item.id === record.itemId);
+        if (!album) return record;
+        return {
+          ...record,
+          title: record.title || album.title || album.name || "Álbum",
+          subtitle: record.subtitle || album.artist || "",
+          cover: record.cover || album.cover || null,
+        };
+      }
+      return record;
+    });
+  }
+
+  function refreshHistoryPresentation() {
+    listeningHistory.value = hydrateHistoryRecords();
   }
 
   async function addToListeningHistory(entry) {
@@ -2089,6 +2144,7 @@ export const useLibraryStore = defineStore("library", () => {
 
         if (db.objectStoreNames.contains("history")) {
           await db.put("history", toRaw(newRecord));
+          scheduleProfileSync(currentProfileId);
         }
       } catch (e) {
         console.warn("Could not save history to db:", e);
@@ -2280,6 +2336,12 @@ export const useLibraryStore = defineStore("library", () => {
   // =========================
 
   const QUEUE_STORAGE_KEY_PREFIX = "calliope:queue_state:";
+  const queueSaveTimers = new Map();
+  const pendingQueueStates = new Map();
+  const queueSavePromises = new Map();
+  let suppressQueueStateWrites = false;
+  let queueRestoreDeferred = false;
+  let restoredQueueReferenceState = null;
 
   function getQueueStorageKey() {
     try {
@@ -2291,7 +2353,85 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
+  function persistQueueState(profileId, state) {
+    if (!profileId) return Promise.resolve();
+    return useUserStore().updateProfileQueueState(profileId, state);
+  }
+
+  function writePendingQueueState(profileId) {
+    const state = pendingQueueStates.get(profileId);
+    if (!state) return queueSavePromises.get(profileId) || Promise.resolve();
+
+    const previous = queueSavePromises.get(profileId) || Promise.resolve();
+    const promise = previous
+      .catch(() => {})
+      .then(() => persistQueueState(profileId, state))
+      .then(() => {
+        if (pendingQueueStates.get(profileId) === state) {
+          pendingQueueStates.delete(profileId);
+        }
+      });
+    queueSavePromises.set(profileId, promise);
+    promise.finally(() => {
+      if (queueSavePromises.get(profileId) === promise) {
+        queueSavePromises.delete(profileId);
+      }
+    }).catch(() => {});
+    return promise;
+  }
+
+  function scheduleQueueStateSave(profileId, state) {
+    if (!profileId) return;
+    clearTimeout(queueSaveTimers.get(profileId));
+    pendingQueueStates.set(profileId, state);
+    queueSaveTimers.set(profileId, setTimeout(() => {
+      queueSaveTimers.delete(profileId);
+      writePendingQueueState(profileId)
+        .catch((error) => console.warn("Could not save profile queue state:", error))
+    }, 350));
+  }
+
+  async function flushPendingQueueState(profileId) {
+    while (
+      queueSaveTimers.has(profileId)
+      || pendingQueueStates.has(profileId)
+      || queueSavePromises.has(profileId)
+    ) {
+      const timer = queueSaveTimers.get(profileId);
+      if (timer) {
+        clearTimeout(timer);
+        queueSaveTimers.delete(profileId);
+      }
+      const pendingWrite = pendingQueueStates.has(profileId)
+        ? writePendingQueueState(profileId)
+        : queueSavePromises.get(profileId);
+      if (pendingWrite) await pendingWrite;
+    }
+  }
+
+  async function flushPendingProfileChanges(profileId) {
+    await flushPendingQueueState(profileId);
+    await flushPendingProfileVolume(profileId);
+  }
+
+  function preserveUnavailableQueueIds(savedIds, currentIds) {
+    if (!Array.isArray(savedIds) || !savedIds.length) return currentIds;
+    const availableSongIds = new Set(songs.value.map((song) => song.id));
+    const nextIds = [];
+    let currentIndex = 0;
+    for (const id of savedIds) {
+      if (!availableSongIds.has(id)) {
+        nextIds.push(id);
+      } else if (currentIndex < currentIds.length) {
+        nextIds.push(currentIds[currentIndex++]);
+      }
+    }
+    nextIds.push(...currentIds.slice(currentIndex));
+    return nextIds;
+  }
+
   function saveQueueState() {
+    if (suppressQueueStateWrites || (queueRestoreDeferred && !songs.value.length)) return;
     try {
       const user = useUserStore();
       if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {
@@ -2299,15 +2439,22 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       const key = getQueueStorageKey();
+      const profileId = user.currentSession?.profileId;
+      const savedQueue = restoredQueueReferenceState || {};
       const state = {
-        playingSongId: playingSong.value?.id || null,
-        queueIds: (playQueue.value || []).map((s) => s.id).filter(Boolean),
-        historyIds: (historyQueue.value || []).map((s) => s.id).filter(Boolean),
-        activeQueueHistoryIds: (activeQueueHistory.value || []).map((s) => s.id).filter(Boolean),
+        savedAt: Date.now(),
+        playingSongId: playingSong.value?.id
+          || (savedQueue.playingSongId && !songs.value.some((song) => song.id === savedQueue.playingSongId)
+            ? savedQueue.playingSongId
+            : null),
+        queueIds: preserveUnavailableQueueIds(savedQueue.queueIds, (playQueue.value || []).map((s) => s.id).filter(Boolean)),
+        historyIds: preserveUnavailableQueueIds(savedQueue.historyIds, (historyQueue.value || []).map((s) => s.id).filter(Boolean)),
+        activeQueueHistoryIds: preserveUnavailableQueueIds(savedQueue.activeQueueHistoryIds, (activeQueueHistory.value || []).map((s) => s.id).filter(Boolean)),
         isShuffleEnabled: Boolean(isShuffleEnabled.value),
-        originalQueueIds: (originalQueueList.value || [])
-          .map((s) => s.id)
-          .filter(Boolean),
+        originalQueueIds: preserveUnavailableQueueIds(
+          savedQueue.originalQueueIds,
+          (originalQueueList.value || []).map((s) => s.id).filter(Boolean),
+        ),
         autoplay: Boolean(autoplay.value),
         repeatMode: String(repeatMode.value || "off"),
         savedPlayingSong: playingSong.value
@@ -2323,6 +2470,10 @@ export const useLibraryStore = defineStore("library", () => {
           : null,
       };
       localStorage.setItem(key, JSON.stringify(state));
+      if (profileId) {
+        scheduleQueueStateSave(profileId, state);
+        scheduleProfileSync(profileId);
+      }
     } catch (e) {
       console.warn("Could not save queue state to localStorage:", e);
     }
@@ -2337,17 +2488,26 @@ export const useLibraryStore = defineStore("library", () => {
 
       const key = getQueueStorageKey();
       const raw = localStorage.getItem(key);
-      if (!raw) return;
-
-      const state = JSON.parse(raw);
-      if (!state || typeof state !== "object") return;
+      const localState = raw ? JSON.parse(raw) : null;
+      const profileState = user.profile?.queueState;
+      const state = profileState
+        && (!localState || Number(profileState.savedAt || 0) > Number(localState.savedAt || 0))
+        ? profileState
+        : localState;
+      if (!state || typeof state !== "object") {
+        restoredQueueReferenceState = null;
+        return;
+      }
+      restoredQueueReferenceState = state;
 
       if (!songs.value.length) {
+        queueRestoreDeferred = true;
         if (state.savedPlayingSong && !playingSong.value) {
           playingSong.value = state.savedPlayingSong;
         }
         return;
       }
+      queueRestoreDeferred = false;
 
       if (!playingSong.value && state.playingSongId) {
         const found = songs.value.find((s) => s.id === state.playingSongId);
@@ -2487,68 +2647,78 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function switchProfile() {
-    playbackRequestId++;
-    flushCurrentListeningSession();
-    stopProgressUpdates();
-    isProgressScrubbing.value = false;
-    audio.pause();
-    audio.currentTime = 0;
-    playingSong.value = null;
-    isPlaying.value = false;
-    playQueue.value = [];
-    historyQueue.value = [];
-    activeQueueHistory.value = [];
+    suppressQueueStateWrites = true;
+    try {
+      playbackRequestId++;
+      flushCurrentListeningSession();
+      stopProgressUpdates();
+      isProgressScrubbing.value = false;
+      audio.pause();
+      audio.currentTime = 0;
+      playingSong.value = null;
+      isPlaying.value = false;
+      playQueue.value = [];
+      historyQueue.value = [];
+      activeQueueHistory.value = [];
+      restoredQueueReferenceState = null;
 
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl);
-      currentUrl = null;
-    }
-
-    currentTime.value = 0;
-    duration.value = 0;
-
-    folderHandle.value = null;
-    songs.value = [];
-    albums.value = [];
-    releases.value = [];
-    releaseGroups.value = [];
-    releaseTracks.value = [];
-    playlists.value = [];
-    listeningHistory.value = [];
-    songRatings.value = {};
-    playbackEvents.value = [];
-    profileStatsSummary.value = createEmptyStatsSummary(null);
-    customArtistCovers.value = {};
-    artistProfiles.value = {};
-
-    currentListeningSongId = null;
-    currentListeningAccumulatedSec = 0;
-    currentSongPlayCounted = false;
-    lastTimeUpdateTimestamp = null;
-    isShuffleEnabled.value = false;
-    originalQueueList.value = [];
-
-    const user = useUserStore();
-    if (user.hasSession) {
-      if (user.loaded && user.profile.autoplay !== undefined) {
-        autoplay.value = Boolean(user.profile.autoplay);
-      }
-      await loadPlaylists();
-      await loadHistory();
-      await loadCustomArtistCovers();
-      await loadArtistProfiles();
-      await loadSavedFolder(false);
-
-      if (folderHandle.value) {
-        await loadNormalizedEntities();
-        await loadAlbums();
-        await syncAlbumsFromReleases();
-        await scanFolder();
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl);
+        currentUrl = null;
       }
 
-      await loadSongRatings();
-      await loadStats();
-      restoreQueueState();
+      currentTime.value = 0;
+      duration.value = 0;
+
+      folderHandle.value = null;
+      songs.value = [];
+      albums.value = [];
+      releases.value = [];
+      releaseGroups.value = [];
+      releaseTracks.value = [];
+      playlists.value = [];
+      listeningHistory.value = [];
+      songRatings.value = {};
+      playbackEvents.value = [];
+      profileStatsSummary.value = createEmptyStatsSummary(null);
+      customArtistCovers.value = {};
+      artistProfiles.value = {};
+
+      currentListeningSongId = null;
+      currentListeningAccumulatedSec = 0;
+      currentSongPlayCounted = false;
+      lastTimeUpdateTimestamp = null;
+      isShuffleEnabled.value = false;
+      originalQueueList.value = [];
+
+      const user = useUserStore();
+      if (user.hasSession) {
+        await loadProfileVolume();
+        if (user.loaded && user.profile.autoplay !== undefined) {
+          autoplay.value = Boolean(user.profile.autoplay);
+        }
+        await loadPlaylists();
+        await loadHistory();
+        await loadCustomArtistCovers();
+        await loadArtistProfiles();
+        await loadSavedFolder(false);
+
+        if (folderHandle.value) {
+          await loadNormalizedEntities();
+          await loadAlbums();
+          await syncAlbumsFromReleases();
+          await scanFolder();
+        }
+
+        await loadSongRatings();
+        await loadStats();
+        restoreQueueState();
+      } else {
+        queueRestoreDeferred = false;
+        restoredQueueReferenceState = null;
+      }
+    } finally {
+      suppressQueueStateWrites = false;
     }
   }
 
@@ -2607,6 +2777,7 @@ export const useLibraryStore = defineStore("library", () => {
   async function persistLocalRelations(db, song, metadata, coverBlob) {
     const cover = sanitizeCoverForStorage(metadata.cover ?? coverBlob ?? song.cover ?? null);
     const simpleMetadata = { ...metadata };
+    delete simpleMetadata.favorite;
     for (const key of ["releaseIds", "primaryReleaseId", "coverReleaseId", "releaseType", "releases", "releaseGroups", "releaseTracks", "musicBrainzReleaseId", "musicBrainzReleaseGroupId", "albumId"]) delete simpleMetadata[key];
     simpleMetadata.cover = cover;
     const recording = createRecording({
@@ -2878,12 +3049,14 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (isNative) {
       try {
-        const result = await FolderPicker.getSavedFolder();
+        const result = await FolderPicker.getSavedFolder({ profileId: currentProfileId });
 
         if (result && result.uri) {
           folderHandle.value = {
             nativeUri: result.uri,
+            canWrite: result.canWrite === true,
           };
+          scheduleProfileSync(currentProfileId);
 
           if (shouldScan) {
             await scanFolderNative(result.uri);
@@ -2946,6 +3119,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       folderHandle.value = savedHandle;
+      scheduleProfileSync(currentProfileId);
 
       if (shouldScan) {
         await scanFolder();
@@ -3003,8 +3177,63 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
+    if (userPlaylists.length && userPlaylists.every((playlist) => Number.isInteger(playlist.order))) {
+      userPlaylists.sort((a, b) => a.order - b.order);
+    }
     playlists.value = userPlaylists;
     await ensureFavoritesPlaylist();
+    await migrateLegacyFavorites(db, currentProfileId);
+  }
+
+  async function migrateLegacyFavorites(db, profileId) {
+    const migrationKey = "legacy-favorites-migrated-v1";
+    if (await db.get("settings", migrationKey)) return;
+
+    const allPlaylists = await db.getAll("playlists");
+    const hasProfileFavorites = allPlaylists.some((playlist) =>
+      playlist.profileId
+      && playlist.id === `favorites_${playlist.profileId}`
+      && Array.isArray(playlist.songIds)
+      && playlist.songIds.length > 0,
+    );
+    const allMetadata = await db.getAll("metadata");
+    const legacyFavoriteIds = allMetadata
+      .filter((item) => item.favorite === true)
+      .map((item) => item.id);
+
+    if (legacyFavoriteIds.length > 0 && !hasProfileFavorites) {
+      const currentFavorites = playlists.value.find((item) => item.id === FAVORITES_PLAYLIST_ID);
+      if (currentFavorites) {
+        currentFavorites.songIds = [...new Set([...(currentFavorites.songIds || []), ...legacyFavoriteIds])];
+        await savePlaylist(currentFavorites);
+      }
+    }
+
+    const transaction = db.transaction(["metadata", "settings"], "readwrite");
+    try {
+      for (const metadata of allMetadata) {
+        if (metadata.favorite === true) {
+          await transaction.objectStore("metadata").put({ ...metadata, favorite: false });
+        }
+      }
+      await transaction.objectStore("settings").put(true, migrationKey);
+      await transaction.done;
+      scheduleProfileSync(profileId);
+    } catch (error) {
+      try { transaction.abort(); } catch {}
+      throw error;
+    }
+  }
+
+  function applyProfileFavorites() {
+    const favorites = playlists.value.find((playlist) => playlist.id === FAVORITES_PLAYLIST_ID);
+    const favoriteIds = new Set(favorites?.songIds || []);
+    for (const song of songs.value) {
+      song.favorite = favoriteIds.has(song.id);
+    }
+    if (playingSong.value?.id) {
+      playingSong.value.favorite = favoriteIds.has(playingSong.value.id);
+    }
   }
 
   // =========================
@@ -3084,12 +3313,13 @@ export const useLibraryStore = defineStore("library", () => {
       const artistNames = parseArtistNames(playingSong.value.artist);
       const primaryArtist = artistNames[0] || playingSong.value.artist;
       for (const aName of artistNames.length ? artistNames : [primaryArtist]) {
-        if (summary.artistStats[aName]) {
-          summary.artistStats[aName].totalListenTime =
-            (summary.artistStats[aName].totalListenTime || 0) + deltaSec;
+        const artistStatsKey = profileMetricArtistId(aName);
+        if (summary.artistStats[artistStatsKey]) {
+          summary.artistStats[artistStatsKey].totalListenTime =
+            (summary.artistStats[artistStatsKey].totalListenTime || 0) + deltaSec;
         }
       }
-      const albumKey = playingSong.value.albumId || playingSong.value.album;
+      const albumKey = profileMetricAlbumId(playingSong.value.albumId || playingSong.value.album);
       if (albumKey && summary.albumStats[albumKey]) {
         summary.albumStats[albumKey].totalListenTime =
           (summary.albumStats[albumKey].totalListenTime || 0) + deltaSec;
@@ -3226,8 +3456,12 @@ export const useLibraryStore = defineStore("library", () => {
 
   const VOLUME_STORAGE_KEY = "calliope:volume";
   const VOLUME_MUTED_STORAGE_KEY = "calliope:volume_muted";
+  const VOLUME_PROFILE_MIGRATION_KEY = "calliope:volume-profile-migrated";
   const previousVolume = ref(0.7);
-  let saveVolumeTimeout = null;
+  const volumeSaveTimers = new Map();
+  const volumePersistenceRevisions = new Map();
+  const pendingVolumeValues = new Map();
+  const volumePersistencePromises = new Map();
 
   function applyAudioGain() {
     const gain = isMuted.value ? 0 : volumeToGain(volume.value);
@@ -3285,27 +3519,99 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
-  function saveVolume(value) {
+  function saveLegacyVolume(value, muted) {
     try {
       const normalized = Math.min(1, Math.max(0, Number(value) || 0));
       localStorage.setItem(VOLUME_STORAGE_KEY, String(normalized));
+      localStorage.setItem(VOLUME_MUTED_STORAGE_KEY, String(Boolean(muted)));
     } catch (error) {
-      console.warn("⚠️ Could not save volume:", error);
+      console.warn("⚠️ Could not save guest volume:", error);
     }
   }
 
-  function debouncedSaveVolume(value) {
-    if (saveVolumeTimeout) clearTimeout(saveVolumeTimeout);
-    saveVolumeTimeout = setTimeout(() => {
-      saveVolume(value);
-    }, 200);
+  function persistProfileVolume(value, muted, profileId, revision, ownerKey) {
+    if (revision !== volumePersistenceRevisions.get(ownerKey)) return Promise.resolve();
+    if (!profileId) {
+      saveLegacyVolume(value, muted);
+      return Promise.resolve();
+    }
+    return useUserStore().updateProfilePreferences(profileId, { volume: value, volumeMuted: muted });
   }
 
-  function saveMuted(muted) {
+  function debouncedSaveVolume(value, profileId, muted) {
+    const ownerKey = profileId || "guest";
+    clearTimeout(volumeSaveTimers.get(ownerKey));
+    const revision = (volumePersistenceRevisions.get(ownerKey) || 0) + 1;
+    volumePersistenceRevisions.set(ownerKey, revision);
+    pendingVolumeValues.set(ownerKey, { value, muted, profileId, revision });
+    const timer = setTimeout(() => {
+      volumeSaveTimers.delete(ownerKey);
+      pendingVolumeValues.delete(ownerKey);
+      const promise = persistProfileVolume(value, muted, profileId, revision, ownerKey);
+      volumePersistencePromises.set(ownerKey, promise);
+      promise
+        .catch((error) => console.warn("⚠️ Could not save volume:", error))
+        .finally(() => {
+          if (volumePersistencePromises.get(ownerKey) === promise) {
+            volumePersistencePromises.delete(ownerKey);
+          }
+        });
+    }, 300);
+    volumeSaveTimers.set(ownerKey, timer);
+  }
+
+  async function flushPendingProfileVolume(profileId) {
+    const ownerKey = profileId || "guest";
+    const ongoing = volumePersistencePromises.get(ownerKey);
+    if (ongoing) await ongoing;
+    const timer = volumeSaveTimers.get(ownerKey);
+    if (!timer) return;
+    clearTimeout(timer);
+    volumeSaveTimers.delete(ownerKey);
+    const pending = pendingVolumeValues.get(ownerKey);
+    pendingVolumeValues.delete(ownerKey);
+    if (!pending) return;
+    await persistProfileVolume(
+      pending.value,
+      pending.muted,
+      pending.profileId,
+      pending.revision,
+      ownerKey,
+    );
+  }
+
+  async function loadProfileVolume() {
+    const user = useUserStore();
+    const profileId = user.currentSession?.profileId;
+    if (!profileId || user.isGuest) {
+      loadSavedVolume();
+      return;
+    }
+
     try {
-      localStorage.setItem(VOLUME_MUTED_STORAGE_KEY, String(muted));
+      let savedVolume = user.profile.preferences?.volume;
+      let savedMuted = user.profile.preferences?.volumeMuted;
+      if (localStorage.getItem(VOLUME_PROFILE_MIGRATION_KEY) !== "true") {
+        const legacyVolumeRaw = localStorage.getItem(VOLUME_STORAGE_KEY);
+        const legacyVolume = legacyVolumeRaw === null ? NaN : Number(legacyVolumeRaw);
+        const legacyMuted = localStorage.getItem(VOLUME_MUTED_STORAGE_KEY);
+        if (Number.isFinite(legacyVolume)) savedVolume = Math.min(1, Math.max(0, legacyVolume));
+        if (legacyMuted !== null) savedMuted = legacyMuted === "true";
+        await user.updateProfilePreferences(profileId, {
+          volume: Number.isFinite(savedVolume) ? savedVolume : 0.7,
+          volumeMuted: Boolean(savedMuted),
+        });
+        localStorage.setItem(VOLUME_PROFILE_MIGRATION_KEY, "true");
+      }
+      volume.value = Number.isFinite(savedVolume) ? Math.min(1, Math.max(0, savedVolume)) : 0.7;
+      isMuted.value = Boolean(savedMuted);
+      if (volume.value > 0.005) previousVolume.value = volume.value;
+      applyAudioGain();
     } catch (error) {
-      console.warn("⚠️ Could not save volume mute state:", error);
+      console.warn("⚠️ Could not load profile volume:", error);
+      volume.value = 0.7;
+      isMuted.value = false;
+      applyAudioGain();
     }
   }
 
@@ -3317,15 +3623,13 @@ export const useLibraryStore = defineStore("library", () => {
       previousVolume.value = normalized;
       if (isMuted.value) {
         isMuted.value = false;
-        saveMuted(false);
       }
     } else {
       isMuted.value = true;
-      saveMuted(true);
     }
 
     applyAudioGain();
-    debouncedSaveVolume(normalized);
+    debouncedSaveVolume(normalized, useUserStore().currentSession?.profileId, isMuted.value);
   }
 
   function setVolumeDb(db) {
@@ -3339,7 +3643,7 @@ export const useLibraryStore = defineStore("library", () => {
       isMuted.value = false;
       if (volume.value === 0) {
         volume.value = previousVolume.value > 0 ? previousVolume.value : 0.5;
-        saveVolume(volume.value);
+        debouncedSaveVolume(volume.value, useUserStore().currentSession?.profileId, false);
       }
     } else {
       // Muting: remember current non-zero volume for subsequent restore
@@ -3349,7 +3653,7 @@ export const useLibraryStore = defineStore("library", () => {
       isMuted.value = true;
     }
     applyAudioGain();
-    saveMuted(isMuted.value);
+    debouncedSaveVolume(volume.value, useUserStore().currentSession?.profileId, isMuted.value);
   }
 
   function stepVolume(delta) {
@@ -3440,6 +3744,7 @@ export const useLibraryStore = defineStore("library", () => {
     }
 
     await db.put("playlists", data);
+    scheduleProfileSync(currentProfileId);
   }
 
   async function addSongToPlaylist(playlistId, songId) {
@@ -3492,6 +3797,7 @@ export const useLibraryStore = defineStore("library", () => {
     const db = await dbPromise;
 
     await db.delete("playlists", playlistId);
+    scheduleProfileSync(currentProfileId);
   }
 
   async function reorderPlaylistSongs(playlistId, songIds) {
@@ -3568,15 +3874,6 @@ export const useLibraryStore = defineStore("library", () => {
     if (playingSong.value && playingSong.value.id === song.id) {
       playingSong.value.favorite = nextFavorite;
     }
-
-    const db = await dbPromise;
-    const existingMetadata = await db.get("metadata", song.id);
-
-    await db.put("metadata", {
-      ...(existingMetadata || {}),
-      id: song.id,
-      favorite: nextFavorite,
-    });
 
     await ensureFavoritesPlaylist();
     await syncFavoritesPlaylistFromSongs();
@@ -4034,6 +4331,25 @@ export const useLibraryStore = defineStore("library", () => {
     );
   }
 
+  async function resolveImportedProfileReferences() {
+    const user = useUserStore();
+    const profileId = user.currentSession?.profileId;
+    if (user.isGuest || !profileId) return;
+
+    const result = await resolveStoredProfileSongReferences(profileId, songs.value, albums.value);
+    if (!result.changed) return;
+
+    if (user.profile?.id === profileId) user.profile.queueState = result.queueState;
+    const profileIndex = user.profilesList.findIndex((item) => item.id === profileId);
+    if (profileIndex >= 0) {
+      user.profilesList[profileIndex].queueState = result.queueState;
+      user.profilesList[profileIndex].portableReferencesPending = result.portableReferencesPending;
+    }
+
+    await loadPlaylists();
+    await Promise.all([loadHistory(), loadStats(), loadSongRatings()]);
+  }
+
   async function scanFolder(forceMetadata = false) {
     if (!folderHandle.value) {
       return;
@@ -4093,6 +4409,8 @@ export const useLibraryStore = defineStore("library", () => {
       sortSongs();
 
       await loadMetadataForSongs(forceMetadata);
+      await resolveImportedProfileReferences();
+      refreshHistoryPresentation();
       restoreQueueState();
     } finally {
       loading.value = false;
@@ -4142,6 +4460,8 @@ export const useLibraryStore = defineStore("library", () => {
       sortSongs();
 
       await loadMetadataForSongs();
+      await resolveImportedProfileReferences();
+      refreshHistoryPresentation();
       restoreQueueState();
     } catch (e) {
       console.error("Error scanning native folder:", e);
@@ -4169,9 +4489,11 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   async function selectFolder() {
+    const user = useUserStore();
+    const currentProfileId = user.currentSession?.profileId;
     if (isNative) {
       try {
-        const result = await FolderPicker.pickFolder();
+        const result = await FolderPicker.pickFolder({ profileId: currentProfileId });
 
         if (!result || !result.uri) {
           return;
@@ -4179,9 +4501,11 @@ export const useLibraryStore = defineStore("library", () => {
 
         folderHandle.value = {
           nativeUri: result.uri,
+          canWrite: result.canWrite === true,
         };
 
         await scanFolderNative(result.uri);
+        scheduleProfileSync(currentProfileId);
       } catch (e) {
         console.error("Error selecting native folder:", e);
       }
@@ -4193,7 +4517,6 @@ export const useLibraryStore = defineStore("library", () => {
 
     folderHandle.value = handle;
 
-    const user = useUserStore();
     // Guardar en IndexedDB SOLO para perfiles registrados permanentes
     if (user.isRegistered && user.currentSession?.profileId) {
       const db = await dbPromise;
@@ -4202,6 +4525,15 @@ export const useLibraryStore = defineStore("library", () => {
         handle,
         `music-folder-${user.currentSession.profileId}`,
       );
+      try {
+        let permission = await handle.queryPermission({ mode: "readwrite" });
+        if (permission !== "granted") {
+          permission = await handle.requestPermission({ mode: "readwrite" });
+        }
+      } catch (error) {
+        console.warn("No se pudo autorizar la copia externa del perfil:", error);
+      }
+      scheduleProfileSync(currentProfileId);
     }
 
     await scanFolder();
@@ -4214,7 +4546,9 @@ export const useLibraryStore = defineStore("library", () => {
     audio.pause();
     if (isNative) {
       try {
-        await FolderPicker.clearSavedFolder();
+        await FolderPicker.clearSavedFolder({
+          profileId: useUserStore().currentSession?.profileId,
+        });
       } catch (e) {
         console.warn("Could not clear native folder:", e);
       }
@@ -4226,6 +4560,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (user.isRegistered && currentProfileId) {
       const db = await dbPromise;
       await db.delete("settings", `music-folder-${currentProfileId}`);
+      scheduleProfileSync(currentProfileId);
     }
 
     folderHandle.value = null;
@@ -4573,6 +4908,7 @@ export const useLibraryStore = defineStore("library", () => {
       refreshSongReleaseRelations(song);
     }
 
+    applyProfileFavorites();
     await syncFavoritesPlaylistFromSongs();
 
     await reconcileReleaseLibrary(db);
@@ -4676,8 +5012,9 @@ export const useLibraryStore = defineStore("library", () => {
     const nextSongId = songIdForFile(updatedFile);
     const existingMetadata = await db.get("metadata", previousSongId);
     const metadataToSave = {
-      ...(existingMetadata || {}), id: nextSongId, cacheVersion: metadataCacheVersion, hasMetadata, title, artist, artists, artistCredits, album, albumArtist, genre, genres: genre, year, track, trackTotal, disk, diskTotal, cover, duration: updatedData.duration || song.duration || 0, musicBrainzRecordingId: updatedData.musicBrainzRecordingId || song.musicBrainzRecordingId || "", acoustid: updatedData.acoustid || song.acoustid || "", isrc: updatedData.isrc || song.isrc || "", identification: cloneForIndexedDB(updatedData.identification || song.identification || {}), identifiedMetadata: cloneForIndexedDB(updatedData.identifiedMetadata), favorite: song.favorite ?? false,
+      ...(existingMetadata || {}), id: nextSongId, cacheVersion: metadataCacheVersion, hasMetadata, title, artist, artists, artistCredits, album, albumArtist, genre, genres: genre, year, track, trackTotal, disk, diskTotal, cover, duration: updatedData.duration || song.duration || 0, musicBrainzRecordingId: updatedData.musicBrainzRecordingId || song.musicBrainzRecordingId || "", acoustid: updatedData.acoustid || song.acoustid || "", isrc: updatedData.isrc || song.isrc || "", identification: cloneForIndexedDB(updatedData.identification || song.identification || {}), identifiedMetadata: cloneForIndexedDB(updatedData.identifiedMetadata),
     };
+    delete metadataToSave.favorite;
     await db.put("metadata", cloneForIndexedDB(metadataToSave));
     if (nextSongId !== previousSongId) {
       await db.delete("metadata", previousSongId);
@@ -4987,6 +5324,8 @@ export const useLibraryStore = defineStore("library", () => {
     volumeIconType,
 
     setVolume,
+
+    flushPendingProfileChanges,
 
     setVolumeDb,
 

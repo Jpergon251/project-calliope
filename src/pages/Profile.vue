@@ -44,6 +44,9 @@
             <p v-if="user.profile.username" class="profile-username">
               @{{ user.profile.username }}
             </p>
+            <p v-else class="profile-username-pending">
+              Completa un nombre de usuario único desde «Editar perfil».
+            </p>
 
             <!-- INDICADOR DE TIPO DE PERFIL / SESIÓN -->
             <div v-if="user.isGuest" class="profile-status-badge is-guest">
@@ -76,14 +79,22 @@
           <form v-else class="profile-edit-form" @submit.prevent="saveIdentity">
             <div class="form-row">
               <label class="form-field">
-                <span>Nombre de usuario</span>
+                <span>Nombre de usuario *</span>
                 <input
                   v-model="draft.username"
                   type="text"
                   placeholder="p.ej. alex_music"
                   maxlength="30"
                   autocomplete="username"
+                  required
                 />
+                <small
+                  class="profile-username-status"
+                  :class="`is-${profileUsernameStatus.state}`"
+                  aria-live="polite"
+                >
+                  {{ profileUsernameStatus.message }}
+                </small>
               </label>
 
               <label class="form-field">
@@ -116,8 +127,19 @@
               ></textarea>
             </label>
 
+            <p v-if="identityError" class="profile-identity-error" role="alert">
+              <AlertCircle :size="14" />
+              {{ identityError }}
+            </p>
+
             <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Guardar</button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="!profileUsernameStatus.available"
+              >
+                Guardar
+              </button>
 
               <button
                 type="button"
@@ -1038,6 +1060,35 @@
       <div class="pref-card">
         <div class="pref-row">
           <div class="pref-text">
+            <strong>Exportar perfil</strong>
+            <p>
+              Guarda los cambios pendientes y actualiza la copia JSON asociada
+              a la carpeta musical, si está disponible.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="user.isGuest || isExportingProfile"
+            @click="exportProfileChanges"
+          >
+            {{ isExportingProfile ? "Guardando..." : "Exportar perfil" }}
+          </button>
+        </div>
+        <p
+          v-if="profileExportMessage"
+          class="profile-export-message"
+          :class="{ 'is-error': profileExportFailed }"
+          role="status"
+          aria-live="polite"
+        >
+          {{ profileExportMessage }}
+        </p>
+      </div>
+
+      <div class="pref-card">
+        <div class="pref-row">
+          <div class="pref-text">
             <strong>Biblioteca de Música</strong>
             <p>Administra la carpeta donde Calliope busca tus canciones.</p>
           </div>
@@ -1548,10 +1599,15 @@ import { downscaleImage } from "../lib/covers.js";
 import ToggleSwitch from "../components/common/ToggleSwitch.vue";
 import SongIconCover from "../components/common/SongIconCover.vue";
 import { COLOR_PALETTES } from "../lib/colorPalettes.js";
+import { findUsernameOwner, validateUsername } from "../lib/profileIdentity.js";
 import {
   normalizeVisualizerStyle,
   VISUALIZER_STYLES,
 } from "../lib/visualizerStyles.js";
+import {
+  flushProfileSync,
+  profileSyncStatuses,
+} from "../services/profileArchives.js";
 
 const user = useUserStore();
 const library = useLibraryStore();
@@ -1559,9 +1615,47 @@ const router = useRouter();
 const themeCarouselTrack = ref(null);
 const canScrollThemesBack = ref(false);
 const canScrollThemesForward = ref(false);
+const isExportingProfile = ref(false);
+const profileExportMessage = ref("");
+const profileExportFailed = ref(false);
 const selectedVisualizerStyle = computed(() =>
   normalizeVisualizerStyle(user.profile.visualizerStyle),
 );
+
+async function exportProfileChanges() {
+  const profileId = user.currentSession?.profileId;
+  if (!profileId || user.isGuest || isExportingProfile.value) return;
+
+  isExportingProfile.value = true;
+  profileExportMessage.value = "";
+  profileExportFailed.value = false;
+  let internalSaveComplete = false;
+  try {
+    const saved = await user.save();
+    if (!saved) throw new Error("No se pudieron guardar los cambios en el almacenamiento interno.");
+    await library.flushPendingProfileChanges(profileId);
+    internalSaveComplete = true;
+    await flushProfileSync(profileId, {
+      requestPermission: Boolean(library.folderHandle),
+    });
+
+    const syncStatus = profileSyncStatuses[profileId];
+    if (syncStatus?.status === "synced") {
+      profileExportMessage.value = "Cambios guardados y copia JSON actualizada.";
+    } else {
+      profileExportMessage.value = syncStatus?.message
+        || "Cambios guardados internamente; no hay una copia externa configurada.";
+    }
+    profileExportFailed.value = syncStatus?.status === "error";
+  } catch (error) {
+    profileExportFailed.value = true;
+    profileExportMessage.value = internalSaveComplete
+      ? `Cambios guardados internamente; no se pudo actualizar la copia JSON: ${error.message}`
+      : `No se pudo completar el guardado del perfil: ${error.message}`;
+  } finally {
+    isExportingProfile.value = false;
+  }
+}
 
 function updateThemeCarouselControls() {
   const track = themeCarouselTrack.value;
@@ -2075,6 +2169,30 @@ const draft = reactive({
   bio: "",
   avatarUrl: "",
 });
+const identityError = ref("");
+const profileUsernameStatus = computed(() => {
+  const validation = validateUsername(draft.username);
+  if (!draft.username.trim()) {
+    return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
+  }
+  if (!validation.valid) {
+    return { state: "invalid", message: validation.reason, available: false };
+  }
+  const owner = findUsernameOwner(
+    validation.username,
+    user.profilesList,
+    user.profile.id,
+  );
+  if (owner) {
+    return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
+  }
+  return {
+    state: "available",
+    username: validation.username,
+    message: `@${validation.username} está disponible.`,
+    available: true,
+  };
+});
 
 const songsWithoutMetadata = computed(
   () => library.songs.filter((song) => !song.hasMetadata).length,
@@ -2089,6 +2207,7 @@ function flashSaved() {
 }
 
 function startEditing() {
+  identityError.value = "";
   draft.username = user.profile.username;
   draft.displayName = user.profile.displayName;
   draft.bio = user.profile.bio;
@@ -2102,6 +2221,11 @@ function cancelEditing() {
 }
 
 async function saveIdentity() {
+  identityError.value = "";
+  if (!profileUsernameStatus.value.available) {
+    identityError.value = profileUsernameStatus.value.message;
+    return;
+  }
   const avatarUrl = draft.avatarUrl.trim();
 
   // `updateProfile` escribe TODO lo que recibe. Enviar `avatarUrl` vacío
@@ -2110,19 +2234,23 @@ async function saveIdentity() {
   // realmente lo ha cambiado en este formulario.
   const avatarChanged = avatarUrl && avatarUrl !== (user.profile.avatarUrl || "");
 
-  await user.updateProfile({
-    username: draft.username.trim(),
-    displayName: draft.displayName.trim(),
-    bio: draft.bio.trim(),
-    ...(avatarChanged ? { avatarUrl } : {}),
-  });
+  try {
+    await user.updateProfile({
+      username: profileUsernameStatus.value.username,
+      displayName: draft.displayName.trim(),
+      bio: draft.bio.trim(),
+      ...(avatarChanged ? { avatarUrl } : {}),
+    });
 
-  if (avatarChanged) {
-    await user.setAvatar(avatarUrl);
+    if (avatarChanged) {
+      await user.setAvatar(avatarUrl);
+    }
+
+    isEditing.value = false;
+    flashSaved();
+  } catch (error) {
+    identityError.value = error?.message || "No se pudieron guardar los cambios.";
   }
-
-  isEditing.value = false;
-  flashSaved();
 }
 
 async function removeLibrary() {
@@ -2208,7 +2336,11 @@ async function resetPreferences() {
 }
 
 async function handleLogout() {
-  await user.logout();
+  const result = await user.logout();
+  if (!result.success) {
+    window.alert(result.error || "No se pudo cerrar la sesión.");
+    return;
+  }
   router.push("/welcome");
 }
 

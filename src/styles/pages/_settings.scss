@@ -209,6 +209,69 @@
                 }
             }
         }
+
+        .profile-active,
+        .profile-sync {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+
+            strong {
+                color: var(--text-primary);
+            }
+        }
+
+        .profile-actions,
+        .profile-list-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .profile-import-input {
+            display: none;
+        }
+
+        .profile-list {
+            display: grid;
+            gap: 10px;
+            margin: 20px 0 0;
+            padding: 0;
+            list-style: none;
+
+            li {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 16px;
+                padding: 14px 16px;
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-md);
+                background: rgba(255,255,255,.02);
+            }
+        }
+
+        .profile-list-info {
+            display: grid;
+            gap: 4px;
+            color: var(--text-secondary);
+
+            strong {
+                color: var(--text-primary);
+            }
+
+            .profile-username-pending {
+                color: var(--warning-danger, #ff5b5b);
+                font-size: 0.78rem;
+            }
+        }
     }
 }
 
@@ -234,6 +297,12 @@
 
                     width: 100%;
                 }
+
+            }
+
+            .profile-list li {
+                align-items: stretch;
+                flex-direction: column;
             }
         }
     }

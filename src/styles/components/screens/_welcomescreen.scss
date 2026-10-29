@@ -70,20 +70,48 @@
 }
 
 .welcome-logo {
-  display: block;
-
-  width: 132px;
-  max-width: 132px;
-  height: auto;
-
-  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  width: 168px;
+  max-width: 168px;
+  height: 46px;
+  flex: 0 0 168px;
+  align-items: center;
+  gap: 12px;
 }
 
-.welcome-logo svg {
+.welcome-header .welcome-logo .miami-app-mark {
+  position: relative;
   display: block;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  opacity: 0;
+  transition: opacity 380ms cubic-bezier(0.2, 0.65, 0.3, 1);
+}
 
+.welcome-logo .miami-app-image {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
+}
+
+.welcome-logo svg.app-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  opacity: 1;
+  transition:
+    opacity 380ms cubic-bezier(0.2, 0.65, 0.3, 1),
+    color 380ms cubic-bezier(0.2, 0.65, 0.3, 1),
+    filter 380ms cubic-bezier(0.2, 0.65, 0.3, 1);
 }
 
 .welcome-logo .app-image {
@@ -92,7 +120,15 @@
 }
 
 .welcome-logo .app-name {
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
   color: var(--theme-logo-text, var(--text-primary));
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  transition: color 380ms cubic-bezier(0.2, 0.65, 0.3, 1);
 }
 
 /* ============================================================
@@ -542,6 +578,10 @@
   flex-wrap: wrap;
 }
 
+.welcome-profile-import-input {
+  display: none;
+}
+
 .welcome-button-ghost {
   background: transparent;
   color: var(--text-muted, #888);
@@ -614,6 +654,29 @@
   font-size: 0.7rem;
   font-style: normal;
   font-weight: 400;
+}
+
+.welcome-field-help {
+  display: block;
+  color: var(--text-muted, #777);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.welcome-username-status {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.welcome-username-status.is-available {
+  color: var(--accent, #25d866);
+}
+
+.welcome-username-status.is-used,
+.welcome-username-status.is-invalid {
+  color: var(--warning-danger, #ff5b5b);
 }
 
 .welcome-form input,
@@ -744,6 +807,114 @@
   color: var(--text-primary, #fff);
 
   background: rgba(255, 255, 255, 0.05);
+}
+
+.welcome-import-message {
+  margin: 4px 0 0;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.welcome-import-dialog-backdrop {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 6, 9, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.welcome-import-dialog {
+  width: min(100%, 480px);
+  padding: 26px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  background: var(--bg-secondary, #151515);
+  color: var(--text-primary, #fff);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.welcome-import-dialog-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(255, 174, 66, 0.12);
+  color: #ffb84d;
+}
+
+.welcome-import-dialog h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+}
+
+.welcome-import-dialog p {
+  margin: 12px 0 24px;
+  color: var(--text-secondary, #a3a3a3);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.welcome-import-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.welcome-import-dialog-actions .welcome-button {
+  min-height: 42px;
+}
+
+.welcome-button-danger {
+  background: var(--warning-danger, #c93838);
+  color: #fff;
+}
+
+.welcome-button-danger:hover:not(:disabled) {
+  background: #d94a4a;
+}
+
+.welcome-import-dialog .welcome-button:focus-visible {
+  outline: 2px solid var(--accent, #25d866);
+  outline-offset: 3px;
+}
+
+.welcome-import-dialog .welcome-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.welcome-import-username {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0 0 20px;
+  color: var(--text-primary, #fff);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.welcome-import-username input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: var(--bg-tertiary, #0b0b0b);
+  color: var(--text-primary, #fff);
+  font: inherit;
+}
+
+.welcome-import-username input:focus-visible {
+  outline: 2px solid var(--accent, #25d866);
+  outline-offset: 2px;
 }
 
 /* ============================================================
@@ -1255,9 +1426,10 @@
     min-height: 42px;
   }
 
-  .welcome-logo {
-    width: 108px;
-    max-width: 108px;
+  .welcome-header .welcome-logo {
+    width: 168px;
+    max-width: 168px;
+    flex-basis: 168px;
   }
 
   .welcome-progress {
@@ -1271,6 +1443,18 @@
 
   .welcome-content {
     padding: 46px 0 42px;
+  }
+
+  .welcome-import-dialog {
+    padding: 22px 18px;
+  }
+
+  .welcome-import-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .welcome-import-dialog-actions .welcome-button {
+    width: 100%;
   }
 
   .welcome-heading {

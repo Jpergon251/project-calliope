@@ -86,6 +86,9 @@
                   <span v-if="p.username">
                     @{{ p.username }}
                   </span>
+                  <small v-else class="welcome-username-pending">
+                    Nombre de usuario pendiente
+                  </small>
 
                   <small v-if="p.private ?? p.isPrivate" class="welcome-private-badge">
                     🔒 Perfil privado
@@ -162,6 +165,36 @@
                   Continuar como invitado
                 </button>
               </div>
+              <input
+                ref="profileImportInput"
+                class="welcome-profile-import-input"
+                type="file"
+                accept="application/json,.json"
+                aria-label="Seleccionar archivo JSON de perfil"
+                @change="importProfile"
+              />
+              <button
+                ref="profileImportButton"
+                type="button"
+                class="welcome-button welcome-button-secondary"
+                :disabled="!user.loaded || isImportingProfile || Boolean(pendingProfileImport)"
+                @click="profileImportInput?.click()"
+              >
+                <LoaderCircle
+                  v-if="isImportingProfile"
+                  :size="17"
+                  class="welcome-spinner"
+                />
+                <Database v-else :size="17" />
+                {{ isImportingProfile ? "Importando perfil..." : "Importar perfil" }}
+              </button>
+              <div v-if="profileImportError" class="welcome-error-msg" role="alert">
+                <AlertCircle :size="14" />
+                {{ profileImportError }}
+              </div>
+              <p v-if="profileImportMessage" class="welcome-import-message" role="status">
+                {{ profileImportMessage }}
+              </p>
             </div>
           </template>
 
@@ -212,16 +245,29 @@
 
               <label>
                 <span>
-                  Usuario
-                  <em>opcional</em>
+                  Nombre de usuario *
                 </span>
                 <input
                   v-model="draft.username"
                   type="text"
                   maxlength="30"
                   autocomplete="username"
-                  placeholder="tu_usuario"
+                  placeholder="@tu_usuario"
+                  aria-describedby="welcome-username-help welcome-username-status"
+                  required
                 />
+                <small id="welcome-username-help" class="welcome-field-help">
+                  Debe ser único (3–30 caracteres). Puedes usar letras, números,
+                  puntos, guiones y guiones bajos; @ inicial opcional.
+                </small>
+                <small
+                  id="welcome-username-status"
+                  class="welcome-username-status"
+                  :class="`is-${draftUsernameStatus.state}`"
+                  aria-live="polite"
+                >
+                  {{ draftUsernameStatus.message }}
+                </small>
               </label>
 
               <label>
@@ -293,7 +339,7 @@
                 <button
                   type="submit"
                   class="welcome-button welcome-button-primary"
-                  :disabled="isCreatingProfile"
+                  :disabled="isCreatingProfile || !draftUsernameStatus.available"
                 >
                   <LoaderCircle
                     v-if="isCreatingProfile"
@@ -572,15 +618,142 @@
       </footer>
 
     </div>
+
+    <div
+      v-if="pendingProfileImport"
+      class="welcome-import-dialog-backdrop"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="welcome-import-dialog-title"
+      aria-describedby="welcome-import-dialog-description"
+      @click.self="cancelProfileImport"
+      @keydown.esc="cancelProfileImport"
+    >
+      <section class="welcome-import-dialog">
+        <div class="welcome-import-dialog-icon" aria-hidden="true">
+          <AlertCircle :size="22" />
+        </div>
+        <h2 id="welcome-import-dialog-title">
+          {{
+            pendingProfileImport.type === "overwrite" || pendingProfileImport.type === "overwrite-username-required"
+              ? "Restaurar perfil existente"
+              : pendingProfileImport.type === "username-conflict"
+                ? "Nombre de usuario en uso"
+                : pendingProfileImport.type === "username-required"
+                  ? "Elige un nombre de usuario"
+                  : "Conflicto de identidad"
+          }}
+        </h2>
+        <p id="welcome-import-dialog-description">
+          <template v-if="pendingProfileImport.type === 'overwrite' || pendingProfileImport.type === 'overwrite-username-required'">
+            El perfil «{{ pendingProfileImport.profileName }}»
+            <template v-if="pendingProfileImport.username">
+              (@{{ pendingProfileImport.username }})
+            </template>
+            ya existe. Si continúas, sus datos personales actuales serán
+            reemplazados por los del archivo importado. Esta acción no se puede
+            deshacer desde la aplicación.
+            <template v-if="pendingProfileImport.type === 'overwrite-username-required'">
+              El archivo y el perfil no tienen username; elige uno único para completar la restauración.
+            </template>
+            <template v-else>¿Quieres continuar?</template>
+          </template>
+          <template v-else-if="pendingProfileImport.type === 'username-conflict'">
+            El nombre de usuario @{{ pendingProfileImport.conflictingUsername }}
+            ya pertenece a «{{ pendingProfileImport.conflictingProfileName }}».
+            No se modificará ese perfil. Elige otro nombre de usuario para importar.
+          </template>
+          <template v-else-if="pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'">
+            Este archivo antiguo no contiene un nombre de usuario. Elige uno único
+            para {{ pendingProfileImport.type === "overwrite-username-required" ? "restaurar el perfil existente" : "crear el perfil sin cambiar su ID" }}.
+          </template>
+          <template v-else>
+            El ID y el nombre de usuario del archivo pertenecen a perfiles distintos.
+            No es posible continuar de forma segura sin arriesgar la identidad de
+            uno de ellos. No se modificará ningún perfil.
+          </template>
+        </p>
+        <label
+          v-if="pendingProfileImport.type === 'username-conflict' || pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'"
+          class="welcome-import-username"
+        >
+          <span>Nombre de usuario *</span>
+          <input
+            v-model="pendingProfileImport.usernameDraft"
+            type="text"
+            maxlength="30"
+            autocomplete="username"
+            placeholder="@tu_usuario"
+            aria-describedby="welcome-import-username-status"
+            :disabled="isImportingProfile"
+          />
+          <small
+            id="welcome-import-username-status"
+            class="welcome-username-status"
+            :class="`is-${importUsernameStatus.state}`"
+            aria-live="polite"
+          >
+            {{ importUsernameStatus.message }}
+          </small>
+        </label>
+        <p v-if="profileImportError" class="welcome-error-msg" role="alert">
+          <AlertCircle :size="14" />
+          {{ profileImportError }}
+        </p>
+        <footer class="welcome-import-dialog-actions">
+          <button
+            ref="cancelProfileImportButton"
+            type="button"
+            class="welcome-button welcome-button-secondary"
+            :disabled="isImportingProfile"
+            @click="cancelProfileImport"
+          >
+            Cancelar
+          </button>
+          <button
+            v-if="pendingProfileImport.type === 'overwrite'"
+            type="button"
+            class="welcome-button welcome-button-danger"
+            :disabled="isImportingProfile"
+            @click="confirmOverwriteProfile"
+          >
+            <LoaderCircle
+              v-if="isImportingProfile"
+              :size="17"
+              class="welcome-spinner"
+            />
+            <span>{{ isImportingProfile ? "Restaurando..." : "Sobrescribir perfil" }}</span>
+          </button>
+          <button
+            v-else-if="pendingProfileImport.type === 'username-conflict' || pendingProfileImport.type === 'username-required' || pendingProfileImport.type === 'overwrite-username-required'"
+            type="button"
+            class="welcome-button welcome-button-primary"
+            :disabled="isImportingProfile || !importUsernameStatus.available"
+            @click="confirmImportWithUsername"
+          >
+            <LoaderCircle v-if="isImportingProfile" :size="17" class="welcome-spinner" />
+            <span>
+              {{
+                isImportingProfile
+                  ? (pendingProfileImport.type === "overwrite-username-required" ? "Restaurando..." : "Importando...")
+                  : (pendingProfileImport.type === "overwrite-username-required" ? "Sobrescribir perfil" : "Importar perfil")
+              }}
+            </span>
+          </button>
+        </footer>
+      </section>
+    </div>
   </section>
 </template>
 
 <script setup>
 import {
   computed,
+  nextTick,
   onMounted,
   reactive,
   ref,
+  watch,
 } from "vue";
 import { useRouter } from "vue-router";
 
@@ -605,6 +778,16 @@ import Logo from "../common/Logo.vue";
 import { useLibraryStore } from "../../stores/libraryStore";
 import { useUserStore } from "../../stores/userStore";
 import { COLOR_PALETTES, normalizePaletteId } from "../../lib/colorPalettes.js";
+import {
+  importProfileArchive,
+  MAX_PROFILE_ARCHIVE_BYTES,
+  validateProfileArchive,
+} from "../../services/profileArchives.js";
+import {
+  findUsernameOwner,
+  inspectProfileIdentity,
+  validateUsername,
+} from "../../lib/profileIdentity.js";
 
 const library = useLibraryStore();
 const user = useUserStore();
@@ -621,6 +804,13 @@ const unlockError = ref("");
 const isUnlocking = ref(false);
 const isCreatingProfile = ref(false);
 const createPasswordError = ref("");
+const profileImportInput = ref(null);
+const profileImportButton = ref(null);
+const cancelProfileImportButton = ref(null);
+const isImportingProfile = ref(false);
+const profileImportError = ref("");
+const profileImportMessage = ref("");
+const pendingProfileImport = ref(null);
 
 const steps = [
   {
@@ -752,6 +942,47 @@ const selectedPalette = computed(() => {
   );
 });
 
+const draftUsernameStatus = computed(() => {
+  const validation = validateUsername(draft.username);
+  if (!draft.username.trim()) {
+    return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
+  }
+  if (!validation.valid) {
+    return { state: "invalid", message: validation.reason, available: false };
+  }
+  const owner = findUsernameOwner(validation.username, user.profilesList);
+  if (owner) {
+    return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
+  }
+  return {
+    state: "available",
+    username: validation.username,
+    message: `@${validation.username} está disponible.`,
+    available: true,
+  };
+});
+
+const importUsernameStatus = computed(() => {
+  const pending = pendingProfileImport.value;
+  const validation = validateUsername(pending?.usernameDraft || "");
+  if (!pending?.usernameDraft?.trim()) {
+    return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
+  }
+  if (!validation.valid) {
+    return { state: "invalid", message: validation.reason, available: false };
+  }
+  const owner = findUsernameOwner(validation.username, user.profilesList);
+  if (owner) {
+    return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
+  }
+  return {
+    state: "available",
+    username: validation.username,
+    message: `@${validation.username} está disponible.`,
+    available: true,
+  };
+});
+
 function isPaletteSelected(value) {
   if (user.profile.id && user.profile.id !== "guest") {
     return user.profile.accentColor === value;
@@ -825,6 +1056,10 @@ async function submitNewProfile() {
     createPasswordError.value = "El nombre es obligatorio";
     return;
   }
+  if (!draftUsernameStatus.value.available) {
+    createPasswordError.value = draftUsernameStatus.value.message;
+    return;
+  }
 
   if (draft.isPrivate) {
     if (!draft.password || draft.password.length < 4) {
@@ -843,7 +1078,7 @@ async function submitNewProfile() {
     await user.createProfile({
       displayName,
       name: displayName,
-      username: draft.username.trim(),
+      username: draftUsernameStatus.value.username || draft.username.trim(),
       bio: draft.bio.trim(),
       isPrivate: draft.isPrivate,
       password: draft.password,
@@ -853,13 +1088,17 @@ async function submitNewProfile() {
       goToNextStep();
     }
   } catch (err) {
-    createPasswordError.value = "No se pudo crear el perfil local";
+    createPasswordError.value = err?.message || "No se pudo crear el perfil local";
   } finally {
     isCreatingProfile.value = false;
   }
 }
 
 async function selectPalette(value) {
+  if (selectedPalette.value.value !== value) {
+    document.documentElement.classList.add("theme-has-changed");
+  }
+
   if (
     user.profile.id === "guest" ||
     !user.profile.id
@@ -900,6 +1139,178 @@ async function selectFolder() {
 
 function enterApp() {
   router.push("/");
+}
+
+watch(pendingProfileImport, async (pending) => {
+  if (pending) {
+    await nextTick();
+    cancelProfileImportButton.value?.focus();
+  }
+});
+
+function cancelProfileImport() {
+  if (isImportingProfile.value) return;
+  pendingProfileImport.value = null;
+  nextTick(() => profileImportButton.value?.focus());
+}
+
+async function saveImportedProfile(archive, {
+  mode,
+  targetProfileId = null,
+  preserveSourceId = false,
+} = {}) {
+  if (isImportingProfile.value) return;
+  isImportingProfile.value = true;
+  profileImportError.value = "";
+  profileImportMessage.value = "";
+  let saved = false;
+  try {
+    const result = await importProfileArchive(archive, {
+      mode,
+      targetProfileId,
+      preserveSourceId,
+      currentSongs: library.songs,
+      currentAlbums: library.albums,
+    });
+    saved = true;
+    pendingProfileImport.value = null;
+    await user.loadProfiles();
+
+    const importedProfile = user.profilesList.find((item) => item.id === result.profileId);
+    if (user.currentSession?.profileId === result.profileId) {
+      await user.reloadActiveProfile(result.profileId);
+      router.push("/");
+      return;
+    }
+    if (importedProfile?.private ?? importedProfile?.isPrivate) {
+      unlockingProfile.value = importedProfile;
+      selectedProfileId.value = importedProfile.id;
+      unlockPassword.value = "";
+      unlockError.value = "";
+      profileImportMessage.value = "Los datos se restauraron. Introduce la contraseña para activar el perfil.";
+      return;
+    }
+
+    const login = await user.loginProfile(result.profileId);
+    if (!login.success) {
+      throw new Error(login.error || "No se pudo activar el perfil restaurado.");
+    }
+    router.push("/");
+  } catch (error) {
+    profileImportError.value = saved
+      ? `Los datos se guardaron, pero no se pudo activar el perfil: ${error?.message || "error desconocido"}`
+      : error?.message || "No se pudo importar el perfil.";
+  } finally {
+    isImportingProfile.value = false;
+  }
+}
+
+function confirmOverwriteProfile() {
+  const pending = pendingProfileImport.value;
+  if (!pending || isImportingProfile.value) return;
+  return saveImportedProfile(pending.archive, {
+    mode: "update",
+    targetProfileId: pending.profileId,
+  });
+}
+
+function confirmImportWithUsername() {
+  const pending = pendingProfileImport.value;
+  if (!pending || isImportingProfile.value || !importUsernameStatus.value.available) return;
+  const archive = {
+    ...pending.archive,
+    profile: {
+      ...pending.archive.profile,
+      username: importUsernameStatus.value.username,
+    },
+  };
+  const isOverwrite = pending.type === "overwrite-username-required";
+  return saveImportedProfile(archive, {
+    mode: isOverwrite ? "update" : "new",
+    targetProfileId: isOverwrite ? pending.profileId : null,
+    preserveSourceId: !isOverwrite,
+  });
+}
+
+async function importProfile(event) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  profileImportError.value = "";
+  profileImportMessage.value = "";
+  if (!file) return;
+
+  isImportingProfile.value = true;
+  try {
+    if (file.size > MAX_PROFILE_ARCHIVE_BYTES) {
+      throw new Error("El archivo supera el límite de 25 MiB.");
+    }
+
+    const parsed = JSON.parse(await file.text());
+    const { archive } = validateProfileArchive(parsed);
+    const identity = inspectProfileIdentity(archive.profile, user.profilesList);
+
+    if (identity.type === "split-identity") {
+      pendingProfileImport.value = {
+        type: "split-identity",
+        archive,
+        profileId: identity.idOwner.id,
+        profileName: identity.idOwner.displayName || identity.idOwner.name,
+        conflictingProfileName: identity.usernameOwner.displayName || identity.usernameOwner.name,
+        conflictingUsername: identity.usernameOwner.username,
+      };
+      return;
+    }
+
+    if (identity.type === "id-match") {
+      const ownerUsername = identity.idOwner.username || "";
+      if (!archive.profile.username && !ownerUsername) {
+        pendingProfileImport.value = {
+          type: "overwrite-username-required",
+          archive,
+          profileId: identity.idOwner.id,
+          profileName: identity.idOwner.displayName || identity.idOwner.name || archive.profile.name,
+          usernameDraft: "",
+        };
+        return;
+      }
+      const restoredArchive = {
+        ...archive,
+        profile: {
+          ...archive.profile,
+          username: archive.profile.username || ownerUsername,
+        },
+      };
+      pendingProfileImport.value = {
+        type: "overwrite",
+        archive: restoredArchive,
+        profileId: identity.idOwner.id,
+        profileName: identity.idOwner.displayName || identity.idOwner.name || archive.profile.name,
+        username: restoredArchive.profile.username,
+      };
+      return;
+    }
+
+    if (identity.type === "username-match" || identity.type === "username-required") {
+      pendingProfileImport.value = {
+        type: identity.type,
+        archive,
+        usernameDraft: "",
+        conflictingUsername: identity.usernameOwner?.username || "",
+        conflictingProfileName: identity.usernameOwner?.displayName || identity.usernameOwner?.name || "",
+      };
+      return;
+    }
+
+    isImportingProfile.value = false;
+    await saveImportedProfile(archive, {
+      mode: "new",
+      preserveSourceId: true,
+    });
+  } catch (error) {
+    profileImportError.value = error?.message || "No se pudo importar el perfil.";
+  } finally {
+    isImportingProfile.value = false;
+  }
 }
 
 onMounted(async () => {
