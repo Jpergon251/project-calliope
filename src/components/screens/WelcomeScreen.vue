@@ -195,6 +195,27 @@
               <p v-if="profileImportMessage" class="welcome-import-message" role="status">
                 {{ profileImportMessage }}
               </p>
+              <section class="welcome-drive-section" aria-label="Copias de perfil en Google Drive">
+                <h2>Google Drive por perfil</h2>
+                <p>Vincula cuentas diferentes a perfiles distintos. Conectar no sube ningún dato.</p>
+                <label v-if="user.profilesList.length" class="welcome-drive-profile-select">
+                  <span>Perfil que quieres gestionar</span>
+                  <select v-model="driveProfileId">
+                    <option v-for="profileOption in user.profilesList" :key="profileOption.id" :value="profileOption.id">
+                      {{ profileOption.displayName || profileOption.name }}{{ profileOption.username ? ` (@${profileOption.username})` : ` · ${profileOption.id.slice(0, 8)}` }}
+                    </option>
+                  </select>
+                </label>
+                <p v-else class="welcome-drive-empty">
+                  Crea un perfil local para poder vincularlo a Google Drive.
+                </p>
+                <GoogleDriveProfile
+                  v-if="selectedDriveProfile"
+                  :key="selectedDriveProfile.id"
+                  :profile="selectedDriveProfile"
+                  :locked="Boolean(selectedDriveProfile.private ?? selectedDriveProfile.isPrivate)"
+                />
+              </section>
             </div>
           </template>
 
@@ -799,6 +820,7 @@ import {
 import { Capacitor } from "@capacitor/core";
 
 import Logo from "../common/Logo.vue";
+import GoogleDriveProfile from "../common/GoogleDriveProfile.vue";
 import { useLibraryStore } from "../../stores/libraryStore";
 import { useUserStore } from "../../stores/userStore";
 import { COLOR_PALETTES, normalizePaletteId } from "../../lib/colorPalettes.js";
@@ -822,6 +844,7 @@ const selectingFolder = ref(false);
 
 const viewMode = ref("choice");
 const selectedProfileId = ref(null);
+const driveProfileId = ref("");
 const unlockingProfile = ref(null);
 const unlockPassword = ref("");
 const unlockError = ref("");
@@ -837,6 +860,9 @@ const PROFILE_IMPORT_MIN_LOADING_MS = 1000;
 const profileImportError = ref("");
 const profileImportMessage = ref("");
 const pendingProfileImport = ref(null);
+const selectedDriveProfile = computed(() =>
+  user.profilesList.find((item) => item.id === driveProfileId.value) || null,
+);
 
 const steps = [
   {
@@ -1174,6 +1200,15 @@ watch(pendingProfileImport, async (pending) => {
   }
 });
 
+watch(
+  () => user.profilesList.map((item) => item.id),
+  (profileIds) => {
+    if (!profileIds.includes(driveProfileId.value)) {
+      driveProfileId.value = profileIds[0] || "";
+    }
+  },
+);
+
 function cancelProfileImport() {
   if (isImportingProfile.value) return;
   pendingProfileImport.value = null;
@@ -1362,6 +1397,9 @@ async function importProfile(event) {
 onMounted(async () => {
   try {
     await user.load();
+    if (!driveProfileId.value) {
+      driveProfileId.value = user.profilesList[0]?.id || "";
+    }
 
     if (user.hasSession) {
       router.push("/");

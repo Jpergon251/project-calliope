@@ -1,0 +1,257 @@
+.google-drive-panel {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.google-drive-header,
+.google-drive-account,
+.google-drive-actions,
+.google-drive-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.google-drive-header,
+.google-drive-account {
+  justify-content: space-between;
+}
+
+.google-drive-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.google-drive-header p,
+.google-drive-message,
+.google-drive-rename p,
+.google-drive-last-saved {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.google-drive-header > svg {
+  flex: 0 0 auto;
+  color: var(--accent-light);
+}
+
+.google-drive-account-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.google-drive-account-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.google-drive-account-copy small {
+  color: var(--text-secondary);
+}
+
+.google-drive-actions {
+  flex-wrap: wrap;
+}
+
+.google-drive-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 650;
+  transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.google-drive-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.google-drive-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.google-drive-button-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-contrast, #000);
+}
+
+.google-drive-button-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.google-drive-button-danger {
+  color: var(--danger, #ff7777);
+}
+
+.google-drive-message.is-error {
+  color: var(--danger, #ff7777);
+}
+
+.google-drive-rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.google-drive-rename p {
+  margin: 0;
+}
+
+.google-drive-last-saved {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.google-drive-spinner {
+  animation: google-drive-spin 0.9s linear infinite;
+}
+
+.google-drive-confirm-backdrop {
+  position: fixed;
+  z-index: 12000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.google-drive-confirm {
+  width: min(100%, 520px);
+  max-height: min(85dvh, 720px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+
+.google-drive-confirm h3 {
+  margin: 0 0 10px;
+}
+
+.google-drive-confirm > p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.google-drive-confirm dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+
+.google-drive-confirm dl > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+}
+
+.google-drive-confirm dt {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.google-drive-confirm dd {
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.google-drive-confirm-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@keyframes google-drive-spin {
+  to { transform: rotate(360deg); }
+}
+
+.welcome-drive-section {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.welcome-drive-section > h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.welcome-drive-section > p,
+.welcome-drive-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.welcome-drive-profile-select {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.welcome-drive-profile-select select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+@media (max-width: 520px) {
+  .google-drive-panel {
+    padding: 14px;
+  }
+
+  .google-drive-account {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .google-drive-actions > .google-drive-button {
+    flex: 1 1 100%;
+  }
+
+  .google-drive-confirm dl {
+    grid-template-columns: 1fr;
+  }
+}

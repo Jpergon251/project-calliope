@@ -10,7 +10,10 @@ Tu música es tuya.
 
 Calliope no sube tus archivos a ningún servidor, no necesita una cuenta y no recopila tu biblioteca musical.
 
-La aplicación solo utiliza la carpeta que tú eliges para leer la información necesaria de tus canciones y reproducirlas localmente.
+La aplicación solo utiliza la carpeta que tú eliges para leer la información
+necesaria de tus canciones y reproducirlas localmente. Opcionalmente, si
+vinculas Google Drive y pulsas guardar, sube únicamente el JSON portátil del
+perfil; nunca sube canciones.
 
 ## ✨ Características
 
@@ -118,6 +121,58 @@ el ID no pertenece a otro perfil. La biblioteca compartida no se modifica.
 Desde Perfil → Ajustes, «Exportar perfil» guarda los cambios pendientes y
 actualiza la copia JSON asociada únicamente por acción manual; si no hay carpeta
 disponible, informa que los datos siguen guardados internamente.
+
+### Copias manuales en Google Drive
+
+Cada perfil local puede vincular una cuenta de Google independiente desde la
+pantalla de bienvenida o Perfil → Ajustes. La vinculación y los IDs técnicos de
+Drive se guardan en IndexedDB bajo el ID estable del perfil; los tokens OAuth
+solo permanecen en memoria y nunca se incluyen en el archivo portable. Google
+Drive no se modifica al conectar o desvincular una cuenta. Guardar y restaurar
+son acciones manuales y requieren autorización vigente.
+Desvincular elimina la asociación local de ese perfil, pero no borra el archivo
+remoto ni revoca permisos de Google que puedan estar compartidos con otros
+perfiles de la misma instalación; el usuario puede retirar el permiso desde su
+cuenta de Google.
+
+La copia usa exactamente el exportador `calliope-profile` existente y se
+organiza como
+`Calliope/profiles/<nombre del perfil>/<username>_profile_data.json`, usando
+el username normalizado del perfil. Las copias anteriores llamadas
+`profile_data.json` se reconocen y se actualizan por su mismo ID, cambiando
+su nombre junto con el contenido validado. Si hay más de un archivo candidato,
+la operación se detiene sin sobrescribir ni borrar ninguno.
+Restaurar valida el archivo y la identidad por ID y username, muestra un resumen
+y requiere confirmación antes de reemplazar los datos personales del perfil.
+No se descargan canciones ni se reemplaza la biblioteca compartida.
+
+Para desarrollo, copia `.env.example` a `.env` y define
+`VITE_GOOGLE_CLIENT_ID`. En GitHub Pages define también la variable de
+repositorio `VITE_GOOGLE_CLIENT_ID` para el workflow de despliegue. En Google
+Cloud habilita Google Drive API, configura la pantalla de consentimiento y
+registra un cliente OAuth de tipo aplicación web con los orígenes autorizados
+`http://localhost:5173` y el origen HTTPS desplegado (por ejemplo,
+`https://jpergon251.github.io`). No se necesita un client secret ni un URI de
+redirección para este flujo de Google Identity Services.
+Configurar el Client ID por sí solo no habilita la API: debe estar habilitada
+en el mismo proyecto de Google Cloud asociado al cliente OAuth. Si Drive devuelve
+HTTP 403, Calliope muestra ahora la causa reconocida (API deshabilitada,
+permisos, política de organización o cuota) sin exponer credenciales. Tras
+cambiar `.env`, reinicia Vite para que cargue el Client ID actualizado.
+
+Se solicita `drive.file` para crear y actualizar los archivos de Calliope, y
+`openid email` únicamente para identificar y mostrar qué cuenta está vinculada
+a cada perfil. `drive.file` limita las operaciones a elementos creados o
+abiertos/seleccionados con esta aplicación; la API no permite descubrir con
+certeza carpetas preexistentes creadas manualmente y nunca compartidas con
+Calliope. Antes de crear una primera carpeta raíz que no sea visible para la
+aplicación, Calliope pide comprobar Drive y confirmarlo, porque continuar puede
+crear una segunda carpeta si ya existe otra inaccesible. Para no solicitar
+acceso completo al Drive, la integración solo reutiliza carpetas que Google
+expone bajo ese alcance, y detiene los casos ambiguos o los IDs registrados
+que desaparecen. Android/Capacitor WebView no
+usa GIS: por ahora la conexión está limitada a la aplicación web hasta añadir
+un flujo OAuth nativo compatible.
 
 ## 🚀 Sobre el proyecto
 Calliope nace con la idea de recuperar la experiencia de tener una biblioteca musical propia, ofreciendo una interfaz moderna sin depender de plataformas externas.

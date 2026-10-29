@@ -1200,6 +1200,21 @@
     </section>
 
     <!-- ============================================================
+         CONEXIONES
+         ============================================================ -->
+
+    <section v-show="activeCategory === 'connections'" class="profile-section">
+      <h2>
+        <Link2 :size="17" />
+        Conexiones
+      </h2>
+      <p class="section-description">
+        Administra los servicios vinculados a este perfil.
+      </p>
+      <GoogleDriveProfile :profile="user.profile" />
+    </section>
+
+    <!-- ============================================================
          PRIVACIDAD Y DATOS
          ============================================================ -->
 
@@ -1575,6 +1590,7 @@ import {
   HardDrive,
   Headphones,
   LibraryIcon,
+  Link2,
   ListMusic,
   Lock,
   LogOut,
@@ -1598,6 +1614,7 @@ import { useLibraryStore } from "../stores/libraryStore.js";
 import { downscaleImage } from "../lib/covers.js";
 import ToggleSwitch from "../components/common/ToggleSwitch.vue";
 import SongIconCover from "../components/common/SongIconCover.vue";
+import GoogleDriveProfile from "../components/common/GoogleDriveProfile.vue";
 import { COLOR_PALETTES } from "../lib/colorPalettes.js";
 import { findUsernameOwner, validateUsername } from "../lib/profileIdentity.js";
 import {
@@ -1697,6 +1714,7 @@ const categories = [
   { id: "playback", label: "Reproducción", icon: Play },
   { id: "library", label: "Biblioteca", icon: LibraryIcon },
   { id: "settings", label: "Ajustes", icon: SettingsIcon },
+  { id: "connections", label: "Conexiones", icon: Link2 },
   { id: "privacy", label: "Privacidad", icon: ShieldCheck },
 ];
 

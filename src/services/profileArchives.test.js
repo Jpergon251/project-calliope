@@ -22,6 +22,9 @@ function createArchive(overrides = {}) {
       createdAt: 1,
       updatedAt: 2,
       credential: { hash: "private" },
+      accessToken: "never-export-this",
+      refreshToken: "never-export-this-either",
+      googleDrive: { accountId: "private-account-id" },
       preferences: { accentColor: "chromatic-glass" },
     },
     playlists: [{
@@ -124,6 +127,10 @@ test("v3 archive includes profile data and statistics but only opaque song refer
   assert.equal(parsed.format, "calliope-profile");
   assert.equal(parsed.formatVersion, 3);
   assert.equal("credential" in parsed.profile, false);
+  assert.equal("accessToken" in parsed.profile, false);
+  assert.equal("refreshToken" in parsed.profile, false);
+  assert.equal("googleDrive" in parsed.profile, false);
+  assert.equal(JSON.stringify(parsed).includes("never-export-this"), false);
   assert.equal(parsed.profile.username, "listener");
   assert.equal(parsed.profile.bio, "Música favorita");
   assert.equal("library" in parsed, false);

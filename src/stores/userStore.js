@@ -28,6 +28,7 @@ import {
 } from "../lib/profileIdentity.js";
 import { useLibraryStore } from "./libraryStore.js";
 import { scheduleProfileSync } from "../services/profileArchives.js";
+import { clearGoogleDriveToken } from "../services/googleDriveProfiles.js";
 
 const LS_LEGACY_KEY = "calliope-user-profile";
 const LS_SESSION_KEY = "calliope-active-session";
@@ -1095,7 +1096,9 @@ export const useUserStore = defineStore("user", () => {
         }
       }
       tx.objectStore("settings").delete(`music-folder-${targetId}`);
+      tx.objectStore("settings").delete(`google-drive-profile:${targetId}`);
       await tx.done;
+      clearGoogleDriveToken(targetId);
       if (Capacitor.isNativePlatform()) {
         try {
           await FolderPicker.clearSavedFolder({ profileId: targetId });
