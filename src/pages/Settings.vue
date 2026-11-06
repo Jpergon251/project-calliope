@@ -272,8 +272,6 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
 import { useUserStore } from "../stores/userStore.js";
-import { Capacitor } from "@capacitor/core";
-import FolderPicker from "../plugins/folderPicker.js";
 import {
   collectProfileArchive,
   flushProfileSync,
@@ -404,16 +402,12 @@ async function exportProfile() {
       throw new Error("El perfil supera el tamaño máximo permitido para exportar.");
     }
     const fileName = profileArchiveFileName(user.profile);
-    if (Capacitor.isNativePlatform()) {
-      await FolderPicker.saveProfileExport({ fileName, content });
-    } else {
-      const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
+    const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
     reportError(error);
   }

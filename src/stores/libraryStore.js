@@ -4,8 +4,12 @@ import { parseBlob } from "music-metadata";
 
 import { dbPromise } from "../lib/db.js";
 import { readFormat } from "taglib-wasm/simple";
-import { Capacitor } from "@capacitor/core";
-import FolderPicker from "../plugins/folderPicker.js";
+import {
+  isTauriEnvironment,
+  listMusicFiles,
+  readMusicFile,
+  selectMusicFolder,
+} from "../services/tauriBridge.js";
 
 import {
   sanitizeCoverForStorage,
@@ -48,7 +52,7 @@ import {
   selectPrimaryRelease,
 } from "../services/musicRelations.js";
 
-const isNative = Capacitor.isNativePlatform();
+const isTauri = isTauriEnvironment();
 
 function cloneForIndexedDB(value) {
   if (value === undefined) return null;
@@ -3045,29 +3049,21 @@ export const useLibraryStore = defineStore("library", () => {
       return;
     }
 
-    if (isNative) {
-      try {
-        const result = await FolderPicker.getSavedFolder({ profileId: currentProfileId });
+    const db = await dbPromise;
 
-        if (result && result.uri) {
-          folderHandle.value = {
-            nativeUri: result.uri,
-            canWrite: result.canWrite === true,
-          };
-          scheduleProfileSync(currentProfileId);
-
-          if (shouldScan) {
-            await scanFolderNative(result.uri);
-          }
-        }
-      } catch (e) {
-        console.warn("⚠️ Could not load saved native folder:", e);
+    if (isTauri) {
+      const savedPath = await db.get("settings", `music-folder-${currentProfileId}`);
+      if (!savedPath) {
+        folderHandle.value = null;
+        songs.value = [];
+        albums.value = [];
+        return;
       }
 
+      folderHandle.value = { type: "tauri", path: savedPath, canWrite: false };
+      if (shouldScan) await scanFolderTauri(savedPath);
       return;
     }
-
-    const db = await dbPromise;
 
     let savedHandle = await db.get(
       "settings",
@@ -3937,25 +3933,13 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (song.nativeUri) {
       try {
-        const res = await FolderPicker.readFileAsBase64({
-          uri: song.nativeUri,
-        });
-
-        if (res && res.data) {
-          const binaryString = atob(res.data);
-
-          const bytes = new Uint8Array(binaryString.length);
-
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-
-          song.file = new Blob([bytes], {
-            type: res.mimeType || "audio/mpeg",
-          });
-
+        if (isTauri) {
+          song.file = await readMusicFile(song.nativeUri);
           return song.file;
         }
+
+        song.file = await readMusicFile(song.nativeUri);
+        return song.file;
       } catch (e) {
         console.error("Error loading native audio file blob:", e);
       }
@@ -4357,12 +4341,9 @@ export const useLibraryStore = defineStore("library", () => {
     try {
       const list = [];
 
-      for await (const entry of folderHandle.value.values()) {
-        if (entry.kind !== "file") {
-          continue;
-        }
-
-        const file = await entry.getFile();
+      const entries = await listMusicFiles(folderHandle.value);
+      for (const entry of entries) {
+        const file = entry.file || await entry.getFile();
 
         let format;
 
@@ -4381,9 +4362,9 @@ export const useLibraryStore = defineStore("library", () => {
 
           file,
 
-          fileHandle: entry,
+          fileHandle: entry.kind === "file" ? entry : null,
 
-          directoryHandle: folderHandle.value,
+          directoryHandle: folderHandle.value.type === "files" ? null : folderHandle.value,
 
           name: cleanFileName(file.name),
 
@@ -4414,23 +4395,19 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
-  async function scanFolderNative(uri) {
+  async function scanFolderTauri(uri) {
     loading.value = true;
 
     try {
-      const res = await FolderPicker.listAudioFiles({
-        uri,
-      });
-
-      const rawFiles = res?.files || [];
+      const rawFiles = await listMusicFiles({ type: "tauri", path: uri });
 
       const list = [];
 
       for (const file of rawFiles) {
         list.push({
-          id: file.name,
+          id: file.path || file.uri || file.name,
 
-          nativeUri: file.uri,
+          nativeUri: file.path || file.uri,
 
           mimeType: file.mimeType,
 
@@ -4461,7 +4438,7 @@ export const useLibraryStore = defineStore("library", () => {
       refreshHistoryPresentation();
       restoreQueueState();
     } catch (e) {
-      console.error("Error scanning native folder:", e);
+      console.error("Error scanning Tauri folder:", e);
     } finally {
       loading.value = false;
     }
@@ -4475,8 +4452,8 @@ export const useLibraryStore = defineStore("library", () => {
     loading.value = true;
 
     try {
-      if (isNative && folderHandle.value.nativeUri) {
-        await scanFolderNative(folderHandle.value.nativeUri);
+      if (isTauri && folderHandle.value.type === "tauri") {
+        await scanFolderTauri(folderHandle.value.path);
       } else {
         await scanFolder();
       }
@@ -4488,34 +4465,32 @@ export const useLibraryStore = defineStore("library", () => {
   async function selectFolder() {
     const user = useUserStore();
     const currentProfileId = user.currentSession?.profileId;
-    if (isNative) {
+    if (isTauri) {
       try {
-        const result = await FolderPicker.pickFolder({ profileId: currentProfileId });
+        const selection = await selectMusicFolder();
+        if (!selection) return;
 
-        if (!result || !result.uri) {
-          return;
+        folderHandle.value = { ...selection, canWrite: false };
+        if (user.isRegistered && currentProfileId) {
+          const db = await dbPromise;
+          await db.put("settings", selection.path, `music-folder-${currentProfileId}`);
+          scheduleProfileSync(currentProfileId);
         }
 
-        folderHandle.value = {
-          nativeUri: result.uri,
-          canWrite: result.canWrite === true,
-        };
-
-        await scanFolderNative(result.uri);
-        scheduleProfileSync(currentProfileId);
+        await scanFolderTauri(selection.path);
       } catch (e) {
-        console.error("Error selecting native folder:", e);
+        console.error("Error selecting Tauri music folder:", e);
       }
-
       return;
     }
 
-    const handle = await window.showDirectoryPicker();
+    const handle = await selectMusicFolder();
+    if (!handle) return;
 
     folderHandle.value = handle;
 
     // Guardar en IndexedDB SOLO para perfiles registrados permanentes
-    if (user.isRegistered && user.currentSession?.profileId) {
+    if (handle.type !== "files" && user.isRegistered && user.currentSession?.profileId) {
       const db = await dbPromise;
       await db.put(
         "settings",
@@ -4541,16 +4516,6 @@ export const useLibraryStore = defineStore("library", () => {
     stopProgressUpdates();
     isProgressScrubbing.value = false;
     audio.pause();
-    if (isNative) {
-      try {
-        await FolderPicker.clearSavedFolder({
-          profileId: useUserStore().currentSession?.profileId,
-        });
-      } catch (e) {
-        console.warn("Could not clear native folder:", e);
-      }
-    }
-
     const user = useUserStore();
     const currentProfileId = user.currentSession?.profileId;
 

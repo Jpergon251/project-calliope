@@ -7,9 +7,7 @@
 import { defineStore } from "pinia";
 import { computed, ref, toRaw, watch } from "vue";
 import { dbPromise } from "../lib/db.js";
-import { Capacitor } from "@capacitor/core";
 import { toDisplayUrl } from "../lib/covers.js";
-import FolderPicker from "../plugins/folderPicker.js";
 import {
   generateProfileId,
   hashPassword,
@@ -1109,18 +1107,11 @@ export const useUserStore = defineStore("user", () => {
       tx.objectStore("settings").delete(`google-drive-sync:${targetId}`);
       await tx.done;
       clearGoogleDriveToken(targetId);
-      if (Capacitor.isNativePlatform()) {
+      if (typeof localStorage !== "undefined") {
         try {
-          await FolderPicker.clearSavedFolder({ profileId: targetId });
+          localStorage.removeItem(`calliope:queue_state:${targetId}`);
         } catch (error) {
-          console.warn("[userStore] No se pudo desvincular la carpeta Android:", error);
-        }
-        if (typeof localStorage !== "undefined") {
-          try {
-            localStorage.removeItem(`calliope:queue_state:${targetId}`);
-          } catch (error) {
-            console.warn("[userStore] No se pudo eliminar la cola local del perfil:", error);
-          }
+          console.warn("[userStore] No se pudo eliminar la cola local del perfil:", error);
         }
       }
     } catch (error) {

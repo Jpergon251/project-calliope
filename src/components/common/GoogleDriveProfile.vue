@@ -10,13 +10,13 @@
     <p v-if="locked" class="google-drive-message is-error" role="status">
       Este perfil está protegido. Inicia sesión para gestionar la cuenta de Google.
     </p>
-    <p v-else-if="isNative" class="google-drive-message is-error" role="status">
-      Google Drive no está disponible en esta versión. Usa Calliope en un navegador web.
+    <p v-else-if="isTauri" class="google-drive-message is-error" role="status">
+      Google Drive no está disponible en la aplicación de escritorio. Usa Calliope en un navegador web.
     </p>
     <p v-else-if="!isConfigured" class="google-drive-message is-error" role="status">
       Google Drive no está disponible ahora.
     </p>
-    <p v-else-if="!isNative && !authReady" class="google-drive-message" role="status">
+    <p v-else-if="!isTauri && !authReady" class="google-drive-message" role="status">
       {{ authError ? "No se pudo conectar con Google." : "Conectando con Google…" }}
     </p>
     <button
@@ -36,7 +36,7 @@
       <button
         type="button"
         class="google-drive-button google-drive-button-muted"
-        :disabled="busy !== '' || !isConfigured || isNative || !authReady"
+        :disabled="busy !== '' || !isConfigured || isTauri || !authReady"
         @click="connect"
       >
         {{ busy === "connect" ? "Conectando…" : "Reconectar Google" }}
@@ -54,7 +54,7 @@
         v-if="!driveLink?.accountId"
         type="button"
         class="google-drive-button google-drive-button-primary"
-        :disabled="busy !== '' || !isConfigured || isNative || !authReady"
+        :disabled="busy !== '' || !isConfigured || isTauri || !authReady"
         @click="connect"
       >
         <LoaderCircle v-if="busy === 'connect'" :size="16" class="google-drive-spinner" />
@@ -65,7 +65,7 @@
         <button
           type="button"
           class="google-drive-button google-drive-button-primary"
-          :disabled="busy !== '' || !isConfigured || isNative || !authReady"
+          :disabled="busy !== '' || !isConfigured || isTauri || !authReady"
           @click="saveToDrive()"
         >
           <LoaderCircle v-if="busy === 'save'" :size="16" class="google-drive-spinner" />
@@ -75,7 +75,7 @@
         <button
           type="button"
           class="google-drive-button google-drive-button-muted"
-          :disabled="busy !== '' || !isConfigured || isNative || !authReady || driveLink.initializationPending"
+          :disabled="busy !== '' || !isConfigured || isTauri || !authReady || driveLink.initializationPending"
           @click="loadFromDrive"
         >
           <LoaderCircle v-if="busy === 'download'" :size="16" class="google-drive-spinner" />
@@ -101,7 +101,7 @@
       <button
         type="button"
         class="google-drive-button google-drive-button-muted"
-        :disabled="busy !== '' || !isConfigured || isNative || !authReady"
+        :disabled="busy !== '' || !isConfigured || isTauri || !authReady"
         @click="renameRemoteFolder"
       >
         Cambiar nombre de carpeta
@@ -251,7 +251,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { Cloud, CloudDownload, CloudUpload, LoaderCircle } from "lucide-vue-next";
-import { Capacitor } from "@capacitor/core";
+import { isTauriEnvironment } from "../../services/tauriBridge.js";
 import { useUserStore } from "../../stores/userStore.js";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { inspectProfileIdentity, normalizeUsername } from "../../lib/profileIdentity.js";
@@ -299,7 +299,7 @@ const pendingCreateInitialization = ref(false);
 const conflictDialogOpen = ref(false);
 const initializationDialogOpen = ref(false);
 const initializationReview = ref(null);
-const isNative = Capacitor.isNativePlatform();
+const isTauri = isTauriEnvironment();
 const isConfigured = isGoogleDriveConfigured();
 const visibleName = computed(() => props.profile.displayName || props.profile.name || "Perfil");
 const syncState = computed(() => driveSyncStatuses[props.profile?.id] || null);
@@ -392,7 +392,7 @@ async function initialize() {
   if (props.locked) return;
   await loadLink();
   if (props.profile.id !== profileId) return;
-  if (!isConfigured || isNative) return;
+  if (!isConfigured || isTauri) return;
   try {
     await prepareGoogleDriveAuth();
     if (props.profile.id === profileId) authReady.value = true;

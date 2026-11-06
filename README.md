@@ -86,9 +86,9 @@ se conservan como referencias opacas pendientes y se vuelven a resolver cuando
 se selecciona una biblioteca. No se vinculan a otra canción por nombre o ruta.
 
 La copia externa local conserva la estructura
-`Calliope/profiles/<nombre-del-perfil>/<username>_profile_data.json`, tanto en
-la web como en Android. El username se normaliza con las mismas reglas que la
-identidad del perfil. Solo se escribe cuando el usuario solicita expresamente
+`Calliope/profiles/<nombre-del-perfil>/<username>_profile_data.json` en la web.
+El username se normaliza con las mismas reglas que la identidad del perfil.
+Solo se escribe cuando el usuario solicita expresamente
 «Exportar perfil» o «Actualizar copia externa». Los cambios de las stores se
 guardan en IndexedDB y solo actualizan el indicador de la copia externa; no hay
 sincronización automática ni tareas en segundo plano para esta exportación.
@@ -106,10 +106,9 @@ una ubicación y usa el mismo nombre de archivo por username.
 
 La web utiliza File System Access API solo cuando está disponible y autorizado;
 en caso contrario conserva el perfil en IndexedDB y permite exportar JSON de
-forma manual. Android usa el selector SAF de carpetas existente y solicita
-acceso de lectura/escritura persistente. Si el proveedor SAF no admite
-reemplazos seguros, la actualización manual de la copia externa falla sin
-alterar los datos internos; la exportación manual permite elegir un destino. Eliminar un perfil borra sus
+forma manual. La app Tauri para escritorio permite leer la carpeta musical
+seleccionada y exportar perfiles manualmente; no sincroniza la copia local
+automáticamente. Eliminar un perfil borra sus
 datos internos personales y su asociación local, pero no elimina la copia JSON
 externa ni modifica archivos de música.
 
@@ -178,7 +177,7 @@ exportar ese archivo manualmente.
 Como Google Identity Services no permite persistir el token de acceso, al
 recargar puede ser necesario volver a autorizar Google. Hasta entonces, los
 datos operativos y la cola mínima pendiente permanecen en IndexedDB. La conexión OAuth y la sincronización de Drive
-siguen sin estar disponibles dentro de Android WebView.
+siguen sin estar disponibles dentro de Tauri WebView.
 
 Para desarrollo, copia `.env.example` a `.env` y define
 `VITE_GOOGLE_CLIENT_ID`. En GitHub Pages define también la variable de
@@ -204,14 +203,31 @@ aplicación, Calliope pide comprobar Drive y confirmarlo, porque continuar puede
 crear una segunda carpeta si ya existe otra inaccesible. Para no solicitar
 acceso completo al Drive, la integración solo reutiliza carpetas que Google
 expone bajo ese alcance, y detiene los casos ambiguos o los IDs registrados
-que desaparecen. Android/Capacitor WebView no
-usa GIS: por ahora la conexión está limitada a la aplicación web hasta añadir
-un flujo OAuth nativo compatible.
+que desaparecen. Tauri WebView no usa GIS: por ahora la conexión está limitada
+a la aplicación web hasta añadir un flujo OAuth nativo compatible.
+
+## Aplicación de escritorio
+
+Calliope usa Tauri 2 para generar instaladores de escritorio. En desarrollo:
+
+```sh
+npm ci
+npm run tauri:dev
+```
+
+Para empaquetar localmente, usa `npm run tauri:build:linux` en Linux para
+generar un `.AppImage`, o `npm run tauri:build:win` en Windows para generar el
+instalador NSIS `.exe`. Tauri requiere Rust; Linux también requiere las
+dependencias de WebKitGTK, AppIndicator y librsvg indicadas en el workflow
+`.github/workflows/build-desktop.yml`. El workflow produce ambos artefactos en
+GitHub Actions al hacer push a `dev` o publicar un tag. La lectura nativa de
+música se limita a las carpetas estándar del usuario permitidas por la
+capability de Tauri.
 
 ## 🚀 Sobre el proyecto
 Calliope nace con la idea de recuperar la experiencia de tener una biblioteca musical propia, ofreciendo una interfaz moderna sin depender de plataformas externas.
 
-Actualmente es una aplicación web desarrollada con tecnologías modernas, con la intención de evolucionar en el futuro hacia una aplicación móvil.
+Este repositorio genera la aplicación web y los paquetes de escritorio Linux/Windows con Tauri 2. La APK de Android se gestionará aparte y no forma parte del build de escritorio.
 
 ## 📌 Sobre el uso de la música
 

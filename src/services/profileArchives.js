@@ -1,6 +1,4 @@
 import { reactive } from "vue";
-import { Capacitor } from "@capacitor/core";
-import FolderPicker from "../plugins/folderPicker.js";
 import { DEFAULT_PREFERENCES } from "../lib/profilePreferences.js";
 import { normalizeUsername, validateUsername } from "../lib/profileIdentity.js";
 
@@ -1487,50 +1485,22 @@ async function writeWebProfileArchive(profile, serialized) {
   }
 }
 
-async function writeNativeProfileArchive(profile, serialized) {
-  const { id: profileId } = profile;
-  const result = await FolderPicker.getSavedFolder({ profileId });
-  if (!result?.uri) throw new Error("No hay una carpeta asociada a este perfil.");
-  await FolderPicker.writeProfileData({
-    uri: result.uri,
-    profileId,
-    profileName: normalizeProfileDirectoryName(profile.displayName || profile.name, profileId),
-    fileName: profileArchiveFileName(profile),
-    content: serialized,
-  });
-}
-
 async function performProfileSync(profileId) {
   try {
     const db = await openProfileDb();
     const profile = await db.get("profiles", profileId);
     if (!profile) throw new Error("El perfil ya no existe.");
-    if (Capacitor.isNativePlatform()) {
-      const savedFolder = await FolderPicker.getSavedFolder({ profileId });
-      if (!savedFolder?.uri) {
-        setSyncStatus(profileId, "unavailable", "No hay una carpeta asociada a este perfil; los datos siguen guardados internamente.");
-        return;
-      }
-      if (savedFolder.canWrite !== true) {
-        throw new Error("Android no conservó permiso de escritura para la carpeta. Vuelve a seleccionarla o exporta el JSON manualmente.");
-      }
-    } else {
-      const root = await db.get("settings", `music-folder-${profileId}`);
-      if (!root?.getDirectoryHandle) {
-        setSyncStatus(profileId, "unavailable", "No hay una carpeta asociada a este perfil; los datos siguen guardados internamente.");
-        return;
-      }
+    const root = await db.get("settings", `music-folder-${profileId}`);
+    if (!root?.getDirectoryHandle) {
+      setSyncStatus(profileId, "unavailable", "No hay una carpeta web asociada para la copia externa; exporta el JSON manualmente.");
+      return;
     }
     setSyncStatus(profileId, "syncing");
     const serialized = await serializeProfileArchive(profileId);
     if (new TextEncoder().encode(serialized).byteLength > MAX_PROFILE_ARCHIVE_BYTES) {
       throw new Error("El respaldo supera el tamaño máximo permitido.");
     }
-    if (Capacitor.isNativePlatform()) {
-      await writeNativeProfileArchive(profile, serialized);
-    } else {
-      await writeWebProfileArchive(profile, serialized);
-    }
+    await writeWebProfileArchive(profile, serialized);
     setSyncStatus(profileId, "synced", "Copia externa sincronizada.");
   } catch (error) {
     setSyncStatus(profileId, "error", error.message || "No se pudo sincronizar la copia externa.");
@@ -1561,7 +1531,7 @@ export async function flushProfileSync(profileId, { requestPermission = false } 
     return;
   }
 
-  if (requestPermission && !Capacitor.isNativePlatform()) {
+  if (requestPermission) {
     const db = await openProfileDb();
     const root = await db.get("settings", `music-folder-${profileId}`);
     const permission = await root?.requestPermission?.({ mode: "readwrite" });

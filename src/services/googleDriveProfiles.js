@@ -1,5 +1,5 @@
-import { Capacitor } from "@capacitor/core";
 import { reactive } from "vue";
+import { isTauriEnvironment } from "./tauriBridge.js";
 import {
   MAX_PROFILE_ARCHIVE_BYTES,
   profileArchiveFileName,
@@ -55,8 +55,8 @@ export function validateDriveProfileArchiveIdentity(input, profile) {
 }
 
 function assertWebOAuthAvailable() {
-  if (Capacitor.isNativePlatform()) {
-    throw new Error("Google Drive todavía no está disponible en la aplicación Android. Úsalo desde la versión web.");
+  if (isTauriEnvironment()) {
+    throw new Error("Google Drive todavía no está disponible en la aplicación de escritorio. Úsalo desde la versión web.");
   }
   if (!getClientId()) {
     throw new Error("Falta configurar VITE_GOOGLE_CLIENT_ID para conectar Google Drive.");

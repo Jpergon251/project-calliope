@@ -815,10 +815,9 @@ import {
   UserPlus,
 } from "lucide-vue-next";
 
-import { Capacitor } from "@capacitor/core";
-
 import Logo from "../common/Logo.vue";
 import GoogleDriveProfile from "../common/GoogleDriveProfile.vue";
+import { isTauriEnvironment } from "../../services/tauriBridge.js";
 import { useLibraryStore } from "../../stores/libraryStore";
 import { useUserStore } from "../../stores/userStore";
 import { COLOR_PALETTES, normalizePaletteId } from "../../lib/colorPalettes.js";
@@ -909,15 +908,9 @@ function cancelCreate() {
   createPasswordError.value = "";
 }
 
-const isNativeApp = computed(() => {
-  return Capacitor.isNativePlatform();
-});
+const isTauriApp = isTauriEnvironment();
 
 const isMobile = computed(() => {
-  if (isNativeApp.value) {
-    return false;
-  }
-
   if (typeof navigator === "undefined") {
     return false;
   }
@@ -928,14 +921,8 @@ const isMobile = computed(() => {
 });
 
 const isSupported = computed(() => {
-  if (isNativeApp.value) {
-    return true;
-  }
-
-  return (
-    typeof window !== "undefined" &&
-    "showDirectoryPicker" in window
-  );
+  return isTauriApp
+    || (typeof window !== "undefined" && "showDirectoryPicker" in window);
 });
 
 const hasProfile = computed(() => {
