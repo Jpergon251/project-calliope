@@ -19,10 +19,6 @@
 <script setup>
 import { DiscAlbum } from "lucide-vue-next";
 
-defineProps({
-  song: {
-    type: Object,
-    default: null
-  }
+defineProps({song: { type: Object, default: null}
 })
 </script>

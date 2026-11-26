@@ -1,3 +1,54 @@
+.album-item {
+    .album-name,
+    .album-artist {
+        overflow: hidden;
+        color: var(--text-primary);
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .album-link {
+        color: var(--text-primary);
+        text-decoration: none;
+
+        .album-image {
+            aspect-ratio: 1 / 1;
+        }
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.album-list {
+    display: flex;
+    gap: 35px;
+    margin: 0;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    list-style: none;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+
+    .album-card {
+        flex: 0 0 220px;
+        padding: 5px;
+        scroll-snap-align: start;
+        transition: transform 0.2s ease;
+
+        &:hover {
+            transform: scale(1.05);
+        }
+    }
+}
+
 .media-card {
     display: flex;
     flex-direction: column;

@@ -18,13 +18,7 @@ export function appendListeningHistoryGroup(history, entry, timestamp, createId)
   }
 
   return [
-    {
-      ...entry,
-      id: createId(),
-      itemId,
-      timestamp: orderedTimestamp,
-      playCount: 1,
-    },
+    {...entry, id: createId(), itemId, timestamp: orderedTimestamp, playCount: 1},
     ...records,
   ];
 }

@@ -146,37 +146,22 @@
 </template>
 
 <script setup>
-import {
-  computed,
-  nextTick,
-  ref,
-  watch,
-} from "vue";
+import {computed, nextTick, ref, watch} from "vue";
 
 import { useRouter } from "vue-router";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  DiscAlbum,
-  Search,
-} from "lucide-vue-next";
+import { scrollCarouselContainer, shuffleArray } from "../../lib/formatters.js";
+
+import {ChevronLeft, ChevronRight, DiscAlbum, Search} from "lucide-vue-next";
 
 import AlbumList from "../common/AlbumList.vue";
 import CoverArt from "../common/CoverArt.vue";
 
 import { useLibraryStore } from "../../stores/libraryStore.js";
 
-const props = defineProps({
-  searchQuery: {
-    type: String,
-    default: "",
-  },
+const props = defineProps({searchQuery: { type: String, default: ""},
 
-  preview: {
-    type: Boolean,
-    default: false,
-  },
+  preview: {type: Boolean, default: false},
 });
 
 const library = useLibraryStore();
@@ -187,156 +172,50 @@ const previewAlbums = ref([]);
 
 const PREVIEW_LIMIT = 10;
 
-const searchQuery = computed(() => {
-  return props.searchQuery.trim();
-});
+const searchQuery = computed(() => {return props.searchQuery.trim();});
 
-const hasSearch = computed(() => {
-  return searchQuery.value.length > 0;
-});
-
-
-/* =========================================================
-   FILTRADO
-   ========================================================= */
-
+const hasSearch = computed(() => {return searchQuery.value.length > 0;});
 const filteredAlbums = computed(() => {
   const albums = library.albums || [];
 
-  if (!searchQuery.value) {
-    return albums;
-  }
+  if (!searchQuery.value) {return albums;}
 
   const query = searchQuery.value.toLocaleLowerCase();
 
   return albums.filter((album) => {
-    const name = String(
-      album.name || ""
-    ).toLocaleLowerCase();
+    const name = String(album.name || "").toLocaleLowerCase();
 
-    const artist = String(
-      album.artist || ""
-    ).toLocaleLowerCase();
+    const artist = String(album.artist || "").toLocaleLowerCase();
 
-    return (
-      name.includes(query) ||
-      artist.includes(query)
-    );
+    return (name.includes(query) || artist.includes(query));
   });
 });
-
-
-/* =========================================================
-   ALEATORIO
-   ========================================================= */
-
-function shuffle(array) {
-  const result = [...array];
-
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(
-      Math.random() * (i + 1)
-    );
-
-    [result[i], result[j]] = [
-      result[j],
-      result[i],
-    ];
-  }
-
-  return result;
-}
-
-
 function refreshPreviewAlbums() {
   const albums = filteredAlbums.value;
 
-  if (!albums.length) {
-    previewAlbums.value = [];
-    return;
-  }
+  if (!albums.length) {previewAlbums.value = []; return;}
 
-  if (searchQuery.value) {
-    previewAlbums.value = albums.slice(
-      0,
-      PREVIEW_LIMIT
-    );
+  if (searchQuery.value) {previewAlbums.value = albums.slice(0, PREVIEW_LIMIT); return;}
 
-    return;
-  }
-
-  previewAlbums.value = shuffle(albums).slice(
-    0,
-    PREVIEW_LIMIT
-  );
+  previewAlbums.value = shuffleArray(albums).slice(0, PREVIEW_LIMIT);
 }
-
-
-/* =========================================================
-   CARRUSEL
-   ========================================================= */
-
 async function scrollCarousel(direction) {
   await nextTick();
+  scrollCarouselContainer(carouselRef.value, direction);
+}
+function openAlbum(album) {if (!album?.id) { return;}
 
-  const container = carouselRef.value;
-
-  if (!container) {
-    return;
-  }
-
-  const amount =
-    Math.max(
-      container.clientWidth * 0.8,
-      300
-    ) * direction;
-
-  container.scrollBy({
-    left: amount,
-    behavior: "smooth",
+  router.push({name: "album", params: { id: album.id},
   });
 }
 
-
-/* =========================================================
-   NAVEGACIÓN
-   ========================================================= */
-
-function openAlbum(album) {
-  if (!album?.id) {
-    return;
-  }
-
-  router.push({
-    name: "album",
-    params: {
-      id: album.id,
-    },
+function openAllAlbums() {router.push({ path: "/library", query: { category: "albums"},
   });
 }
-
-function openAllAlbums() {
-  router.push({
-    path: "/library",
-    query: {
-      category: "albums",
-    },
-  });
-}
-
-
-/* =========================================================
-   WATCHERS
-   ========================================================= */
-
 watch(
   () => library.albums.length,
-  () => {
-    refreshPreviewAlbums();
-  },
-  {
-    immediate: true,
-  }
+  () => {refreshPreviewAlbums();},
+  {immediate: true}
 );
 
 watch(
@@ -346,11 +225,7 @@ watch(
       refreshPreviewAlbums();
 
       nextTick(() => {
-        if (carouselRef.value) {
-          carouselRef.value.scrollTo({
-            left: 0,
-            behavior: "auto",
-          });
+        if (carouselRef.value) {carouselRef.value.scrollTo({ left: 0, behavior: "auto"});
         }
       });
     }
@@ -359,14 +234,9 @@ watch(
 
 watch(
   () => props.preview,
-  (isPreview) => {
-    if (isPreview) {
-      refreshPreviewAlbums();
-    }
+  (isPreview) => {if (isPreview) { refreshPreviewAlbums();}
   }
 );
 
-defineExpose({
-  scrollCarousel,
-});
+defineExpose({scrollCarousel});
 </script>

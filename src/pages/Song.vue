@@ -151,6 +151,7 @@ import { DiscAlbum, Heart, Pause, Pencil, Play, ThumbsDown, ThumbsUp } from "luc
 import CoverArt from "../components/common/CoverArt.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 import MetadataModal from "../components/modals/MetadataModal.vue";
+import { formatTime, navigateToArtist } from "../lib/formatters.js";
 const route = useRoute();
 const router = useRouter();
 const library = useLibraryStore();
@@ -197,12 +198,7 @@ const songStats = computed(() => {
   return library.getSongStats(song.value.id);
 });
 
-function goToArtist(name) {
-  if (!name || name === "Unknown" || name === "Artista desconocido") return;
-  library.closeNowPlaying();
-  library.closeQueue();
-  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name, { library, closeOverlays: true });
 
 function formatDate(timestamp) {
   if (!timestamp) return "Aún no";
@@ -210,30 +206,15 @@ function formatDate(timestamp) {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-function playSong() {
-  if (isCurrentSong.value && library.isPlaying) {
-    library.togglePlay();
-    return;
-  }
+function playSong() {if (isCurrentSong.value && library.isPlaying) { library.togglePlay(); return;}
   library.playSong(song.value);
 }
 
-function openMetadataEditor() {
-  if (song.value) metadataEditorSong.value = song.value;
-}
+function openMetadataEditor() {if (song.value) metadataEditorSong.value = song.value;}
 
-function closeMetadataEditor() {
-  metadataEditorSong.value = null;
-}
+function closeMetadataEditor() {metadataEditorSong.value = null;}
 
-function handleMetadataUpdated() {
-  metadataEditorSong.value = null;
-}
+function handleMetadataUpdated() {metadataEditorSong.value = null;}
 
-function format(seconds) {
-  if (!seconds) return "0:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+const format = formatTime;
 </script>

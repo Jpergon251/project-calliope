@@ -155,6 +155,7 @@ import { useRouter } from "vue-router";
 import SongCover from "../library/SongCover.vue";
 import VolumeModal from "../player/VolumeModal.vue";
 import { computed } from "vue";
+import { formatTime, navigateToArtist } from "../../lib/formatters.js";
 
 const library = useLibraryStore();
 const user = useUserStore();
@@ -166,12 +167,7 @@ const playingSongArtists = computed(() => {
   return parsed.length ? parsed : [library.playingSong.artist];
 });
 
-function goToArtist(name) {
-  if (!name || name === "Unknown" || name === "Artista desconocido") return;
-  library.closeNowPlaying();
-  library.closeQueue();
-  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name, { library, closeOverlays: true });
 
 const progressPercent = computed(() => {
   const d = library.duration;
@@ -179,15 +175,10 @@ const progressPercent = computed(() => {
   return Math.min(100, Math.max(0, (library.currentTime / d) * 100));
 });
 
-function openCurrentSong() {
-  if (library.playingSong) {
-    library.openNowPlaying();
-  }
+function openCurrentSong() {if (library.playingSong) { library.openNowPlaying();}
 }
 
-function beginSeek() {
-  library.setProgressScrubbing(true);
-}
+function beginSeek() {library.setProgressScrubbing(true);}
 
 function handleSeek(event) {
   const nextTime = Number(event.target.value);
@@ -200,31 +191,5 @@ function finishSeek(event) {
     if (event?.target?.value !== undefined) library.seek(Number(event.target.value));
     library.setProgressScrubbing(false);
   }
-}
-
-function formatTime(seconds) {
-
-  if (
-    !seconds ||
-    isNaN(seconds)
-  ) {
-    return "0:00";
-  }
-
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
-
-  const remainingSeconds =
-    Math.floor(
-      seconds % 60
-    );
-
-  return `${minutes}:${
-    remainingSeconds
-      .toString()
-      .padStart(2, "0")
-  }`;
 }
 </script>

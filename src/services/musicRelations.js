@@ -31,9 +31,7 @@ export function selectPrimaryRelease(song, releases = []) {
 
 export function applyReleaseCoverSelection(releases = [], targetReleaseId, newCoverUrl, source = 'manual') {
   return releases.map((release) => {
-    if (!release || release.id !== targetReleaseId) {
-      return { ...release };
-    }
+    if (!release || release.id !== targetReleaseId) {return { ...release };}
 
     const existingArtworks = Array.isArray(release.artworks)
       ? release.artworks.map((artwork) => ({ ...artwork }))

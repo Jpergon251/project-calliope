@@ -1,3 +1,5 @@
+import { clean, normalizeComparable as normalizeBaseComparable } from "../models/musicEntities.js";
+
 const MAX_CANDIDATE_RECORDINGS = 6;
 const MIN_RECORDING_SIMILARITY = 0.3;
 const MIN_PREFERRED_RELEASES = 3;
@@ -13,28 +15,16 @@ const PROVIDER_WEIGHTS = {
   lrclib: 0.25,
 };
 
-function clean(value) {
-  return value === null || value === undefined ? "" : String(value).trim();
-}
+export const normalizeComparable = (value) => normalizeBaseComparable(value, { alnumOnly: false });
 
-export function normalizeComparable(value) {
-  return clean(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[()[\]{}]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeArtist(value) {
+export function normalizeArtist(value) {
   return normalizeComparable(value)
     .replace(/\b(feat|ft|featuring)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function artistTextSimilarity(left, right) {
+export function artistTextSimilarity(left, right) {
   const normalizedLeft = normalizeArtist(left);
   const normalizedRight = normalizeArtist(right);
   if (!normalizedLeft || !normalizedRight) return 0;
@@ -89,7 +79,7 @@ function releaseTextKey(release) {
   ].join("|");
 }
 
-function levenshteinDistance(left, right) {
+export function levenshteinDistance(left, right) {
   if (left === right) return 0;
   if (!left.length) return right.length;
   if (!right.length) return left.length;

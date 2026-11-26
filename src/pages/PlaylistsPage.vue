@@ -6,7 +6,4 @@
 
 <script setup>
 import PLList from '../components/library/PLList.vue';
-import { useLibraryStore } from '../stores/libraryStore.js';
-
-const library = useLibraryStore();
 </script>

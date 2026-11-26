@@ -205,13 +205,14 @@
 </template>
 
 <script setup>
-import { AlertTriangle, BookHeart, DiscAlbum, GripVertical, Heart, ListPlus, MoreHorizontal, Music2, Pencil, Play, Plus, Shuffle, Trash2, X } from "lucide-vue-next";
+import { AlertTriangle, DiscAlbum, GripVertical, Heart, ListPlus, MoreHorizontal, Pencil, Play, Plus, Shuffle, Trash2, X } from "lucide-vue-next";
 import { useLibraryStore }
 from "../../stores/libraryStore.js";
 import Library from "../../pages/Library.vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import AddSongsModal from "../modals/AddSongsModal.vue"
 import IconCover from "../common/IconCover.vue";
+import { formatTime as formatDuration } from "../../lib/formatters.js";
 
 const library =
 useLibraryStore();
@@ -226,10 +227,7 @@ const props = defineProps({
     playlist: Object,
     album: Object,
     cover: String,
-    isSortable: {
-      type: Boolean,
-      default: false
-    }
+    isSortable: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["edit", "delete", "reorder"]);
@@ -246,9 +244,7 @@ const resolvedSongs = computed(() => {
   if (props.album) return props.songs || [];
   if (!props.playlist) return props.songs || [];
 
-  if (props.playlist.id === "all") {
-    return props.songs || [];
-  }
+  if (props.playlist.id === "all") {return props.songs || [];}
 
   const orderedIds = props.playlist.id === library.FAVORITES_PLAYLIST_ID
     ? (props.playlist.songIds || []).length
@@ -263,22 +259,12 @@ const resolvedSongs = computed(() => {
     .filter(Boolean);
 });
 
-function startDrag(event, index) {
-  draggedIndex.value = index;
-  hoverIndex.value = index;
-  dropPosition.value = null;
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", String(index));
-}
-
 function handleSongClick(song) {
   if (isDragging.value || justDropped.value) return;
   library.playFromPlaylist(song, resolvedSongs.value, {
     releaseId: props.album?.id || song.contextReleaseId || song.primaryReleaseId,
   });
-  if (typeof window !== "undefined" && window.innerWidth <= 760) {
-    library.openNowPlaying();
-  }
+  if (typeof window !== "undefined" && window.innerWidth <= 760) {library.openNowPlaying();}
 }
 
 function formatTrackNumber(song) {
@@ -312,10 +298,7 @@ function handleDragOver(index, event) {
   dropPosition.value = event.clientY < midpoint ? "before" : "after";
 }
 
-function handleDragEnd() {
-  if (!props.isSortable) return;
-  clearDrag();
-}
+function handleDragEnd() {if (!props.isSortable) return; clearDrag();}
 
 function clearDrag() {
   draggedIndex.value = null;
@@ -327,10 +310,7 @@ function clearDrag() {
 function handleDrop(targetIndex) {
   if (!props.isSortable) return;
 
-  if (draggedIndex.value === null || draggedIndex.value === targetIndex) {
-    clearDrag();
-    return;
-  }
+  if (draggedIndex.value === null || draggedIndex.value === targetIndex) {clearDrag(); return;}
 
   const reordered = [...resolvedSongs.value];
   const targetSong = reordered[targetIndex];
@@ -342,15 +322,11 @@ function handleDrop(targetIndex) {
 
   const newSongIds = reordered.map((song) => song.id);
   emit("reorder", newSongIds);
-  if (props.playlist?.id) {
-    library.reorderPlaylistSongs(props.playlist.id, newSongIds);
-  }
+  if (props.playlist?.id) {library.reorderPlaylistSongs(props.playlist.id, newSongIds);}
 
   clearDrag();
   justDropped.value = true;
-  setTimeout(() => {
-    justDropped.value = false;
-  }, 200);
+  setTimeout(() => {justDropped.value = false;}, 200);
 }
 
 // Touch drag support for mobile devices
@@ -384,25 +360,14 @@ function handleTouchDragMove(event) {
 
 function handleTouchDragEnd() {
   if (!isDragging.value || draggedIndex.value === null) return;
-  if (hoverIndex.value !== null) {
-    handleDrop(hoverIndex.value);
-  } else {
+  if (hoverIndex.value !== null) {handleDrop(hoverIndex.value);} else {
     clearDrag();
   }
 }
 
-function dropSong(targetIndex) {
-  handleDrop(targetIndex);
-}
+function toggleMenu() {showActionMenu.value = !showActionMenu.value;}
 
-function toggleMenu() {
-  showActionMenu.value = !showActionMenu.value;
-}
-
-function openAddSongs() {
-  showActionMenu.value = false;
-  showAddSongsModal.value = true;
-}
+function openAddSongs() {showActionMenu.value = false; showAddSongsModal.value = true;}
 
 function requestDeleteConfirmation() {
   showActionMenu.value = false;
@@ -415,21 +380,14 @@ function confirmDeletePlaylist() {
   emit("delete", props.playlist.id);
 }
 
-function cancelDeletePlaylist() {
-  showDeleteConfirmModal.value = false;
-}
+function cancelDeletePlaylist() {showDeleteConfirmModal.value = false;}
 
-function handleOutsideClick() {
-  if (showActionMenu.value) {
-    showActionMenu.value = false;
-  }
+function handleOutsideClick() {if (showActionMenu.value) { showActionMenu.value = false;}
 }
 
 function handleKeydown(event) {
   if (event.key === "Escape") {
-    if (showDeleteConfirmModal.value) {
-      cancelDeletePlaylist();
-    } else if (showActionMenu.value) {
+    if (showDeleteConfirmModal.value) {cancelDeletePlaylist();} else if (showActionMenu.value) {
       showActionMenu.value = false;
     }
   }
@@ -451,9 +409,7 @@ onBeforeUnmount(() => {
 
 function playListNow() {
   if (!resolvedSongs.value.length) return;
-  if (props.album) {
-    library.recordAlbumPlayed(props.album);
-  } else if (props.playlist) {
+  if (props.album) {library.recordAlbumPlayed(props.album);} else if (props.playlist) {
     library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
   }
   const [firstSong, ...rest] = resolvedSongs.value;
@@ -463,9 +419,7 @@ function playListNow() {
 
 function addListToQueue() {
   if (!resolvedSongs.value.length) return;
-  if (props.album) {
-    library.recordAlbumPlayed(props.album);
-  } else if (props.playlist) {
+  if (props.album) {library.recordAlbumPlayed(props.album);} else if (props.playlist) {
     library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
   }
   library.addSongsToQueue(resolvedSongs.value);
@@ -473,9 +427,7 @@ function addListToQueue() {
 
 function playRandomNow() {
   if (!resolvedSongs.value.length) return;
-  if (props.album) {
-    library.recordAlbumPlayed(props.album);
-  } else if (props.playlist) {
+  if (props.album) {library.recordAlbumPlayed(props.album);} else if (props.playlist) {
     library.recordPlaylistPlayed(props.playlist, resolvedSongs.value.length);
   }
   const shuffledSongs = library.smartShuffle(resolvedSongs.value);
@@ -483,37 +435,4 @@ function playRandomNow() {
   library.playQueue = rest;
   library.playFromPlaylist(firstSong, shuffledSongs);
 }
-
-function addListToQueueRandom() {
-  playRandomNow();
-}
-
-function deletePlaylist() {
-  requestDeleteConfirmation();
-}
-
-function formatDuration(
-  seconds
-) {
-
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
-
-  const remainingSeconds =
-    Math.floor(
-      seconds % 60
-    );
-
-  return `${minutes}:${
-    remainingSeconds
-      .toString()
-      .padStart(2, "0")
-  }`;
-}
-
-
-
-
 </script>

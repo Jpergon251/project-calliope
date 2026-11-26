@@ -1,19 +1,10 @@
-/* ============================================================
-   ABSTRACTS
-   ============================================================ */
 
 @use "abstracts/variables";
 
-/* ============================================================
-   BASE / GLOBAL
-   ============================================================ */
 
 @use "base/reset";
 @use "base/global";
 
-/* ============================================================
-   COMPONENTS
-   ============================================================ */
 
 @use "components/coverart";
 @use "components/controls";
@@ -29,24 +20,18 @@
 @use "components/allalbumlist";
 @use "components/allsonglist";
 @use "components/queuepanel";
-@use "components/albumlist";
+
 @use "components/googledrive";
 
 @use "components/screens/welcomescreen";
 @use "components/screens/loadingscreen";
 
-/* ============================================================
-   CARDS / ITEMS
-   ============================================================ */
 
 @use "cards/mediacard";
-@use "cards/albumitem";
+
 @use "cards/songitem";
 @use "cards/playlistitem";
 
-/* ============================================================
-   PAGES
-   ============================================================ */
 
 @use "pages/home";
 @use "pages/library";
@@ -65,8 +50,5 @@
 @use "pages/history";
 @use "pages/profile";
 
-/* ============================================================
-   THEME-SPECIFIC SURFACE TREATMENTS
-   ============================================================ */
 
 @use "base/themes";

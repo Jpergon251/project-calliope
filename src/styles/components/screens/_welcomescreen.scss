@@ -1,32 +1,20 @@
-/* ============================================================
-   CALLIOPE · WELCOME SCREEN
-   ============================================================ */
 
 .welcome-screen {
   position: relative;
   width: 100%;
   min-height: 100dvh;
   height: auto;
-
   overflow-x: hidden;
   overflow-y: auto;
-
   background: var(--theme-main-background, var(--bg-primary, #000));
   color: var(--text-primary, #fff);
-
   isolation: isolate;
   -webkit-overflow-scrolling: touch;
 }
-
-/* ============================================================
-   BACKGROUND
-   ============================================================ */
-
 .welcome-background {
   position: fixed;
   inset: 0;
   z-index: -1;
-
   overflow: hidden;
   pointer-events: none;
   background: var(--theme-main-background, var(--bg-primary, #000));
@@ -35,37 +23,21 @@
 .welcome-glow {
   display: none;
 }
-
-/* ============================================================
-   MAIN CONTAINER
-   ============================================================ */
-
 .welcome-container {
   position: relative;
   z-index: 1;
-
   width: min(100%, 900px);
   min-height: 100dvh;
-
   margin: 0 auto;
-
   display: flex;
   flex-direction: column;
-
   padding: 28px 32px 24px;
 }
-
-/* ============================================================
-   HEADER
-   ============================================================ */
-
 .welcome-header {
   flex: 0 0 auto;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   min-height: 48px;
 }
 
@@ -130,29 +102,19 @@
   line-height: 1;
   transition: color 380ms cubic-bezier(0.2, 0.65, 0.3, 1);
 }
-
-/* ============================================================
-   PROGRESS
-   ============================================================ */
-
 .welcome-progress {
   display: flex;
   align-items: center;
   gap: 7px;
-
   margin-left: auto;
 }
 
 .welcome-progress span {
   display: block;
-
   width: 34px;
   height: 3px;
-
   border-radius: 999px;
-
   background: rgba(255, 255, 255, 0.1);
-
   transition:
     background var(--transition-normal, 0.25s ease),
     box-shadow var(--transition-normal, 0.25s ease),
@@ -163,37 +125,21 @@
   background: var(--accent, #25d866);
   box-shadow: var(--theme-selected-shadow, none);
 }
-
-/* ============================================================
-   CONTENT
-   ============================================================ */
-
 .welcome-content {
   flex: 1 0 auto;
-
   width: 100%;
   min-width: 0;
-
   display: flex;
   flex-direction: column;
   justify-content: center;
-
   padding: 72px 0;
 }
-
-/* ============================================================
-   STEP
-   ============================================================ */
-
 .welcome-step {
   width: 100%;
   max-width: 720px;
-
   margin: 0 auto;
-
   display: flex;
   flex-direction: column;
-
   animation: welcome-step-in 0.25s ease both;
 }
 
@@ -208,11 +154,6 @@
     transform: translateY(0);
   }
 }
-
-/* ============================================================
-   HEADING
-   ============================================================ */
-
 .welcome-heading {
   margin-bottom: 38px;
 }
@@ -220,26 +161,19 @@
 .welcome-eyebrow {
   display: inline-flex;
   align-items: center;
-
   margin-bottom: 14px;
-
   color: var(--accent, #25d866);
-
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .welcome-heading h1 {
   margin: 0;
-
   max-width: 680px;
-
   color: var(--text-primary, #fff);
-
   font-size: clamp(2.3rem, 5vw, 4.4rem);
   font-weight: 750;
   line-height: 0.98;
@@ -248,141 +182,79 @@
 
 .welcome-heading p {
   max-width: 600px;
-
   margin: 20px 0 0;
-
   color: var(--text-secondary, #a3a3a3);
-
   font-size: 1rem;
   line-height: 1.65;
 }
-
-/* ============================================================
-   PROFILE CARD
-   ============================================================ */
-
 .welcome-profile-card {
   position: relative;
-
   display: flex;
   align-items: center;
-
   width: 100%;
   min-height: 94px;
-
   padding: 18px 20px;
-
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.07));
   border-radius: var(--radius-md, 14px);
-
   background:
     linear-gradient(
       135deg,
       rgba(var(--accent-rgb, 37, 216, 102), 0.07),
       rgba(255, 255, 255, 0.025)
     );
-
-  box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.35);
-
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .welcome-profile-card:hover {
-  border-color:
-    rgba(var(--accent-rgb, 37, 216, 102), 0.25);
+  border-color: rgba(var(--accent-rgb, 37, 216, 102), 0.25);
 }
-
-/* ============================================================
-   AVATAR
-   ============================================================ */
-
 .welcome-avatar {
   flex: 0 0 auto;
-
   width: 58px;
   height: 58px;
-
   display: grid;
   place-items: center;
-
   overflow: hidden;
-
   border-radius: 50%;
-
-  background:
-    linear-gradient(
-      135deg,
-      var(--accent, #25d866),
-      var(--accent-dark, #148a43)
-    );
-
+  background: linear-gradient( 135deg, var(--accent, #25d866), var(--accent-dark, #148a43) );
   color: var(--accent-contrast, #000);
-
   font-size: 1rem;
   font-weight: 800;
-
-  box-shadow:
-    0 0 24px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.2);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb, 37, 216, 102), 0.2);
 }
 
 .welcome-avatar img {
   width: 100%;
   height: 100%;
-
   object-fit: cover;
 }
-
-/* ============================================================
-   PROFILE INFO
-   ============================================================ */
-
 .welcome-profile-info {
   min-width: 0;
-
   display: flex;
   flex-direction: column;
-
   margin-left: 16px;
 }
 
 .welcome-profile-info strong {
   overflow: hidden;
-
   color: var(--text-primary, #fff);
-
   font-size: 1rem;
   font-weight: 700;
-
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .welcome-profile-info span {
   margin-top: 3px;
-
   color: var(--text-secondary, #a3a3a3);
-
   font-size: 0.82rem;
 }
 
 .welcome-profile-info small {
   margin-top: 7px;
-
   color: var(--text-muted, #666);
-
   font-size: 0.72rem;
-}
-
-.welcome-profile-check {
-  flex: 0 0 auto;
-
-  margin-left: auto;
-
-  color: var(--accent, #25d866);
 }
 
 .welcome-profiles-list {
@@ -396,10 +268,7 @@
 .welcome-profile-selectable {
   cursor: pointer;
   user-select: none;
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 
   &:hover {
     transform: translateY(-2px);
@@ -581,51 +450,24 @@
 .welcome-profile-import-input {
   display: none;
 }
-
-.welcome-button-ghost {
-  background: transparent;
-  color: var(--text-muted, #888);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
-  &:hover {
-    color: var(--text-primary, #fff);
-    border-color: rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.04);
-  }
-}
-
-/* ============================================================
-   FORM
-   ============================================================ */
-
 .welcome-form {
   display: flex;
   flex-direction: column;
-
   gap: 18px;
-
   width: 100%;
 }
 
 .welcome-form-avatar {
   width: 64px;
   height: 64px;
-
   display: grid;
   place-items: center;
-
   margin-bottom: 6px;
-
   border-radius: 50%;
-
-  background:
-    rgba(var(--accent-rgb, 37, 216, 102), 0.12);
-
+  background: rgba(var(--accent-rgb, 37, 216, 102), 0.12);
   border: 1px solid
     rgba(var(--accent-rgb, 37, 216, 102), 0.28);
-
   color: var(--accent, #25d866);
-
   font-size: 1.1rem;
   font-weight: 800;
 }
@@ -633,7 +475,6 @@
 .welcome-form label {
   display: flex;
   flex-direction: column;
-
   gap: 8px;
 }
 
@@ -641,16 +482,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-
   color: var(--text-secondary, #a3a3a3);
-
   font-size: 0.78rem;
   font-weight: 600;
 }
 
 .welcome-form label em {
   color: var(--text-muted, #666);
-
   font-size: 0.7rem;
   font-style: normal;
   font-weight: 400;
@@ -682,36 +520,24 @@
 .welcome-form input,
 .welcome-form textarea {
   width: 100%;
-
   border: 1px solid
     var(--border-color, rgba(255, 255, 255, 0.07));
   border-radius: var(--radius-sm, 8px);
-
   outline: none;
-
   background: rgba(255, 255, 255, 0.035);
-
   color: var(--text-primary, #fff);
-
   font: inherit;
-
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .welcome-form input {
   height: 50px;
-
   padding: 0 15px;
 }
 
 .welcome-form textarea {
   min-height: 90px;
-
   padding: 13px 15px;
-
   resize: vertical;
 }
 
@@ -727,50 +553,33 @@
 
 .welcome-form input:focus,
 .welcome-form textarea:focus {
-  border-color:
-    rgba(var(--accent-rgb, 37, 216, 102), 0.55);
-
+  border-color: rgba(var(--accent-rgb, 37, 216, 102), 0.55);
   background: rgba(
     var(--accent-rgb, 37, 216, 102),
     0.035
   );
-
-  box-shadow:
-    0 0 0 3px
-      rgba(var(--accent-rgb, 37, 216, 102), 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 37, 216, 102), 0.08);
 }
-
-/* ============================================================
-   ACTIONS
-   ============================================================ */
-
 .welcome-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-
   margin-top: 34px;
 }
 
 .welcome-button {
   min-height: 46px;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
-
   padding: 0 18px;
-
   border: 1px solid transparent;
   border-radius: 10px;
-
   cursor: pointer;
-
   font: inherit;
   font-size: 0.86rem;
   font-weight: 700;
-
   transition:
     transform 0.15s ease,
     background 0.15s ease,
@@ -785,27 +594,22 @@
 
 .welcome-button-primary {
   background: var(--accent, #25d866);
-
   color: var(--accent-contrast, #000);
-
   box-shadow: var(--theme-control-shadow, none);
 }
 
 .welcome-button-primary:hover {
   background: var(--accent-hover, #45e07b);
-
   box-shadow: var(--theme-control-shadow, none);
 }
 
 .welcome-button-secondary {
   background: transparent;
-
   color: var(--text-secondary, #a3a3a3);
 }
 
 .welcome-button-secondary:hover {
   color: var(--text-primary, #fff);
-
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -996,54 +800,32 @@
   outline: 2px solid var(--accent, #25d866);
   outline-offset: 2px;
 }
-
-/* ============================================================
-   BACK BUTTON
-   ============================================================ */
-
 .welcome-back {
   align-self: flex-start;
-
   display: inline-flex;
   align-items: center;
   gap: 7px;
-
   margin-bottom: 34px;
   padding: 0;
-
   border: 0;
-
   background: transparent;
-
   color: var(--text-muted, #666);
-
   cursor: pointer;
-
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-
-  transition:
-    color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .welcome-back:hover {
   color: var(--text-primary, #fff);
 }
-
-/* ============================================================
-   ACCENT PICKER
-   ============================================================ */
-
 .welcome-accent-card {
   width: 100%;
-
   padding: 22px;
-
   border: 1px solid
     var(--border-color, rgba(255, 255, 255, 0.07));
   border-radius: var(--radius-md, 14px);
-
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -1051,7 +833,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   margin-bottom: 24px;
 }
 
@@ -1063,13 +844,11 @@
 
 .welcome-accent-header strong {
   color: var(--text-primary, #fff);
-
   font-size: 0.9rem;
 }
 
 .welcome-accent-header span {
   color: var(--text-muted, #666);
-
   font-size: 0.76rem;
 }
 
@@ -1085,69 +864,40 @@
 .welcome-accent-current span {
   flex: 1;
 }
-
-/* ============================================================
-   ACCENT OPTIONS
-   ============================================================ */
-
 .welcome-accent-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-
   gap: 10px;
 }
 
 .welcome-accent-option {
   position: relative;
-
   min-height: 100px;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
   gap: 10px;
-
   padding: 16px 10px 12px;
-
   border: 1px solid
     rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-
   background: rgba(255, 255, 255, 0.025);
-
   color: var(--text-secondary, #a3a3a3);
-
   cursor: pointer;
-
   font: inherit;
-
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
 .welcome-accent-option:hover {
   background: rgba(255, 255, 255, 0.055);
-
-  border-color:
-    rgba(255, 255, 255, 0.13);
-
+  border-color: rgba(255, 255, 255, 0.13);
   transform: translateY(-2px);
 }
 
 .welcome-accent-option.selected {
   border-color: var(--option-color);
-
-  background:
-    color-mix(
-      in srgb,
-      var(--option-color) 8%,
-      transparent
-    );
-
+  background: color-mix( in srgb, var(--option-color) 8%, transparent );
   box-shadow: var(--theme-selected-shadow, none);
 }
 
@@ -1169,72 +919,48 @@
   position: absolute;
   top: 10px;
   right: 10px;
-
   color: var(--option-color);
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
 
 .welcome-accent-option small {
   color: inherit;
-
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.25;
   text-align: center;
 }
-
-/* ============================================================
-   FOLDER
-   ============================================================ */
-
 .welcome-folder {
   width: 100%;
-
   display: flex;
   align-items: center;
   gap: 16px;
-
   padding: 20px;
-
   border: 1px solid
     rgba(var(--accent-rgb, 37, 216, 102), 0.18);
   border-radius: var(--radius-md, 14px);
-
   background:
     linear-gradient(
       135deg,
       rgba(var(--accent-rgb, 37, 216, 102), 0.07),
       rgba(255, 255, 255, 0.025)
     );
-
   color: var(--text-primary, #fff);
-
   cursor: pointer;
-
   text-align: left;
-
   font: inherit;
-
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .welcome-folder:hover:not(:disabled) {
-  border-color:
-    rgba(var(--accent-rgb, 37, 216, 102), 0.4);
-
+  border-color: rgba(var(--accent-rgb, 37, 216, 102), 0.4);
   background:
     linear-gradient(
       135deg,
       rgba(var(--accent-rgb, 37, 216, 102), 0.11),
       rgba(255, 255, 255, 0.035)
     );
-
   transform: translateY(-2px);
-
   box-shadow: var(--theme-hover-shadow, none);
 }
 
@@ -1250,47 +976,35 @@
 .welcome-folder-icon {
   width: 52px;
   height: 52px;
-
   flex: 0 0 auto;
-
   display: grid;
   place-items: center;
-
   border-radius: 12px;
-
-  background:
-    rgba(var(--accent-rgb, 37, 216, 102), 0.12);
-
+  background: rgba(var(--accent-rgb, 37, 216, 102), 0.12);
   color: var(--accent, #25d866);
 }
 
 .welcome-folder-content {
   min-width: 0;
-
   flex: 1;
-
   display: flex;
   flex-direction: column;
-
   gap: 5px;
 }
 
 .welcome-folder-content strong {
   color: var(--text-primary, #fff);
-
   font-size: 0.9rem;
 }
 
 .welcome-folder-content span {
   color: var(--text-secondary, #a3a3a3);
-
   font-size: 0.76rem;
   line-height: 1.5;
 }
 
 .welcome-folder > svg {
   flex: 0 0 auto;
-
   color: var(--accent, #25d866);
 }
 
@@ -1303,27 +1017,18 @@
     transform: rotate(360deg);
   }
 }
-
-/* ============================================================
-   PRIVACY
-   ============================================================ */
-
 .welcome-privacy {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-
   margin-top: 20px;
-
   color: var(--text-muted, #666);
-
   font-size: 0.74rem;
 }
 
 .welcome-privacy svg {
   flex: 0 0 auto;
-
   color: var(--accent, #25d866);
 }
 
@@ -1331,102 +1036,70 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-
   margin-top: 22px;
   padding-top: 18px;
-
   border-top: 1px solid
     rgba(255, 255, 255, 0.06);
-
   color: var(--text-muted, #666);
-
   font-size: 0.72rem;
   line-height: 1.55;
 }
 
 .welcome-library-note svg {
   flex: 0 0 auto;
-
   margin-top: 1px;
 }
 
 .welcome-library-note strong {
   color: var(--text-secondary, #a3a3a3);
-
   font-weight: 600;
 }
-
-/* ============================================================
-   UNSUPPORTED BROWSER
-   ============================================================ */
-
 .welcome-unsupported {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-
   padding: 22px;
-
   border: 1px solid
     rgba(255, 255, 255, 0.07);
   border-radius: var(--radius-md, 14px);
-
   background: rgba(255, 255, 255, 0.025);
 }
 
 .welcome-unsupported-icon {
   width: 48px;
   height: 48px;
-
   flex: 0 0 auto;
-
   display: grid;
   place-items: center;
-
   border-radius: 12px;
-
   background: rgba(255, 255, 255, 0.05);
-
   color: var(--text-secondary, #a3a3a3);
 }
 
 .welcome-unsupported strong {
   display: block;
-
   color: var(--text-primary, #fff);
-
   font-size: 0.9rem;
 }
 
 .welcome-unsupported p {
   margin: 7px 0;
-
   color: var(--text-secondary, #a3a3a3);
-
   font-size: 0.8rem;
   line-height: 1.55;
 }
 
 .welcome-unsupported span {
   color: var(--text-muted, #666);
-
   font-size: 0.74rem;
   line-height: 1.5;
 }
-
-/* ============================================================
-   FOOTER
-   ============================================================ */
-
 .welcome-footer {
   flex: 0 0 auto;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   min-height: 32px;
-
   padding-top: 18px;
 }
 
@@ -1434,9 +1107,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-
   color: var(--text-muted, #666);
-
   font-size: 0.68rem;
 }
 
@@ -1446,27 +1117,18 @@
 
 .welcome-brand {
   color: rgba(255, 255, 255, 0.18);
-
   font-size: 0.62rem;
   font-weight: 800;
-
   letter-spacing: 0.18em;
 }
-
-/* ============================================================
-   TABLET
-   ============================================================ */
-
 @media (max-width: 700px) {
   .welcome-container {
     width: 100%;
-
     padding: 22px 22px 20px;
   }
 
   .welcome-content {
     justify-content: flex-start;
-
     padding: 58px 0 50px;
   }
 
@@ -1486,11 +1148,6 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
-
-/* ============================================================
-   MOBILE
-   ============================================================ */
-
 @media (max-width: 480px) {
   .welcome-screen {
     min-height: 100dvh;
@@ -1498,7 +1155,6 @@
 
   .welcome-container {
     min-height: 100dvh;
-
     padding: 18px 16px 18px;
   }
 
@@ -1543,7 +1199,6 @@
 
   .welcome-eyebrow {
     margin-bottom: 12px;
-
     font-size: 0.65rem;
   }
 
@@ -1554,14 +1209,12 @@
 
   .welcome-heading p {
     margin-top: 16px;
-
     font-size: 0.86rem;
     line-height: 1.6;
   }
 
   .welcome-profile-card {
     min-height: 82px;
-
     padding: 14px;
   }
 
@@ -1594,7 +1247,6 @@
   .welcome-actions {
     flex-direction: column;
     align-items: stretch;
-
     margin-top: 28px;
   }
 
@@ -1616,7 +1268,6 @@
 
   .welcome-folder {
     padding: 16px;
-
     gap: 12px;
   }
 
@@ -1654,11 +1305,6 @@
     display: none;
   }
 }
-
-/* ============================================================
-   REDUCE MOTION
-   ============================================================ */
-
 @media (prefers-reduced-motion: reduce) {
   .welcome-step {
     animation: none;

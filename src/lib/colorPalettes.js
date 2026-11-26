@@ -354,6 +354,4 @@ export function normalizePaletteId(value) {
   return LEGACY_PALETTE_IDS[value] || COLOR_PALETTES[0].value;
 }
 
-export function getColorPalette(value) {
-  return PALETTE_BY_ID.get(normalizePaletteId(value));
-}
+export function getColorPalette(value) {return PALETTE_BY_ID.get(normalizePaletteId(value));}

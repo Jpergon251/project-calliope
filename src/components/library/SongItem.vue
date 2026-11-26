@@ -70,14 +70,11 @@ import { useRouter } from "vue-router";
 import { Play } from "lucide-vue-next";
 import SongIconCover from "../common/SongIconCover.vue";
 import { resolveSongCover } from "../../lib/covers.js";
+import { formatTime, navigateToArtist } from "../../lib/formatters.js";
 const library = useLibraryStore();
 const router = useRouter();
 
-const props = defineProps({
-  song: {
-    type: Object,
-    required: true
-  }
+const props = defineProps({song: { type: Object, required: true}
 });
 
 const isMobile = ref(false);
@@ -89,31 +86,14 @@ const artistNames = computed(() => {
   return parsed.length ? parsed : [props.song.artist];
 });
 
-function goToArtist(name) {
-  if (!name || name === "Unknown" || name === "Artista desconocido") return;
-  library.closeNowPlaying();
-  library.closeQueue();
-  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
-}
-function updateIsMobile() {
-  isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;
-}
+const goToArtist = (name) => navigateToArtist(router, name, { library, closeOverlays: true });
+function updateIsMobile() {isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;}
 
-onMounted(() => {
-  updateIsMobile();
-  window.addEventListener('resize', updateIsMobile);
-});
+onMounted(() => {updateIsMobile(); window.addEventListener('resize', updateIsMobile);});
 
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateIsMobile);
-});
+onBeforeUnmount(() => {window.removeEventListener('resize', updateIsMobile);});
 
-function format(seconds) {
-  if (!seconds) return "0:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+const format = formatTime;
 
 function handleCardClick() {
   if (isMobile.value) {
@@ -128,8 +108,6 @@ function handleCardClick() {
 
 function handlePlayBtnClick() {
   library.playSong(props.song);
-  if (isMobile.value) {
-    library.openNowPlaying();
-  }
+  if (isMobile.value) {library.openNowPlaying();}
 }
 </script>

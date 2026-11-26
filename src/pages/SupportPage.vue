@@ -22,7 +22,6 @@
 
     </header>
 
-
     <!-- APOYO PRINCIPAL -->
 
     <section class="support-main">
@@ -41,9 +40,7 @@
 
         </div>
 
-
         <div class="support-options">
-
 
         <article class="support-card featured">
 
@@ -62,7 +59,6 @@
             desarrollando nuevas funciones.
             </p>
 
-            
             <a
                 href="https://ko-fi.com/X8C424QA1Z"
                 class="support-button"
@@ -73,7 +69,6 @@
                 Apoyar el proyecto
             </a>
         </article>
-
 
         <!-- <article class="support-card">
 
@@ -103,7 +98,6 @@
             </a>
 
         </article> -->
-
 
         <article class="support-card">
 
@@ -138,7 +132,6 @@
 
     </section>
 
-
     <!-- EN QUÉ AYUDA -->
 
     <section class="support-benefits">
@@ -157,7 +150,6 @@
 
         </div>
 
-
         <div class="benefits-grid">
 
         <article class="benefit-card">
@@ -172,7 +164,6 @@
 
         </article>
 
-
         <article class="benefit-card">
 
             <Bug />
@@ -186,7 +177,6 @@
 
         </article>
 
-
         <article class="benefit-card">
 
             <Wrench />
@@ -199,7 +189,6 @@
             </p>
 
         </article>
-
 
         <article class="benefit-card">
 
@@ -216,7 +205,6 @@
         </div>
 
     </section>
-
 
     <!-- OTRAS FORMAS DE AYUDAR -->
 
@@ -235,7 +223,6 @@
         </div>
 
         </div>
-
 
         <div class="other-help-grid">
 
@@ -261,7 +248,6 @@
 
         </article>
 
-
         <article class="other-help-card">
 
             <Lightbulb />
@@ -284,7 +270,6 @@
 
         </article>
 
-
         <article class="other-help-card">
 
             <Share2 />
@@ -302,7 +287,6 @@
 
     </section>
 
-
     <!-- MENSAJE FINAL -->
 
     <section class="support-thanks">
@@ -318,7 +302,6 @@
         </p>
 
     </section>
-
 
     <footer class="support-footer">
 

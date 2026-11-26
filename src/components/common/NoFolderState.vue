@@ -36,12 +36,8 @@ const selecting = ref(false);
 async function chooseFolder() {
   if (selecting.value) return;
   selecting.value = true;
-  try {
-    await library.selectFolder();
-  } catch (err) {
+  try {await library.selectFolder();} catch (err) {
     console.warn("[NoFolderState] Error al elegir carpeta:", err);
-  } finally {
-    selecting.value = false;
-  }
+  } finally {selecting.value = false;}
 }
 </script>

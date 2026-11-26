@@ -187,9 +187,7 @@ html[data-theme="miami-vice"] {
 
   .miami-screen-enter-active,
   .miami-screen-leave-active {
-    transition:
-      opacity 420ms ease,
-      transform 420ms cubic-bezier(0.2, 0.65, 0.3, 1);
+    transition: opacity 420ms ease, transform 420ms cubic-bezier(0.2, 0.65, 0.3, 1);
   }
 
   .miami-screen-enter-from {
@@ -913,21 +911,6 @@ html[data-theme="red-music"] {
       color: var(--text-secondary);
     }
 
-    .search-button {
-      border-color: transparent;
-      border-radius: 8px;
-      background: #212121;
-      color: var(--text-secondary);
-
-      &:hover,
-      &:active {
-        border-color: transparent;
-        background: #303030;
-        color: var(--text-primary);
-        box-shadow: none;
-      }
-    }
-
     .profile-action {
       border-color: transparent;
       background: #272727;
@@ -1335,9 +1318,7 @@ html[data-theme="chromatic-glass"] {
     border: 1px solid rgba(244, 245, 247, 0.52);
     background: rgba(244, 245, 247, 0.075);
     color: #F4F5F7;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      0 3px 14px rgba(0, 0, 0, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 3px 14px rgba(0, 0, 0, 0.18);
 
     .control-icon,
     .control-icon * {
@@ -1349,9 +1330,7 @@ html[data-theme="chromatic-glass"] {
       border-color: rgba(244, 245, 247, 0.82);
       background: rgba(244, 245, 247, 0.14);
       color: #FFFFFF;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.22),
-        0 4px 18px rgba(0, 0, 0, 0.22);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 18px rgba(0, 0, 0, 0.22);
     }
 
     &:active {
@@ -1363,9 +1342,7 @@ html[data-theme="chromatic-glass"] {
     border: 1px solid rgba(244, 245, 247, 0.5);
     background: rgba(244, 245, 247, 0.075) !important;
     color: #F4F5F7 !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      0 4px 18px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 18px rgba(0, 0, 0, 0.2) !important;
 
     svg,
     svg * {
@@ -1422,8 +1399,7 @@ html[data-theme="chromatic-glass"] {
     .modal-card,
     .playlist-empty-state,
     .welcome-profile-card,
-    .welcome-accent-card,
-    .artist-about-section
+    .welcome-accent-card
   ) {
     border-color: rgba(226, 232, 240, 0.15);
     background-color: rgba(18, 21, 27, 0.64);
@@ -1435,11 +1411,7 @@ html[data-theme="chromatic-glass"] {
 
   .app-container .main :is(
     .library-search,
-    .search-input-wrapper,
     .search-box,
-    .filter-bar,
-    .sort-control,
-    .artist-section,
     .album-card,
     .history-item
   ) {
@@ -1447,9 +1419,19 @@ html[data-theme="chromatic-glass"] {
     background-color: rgba(18, 21, 27, 0.38);
   }
 
-  .app-container .main .album-page > .song-list-container {
-    border-color: rgba(226, 232, 240, 0.12);
-    background-color: rgba(18, 21, 27, 0.38);
+  .app-container .main :is(
+    .artist-section,
+    .artist-about-section,
+    .artist-songs-section,
+    .albums-grid,
+    .collaborators-pills,
+    .song-list-container
+  ) {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .app-container .main :is(
@@ -1469,16 +1451,10 @@ html[data-theme="chromatic-glass"] {
     .playlist-empty-state,
     .welcome-profile-card,
     .welcome-accent-card,
-    .artist-about-section,
     .library-search,
-    .search-input-wrapper,
     .search-box,
-    .filter-bar,
-    .sort-control,
-    .artist-section,
     .album-card,
-    .history-item,
-    .song-list-container
+    .history-item
   ) {
     transition:
       background-color var(--transition-normal),
@@ -1504,26 +1480,14 @@ html[data-theme="chromatic-glass"] {
       .playlist-empty-state,
       .welcome-profile-card,
       .welcome-accent-card,
-      .artist-about-section,
       .library-search,
-      .search-input-wrapper,
       .search-box,
-      .filter-bar,
-      .sort-control,
-      .artist-section,
       .album-card,
-      .history-item,
-      .song-list-container
+      .history-item
     ) {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
     }
-  }
-
-  .app-container .main .playlist-page > .song-list-container {
-    background-color: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 
   .profile-hero,
@@ -1545,9 +1509,7 @@ html[data-theme="chromatic-glass"] {
 
   .profile-hero {
     position: relative;
-    background:
-      linear-gradient(118deg, rgba(255, 255, 255, 0.045), transparent 28%),
-      var(--card-bg);
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.045), transparent 28%), var(--card-bg);
   }
 
   .profile-hero::before {
@@ -1589,9 +1551,7 @@ html[data-theme="chromatic-glass"] {
 
   @supports ((-webkit-mask-composite: xor) or (mask-composite: exclude)) {
     .profile-hero::after {
-      -webkit-mask:
-        linear-gradient(#FFFFFF 0 0) padding-box,
-        linear-gradient(#FFFFFF 0 0);
+      -webkit-mask: linear-gradient(#FFFFFF 0 0) padding-box, linear-gradient(#FFFFFF 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
     }
@@ -1617,11 +1577,9 @@ html[data-theme="chromatic-glass"] {
   .app-container .main :is(
     .media-card,
     .quick-pick-song-card,
-    .home-album-card,
     .home-playlist-card,
     .history-mini-item,
     .history-item,
-    .metadata-song-card,
     .album-mini-card,
     .playlist-empty-state
   ) {
@@ -1634,11 +1592,9 @@ html[data-theme="chromatic-glass"] {
   .app-container .main :is(
     .media-card,
     .quick-pick-song-card,
-    .home-album-card,
     .home-playlist-card,
     .history-mini-item,
     .history-item,
-    .metadata-song-card,
     .album-mini-card,
     .playlist-empty-state
   ):is(:hover, :focus-within) {
@@ -1668,9 +1624,7 @@ html[data-theme="chromatic-glass"] {
       linear-gradient(125deg, rgba(var(--chromatic-cyan-rgb), 0.07), transparent 48%),
       linear-gradient(305deg, rgba(var(--chromatic-red-rgb), 0.035), transparent 54%),
       var(--accent-surface);
-    box-shadow:
-      var(--theme-selected-shadow),
-      inset 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: var(--theme-selected-shadow), inset 0 1px rgba(255, 255, 255, 0.08);
   }
 
   :focus-visible {

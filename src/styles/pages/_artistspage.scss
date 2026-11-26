@@ -7,9 +7,7 @@
   padding-bottom: 140px;
   box-sizing: border-box;
 
-  // ============================================================
   // HEADER
-  // ============================================================
 
   .artists-header {
     display: flex;
@@ -65,9 +63,7 @@
     }
   }
 
-  // ============================================================
   // SEARCH
-  // ============================================================
 
   .artists-search {
     margin-bottom: 32px;
@@ -90,9 +86,7 @@
       &:focus-within {
         border-color: var(--accent-border);
         background: var(--bg-primary);
-        box-shadow:
-          0 0 0 3px rgba(var(--accent-rgb), 0.08),
-          var(--neon-glow-soft);
+        box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--neon-glow-soft);
       }
 
       .search-icon {
@@ -144,9 +138,7 @@
         background: transparent;
         color: var(--text-muted);
         cursor: pointer;
-        transition:
-          color var(--transition-fast),
-          background-color var(--transition-fast);
+        transition: color var(--transition-fast), background-color var(--transition-fast);
 
         &:hover {
           color: var(--text-primary);
@@ -156,9 +148,7 @@
     }
   }
 
-  // ============================================================
   // GRID DE ARTISTAS
-  // ============================================================
 
   .artists-grid {
     display: grid;
@@ -168,6 +158,9 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 
     .artist-card {
       display: flex;
@@ -266,9 +259,7 @@
     }
   }
 
-  // ============================================================
   // EMPTY STATE
-  // ============================================================
 
   .empty-state {
     display: flex;
@@ -305,9 +296,7 @@
   }
 }
 
-// ============================================================
 // RESPONSIVE / MOBILE
-// ============================================================
 
 @media (max-width: 760px) {
   .artists-page {

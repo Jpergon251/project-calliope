@@ -37,9 +37,7 @@ const album = computed(() => {
     );
 });
 
-const albumCover = computed(() => {
-    return album.value?.cover || album.value?.coverUrl || null;
-});
+const albumCover = computed(() => {return album.value?.cover || album.value?.coverUrl || null;});
 
 const releaseArtistLabel = computed(() => {
     const artists = album.value?.involvedArtists?.length
@@ -55,9 +53,7 @@ const releaseArtistLabel = computed(() => {
 
 function parseTrackNumber(val) {
     if (val == null || val === "" || val === false) return null;
-    if (typeof val === "number") {
-        return Number.isFinite(val) && val > 0 ? val : null;
-    }
+    if (typeof val === "number") {return Number.isFinite(val) && val > 0 ? val : null;}
     if (typeof val === "string") {
         // Soporta formatos como "3", "3/12", "03", "3 of 12"
         const match = val.trim().match(/^(\d+)/);
@@ -119,16 +115,11 @@ const albumSongs = computed(() => {
         const hasTrackA = trackA !== null;
         const hasTrackB = trackB !== null;
 
-        if (hasTrackA && hasTrackB) {
-            if (trackA !== trackB) {
-                return trackA - trackB;
-            }
+        if (hasTrackA && hasTrackB) {if (trackA !== trackB) { return trackA - trackB;}
             // Si tienen el mismo track number, desempatar por disco o título
             const discA = parseTrackNumber(trackAData?.discNumber ?? a.disk ?? a.disc ?? a.diskNo);
             const discB = parseTrackNumber(trackBData?.discNumber ?? b.disk ?? b.disc ?? b.diskNo);
-            if (discA !== null && discB !== null && discA !== discB) {
-                return discA - discB;
-            }
+            if (discA !== null && discB !== null && discA !== discB) {return discA - discB;}
             return (a.title || a.name || "").localeCompare(b.title || b.name || "");
         }
 
@@ -140,10 +131,6 @@ const albumSongs = computed(() => {
     });
 });
 
-watch(album, (alb) => {
-    if (alb) {
-        libraryStore.recordAlbumPlayed(alb);
-    }
+watch(album, (alb) => {if (alb) { libraryStore.recordAlbumPlayed(alb);}
 }, { immediate: true });
 </script>
-

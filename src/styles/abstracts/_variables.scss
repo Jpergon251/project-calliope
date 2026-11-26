@@ -1,20 +1,14 @@
 :root {
-  // =============================================================
   // CALLIOPE DESIGN SYSTEM — NEUTRAL DARK BASE
-  // =============================================================
   // Theme-specific color and surface tokens are applied from user preferences.
 
-  // ==========
   // BACKGROUNDS (DARK OLED REAL)
-  // ==========
   --bg-primary: #261d2b;
   --bg-secondary: #34253a;
   --bg-tertiary: #4a3152;
   --bg-hover: #54385d;
 
-  // ==========
   // SURFACES
-  // ==========
   --surface: #38283f;
   --surface-hover: #48324f;
   --surface-active: #53395b;
@@ -26,17 +20,13 @@
   --player-surface: #805584;
   --visualizer-surface: transparent;
 
-  // ==========
   // TEXT
-  // ==========
   --text-primary: #f5eaf0;
   --text-secondary: #d8c6d8;
   --text-muted: #bca8be;
   --text-inverted: #2b2030;
 
-  // ==========
   // ACCENT
-  // ==========
   --accent-rgb: 245, 213, 170;
   --accent: #f5d5aa;
   --accent-hover: #ffe2bf;
@@ -60,7 +50,6 @@
   --theme-logo-text: #f5eaf0;
   --theme-logo-shadow: transparent;
   --theme-card-radius: 16px;
-  --theme-logo-shadow: transparent;
   --theme-card-lift: -1px;
   --accent-muted: rgba(var(--accent-rgb), 0.16);
   --accent-surface: rgba(var(--accent-rgb), 0.07);
@@ -68,40 +57,28 @@
   --accent-border: rgba(var(--accent-rgb), 0.28);
   --accent-shadow: transparent;
 
-  // ==========
   // GLOWS (SUTILES, SOLO INTERACTIVOS)
-  // ==========
   --neon-glow: none;
   --neon-glow-soft: none;
 
-  // ==========
   // BORDERS
-  // ==========
   --border-color: rgba(242, 221, 238, 0.13);
   --border-hover: rgba(245, 213, 170, 0.42);
 
-  // ==========
   // SHADOWS (OLED PROFUNDOS)
-  // ==========
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.7);
   --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.85);
 
-  // ==========
   // RADIUS
-  // ==========
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
 
-  // ==========
   // TRANSITIONS
-  // ==========
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
 
-  // ==========
   // STATUS
-  // ==========
   --status-success: #a6b995;
   --status-info: #c5a9cb;
   --warning-caution: #d9b77f;
@@ -109,9 +86,7 @@
   --cancel-color: #d58a9a;
   --check-color: #b77ea5;
 
-  // ==========
   // ROADMAP
-  // ==========
   --roadmap: #b77ea5;
   --roadmap-light: #e0b7d2;
   --roadmap-muted: rgba(183, 126, 165, 0.4);

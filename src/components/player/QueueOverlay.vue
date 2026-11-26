@@ -531,7 +531,9 @@
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useLibraryStore } from "../../stores/libraryStore.js";
+import { useQueueReordering } from "../../composables/useQueueReordering.js";
 import SongCover from "../library/SongCover.vue";
+import { formatTime, navigateToArtist } from "../../lib/formatters.js";
 import {
   GripVertical,
   Heart,
@@ -560,9 +562,7 @@ const panelRef = ref(null);
 const scrollBodyRef = ref(null);
 const activeTab = ref("all"); // 'all' | 'upcoming' | 'history'
 
-// ==========================================
 // REACTIVE DATA
-// ==========================================
 
 const queue = computed(() => library.playQueue || []);
 const historyQueue = computed(() => library.historyQueue || []);
@@ -593,29 +593,16 @@ function isSongCurrent(song) {
   return song.id === current?.id;
 }
 
-function isSongPlaying(song) {
-  return isSongCurrent(song) && library.isPlaying;
-}
+function isSongPlaying(song) {return isSongCurrent(song) && library.isPlaying;}
 
-function handleTrackPlayToggle(song, index) {
-  if (isSongCurrent(song)) {
-    library.togglePlay();
-  } else {
+function handleTrackPlayToggle(song, index) {if (isSongCurrent(song)) { library.togglePlay();} else {
     handleTrackClick(index);
   }
 }
 
-function goToArtist(name) {
-  if (!name || name === "Unknown" || name === "Artista desconocido") return;
-  emit("close");
-  library.closeQueue();
-  library.closeNowPlaying();
-  router.push({ name: "artist", params: { name: encodeURIComponent(name.trim()) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name, { library, closeOverlays: true, onClose: () => emit("close") });
 
-const reversedHistory = computed(() => {
-  return [...(library.historyQueue || [])].reverse();
-});
+const reversedHistory = computed(() => {return [...(library.historyQueue || [])].reverse();});
 
 const totalQueueSeconds = computed(() => {
   return queue.value.reduce(
@@ -644,35 +631,16 @@ const upcomingSubtitle = computed(() => {
   return `${count} canciones siguientes`;
 });
 
-function formatTime(seconds) {
-  if (!seconds || Number.isNaN(seconds)) return "0:00";
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${minutes}:${remaining}`;
-}
-
-// ==========================================
 // NAVIGATION & MODAL CONTROLS
-// ==========================================
 
-function handleClose() {
-  emit("close");
-  library.closeQueue();
-}
+function handleClose() {emit("close"); library.closeQueue();}
 
 function handleOpenNowPlaying() {
   const current = currentSong.value || library.playingSong;
-  if (current) {
-    library.openNowPlaying();
-  }
+  if (current) {library.openNowPlaying();}
 }
 
-function handleKeyDown(event) {
-  if (event.key === "Escape") {
-    handleClose();
-  }
+function handleKeyDown(event) {if (event.key === "Escape") { handleClose();}
 }
 
 onMounted(() => {
@@ -685,9 +653,7 @@ onBeforeUnmount(() => {
   document.body.style.overflow = "";
 });
 
-// ==========================================
 // MOBILE TOUCH SWIPE TO DISMISS
-// ==========================================
 
 let touchStartY = 0;
 let isSwipeActive = false;
@@ -698,31 +664,39 @@ function handleTouchStart(e) {
   if (
     touch.clientY < window.innerHeight * 0.35 ||
     scrollBodyRef.value?.scrollTop === 0
-  ) {
-    touchStartY = touch.clientY;
-    isSwipeActive = true;
-  }
+  ) {touchStartY = touch.clientY; isSwipeActive = true;}
 }
 
 function handleTouchMove(e) {
   if (!isSwipeActive) return;
   const currentY = e.touches[0].clientY;
   const diff = currentY - touchStartY;
-  if (diff > 90) {
-    isSwipeActive = false;
-    handleClose();
-  }
+  if (diff > 90) {isSwipeActive = false; handleClose();}
 }
 
-function handleTouchEnd() {
-  isSwipeActive = false;
-}
+function handleTouchEnd() {isSwipeActive = false;}
 
-// ==========================================
 // TRACK ACTIONS
-// ==========================================
 
 const isInteractingWithItem = ref(false);
+const {
+  draggedIndex,
+  hoverIndex,
+  dropPosition,
+  handleDragStart,
+  handleDragOver,
+  handleListDragOver,
+  handleListDrop,
+  handleDrop,
+  handleDragEnd,
+  handleTouchItemStart,
+  handleTouchItemMove,
+  handleTouchItemEnd,
+} = useQueueReordering({
+  library,
+  queue: () => queue.value,
+  isInteractingWithItem,
+});
 
 function handleTrackClick(index) {
   if (isInteractingWithItem.value) return;
@@ -734,158 +708,8 @@ function handlePlayHistoryTrack(song) {
   library.playHistorySong(song);
 }
 
-function handleRemoveTrack(index) {
-  library.removeFromQueue(index);
-}
+function handleRemoveTrack(index) {library.removeFromQueue(index);}
 
-function handleClearQueue() {
-  library.clearQueue();
-}
+function handleClearQueue() {library.clearQueue();}
 
-// ==========================================
-// DRAG & DROP REORDER (DESKTOP + MOBILE)
-// ==========================================
-
-const draggedIndex = ref(null);
-const hoverIndex = ref(null);
-const dropPosition = ref(null); // 'before' | 'after'
-
-function calculateDropPosition(cursorY, rect, index) {
-  const relY = cursorY - rect.top;
-  const ratio = Math.max(0, Math.min(1, relY / rect.height));
-
-  // Generous margin based on drag direction:
-  // Moving downwards: prefer 'after' unless pointer is in top 20%
-  // Moving upwards: prefer 'before' unless pointer is in bottom 20%
-  if (draggedIndex.value !== null && draggedIndex.value < index) {
-    return ratio < 0.2 ? "before" : "after";
-  } else if (draggedIndex.value !== null && draggedIndex.value > index) {
-    return ratio > 0.8 ? "after" : "before";
-  }
-  return ratio < 0.5 ? "before" : "after";
-}
-
-function handleDragStart(event, index) {
-  isInteractingWithItem.value = true;
-  draggedIndex.value = index;
-  hoverIndex.value = index;
-  dropPosition.value = null;
-
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-  }
-}
-
-function handleDragOver(event, index) {
-  hoverIndex.value = index;
-  const rect = event.currentTarget.getBoundingClientRect();
-  dropPosition.value = calculateDropPosition(event.clientY, rect, index);
-}
-
-function handleListDragOver(event) {
-  if (draggedIndex.value === null) return;
-  const listItems = event.currentTarget.querySelectorAll(".queue-track-row");
-  if (!listItems.length) return;
-  const lastItem = listItems[listItems.length - 1];
-  const lastRect = lastItem.getBoundingClientRect();
-  if (event.clientY > lastRect.bottom) {
-    hoverIndex.value = queue.value.length - 1;
-    dropPosition.value = "after";
-  }
-}
-
-function handleListDrop() {
-  if (draggedIndex.value === null) return;
-  if (hoverIndex.value !== null) {
-    handleDrop(hoverIndex.value);
-  }
-}
-
-function handleDrop(targetIndex) {
-  if (
-    draggedIndex.value === null ||
-    targetIndex === null ||
-    targetIndex === undefined
-  ) {
-    handleDragEnd();
-    return;
-  }
-
-  const fromIndex = draggedIndex.value;
-  const position = dropPosition.value || "after";
-
-  const targetSong = queue.value[targetIndex];
-  if (!targetSong) {
-    handleDragEnd();
-    return;
-  }
-
-  const queueCopy = [...queue.value];
-  const [movedSong] = queueCopy.splice(fromIndex, 1);
-
-  let targetPos = queueCopy.findIndex((s) => s.id === targetSong.id);
-  if (targetPos === -1) {
-    targetPos = targetIndex;
-  }
-
-  const insertIndex = position === "after" ? targetPos + 1 : targetPos;
-  const clampedIndex = Math.max(0, Math.min(queueCopy.length, insertIndex));
-
-  queueCopy.splice(clampedIndex, 0, movedSong);
-  library.playQueue = queueCopy;
-
-  handleDragEnd();
-
-  setTimeout(() => {
-    isInteractingWithItem.value = false;
-  }, 150);
-}
-
-function handleDragEnd() {
-  draggedIndex.value = null;
-  hoverIndex.value = null;
-  dropPosition.value = null;
-  setTimeout(() => {
-    isInteractingWithItem.value = false;
-  }, 100);
-}
-
-// Mobile Touch Item Drag
-function handleTouchItemStart(event, index) {
-  isInteractingWithItem.value = true;
-  draggedIndex.value = index;
-  hoverIndex.value = index;
-  dropPosition.value = null;
-}
-
-function handleTouchItemMove(event) {
-  if (draggedIndex.value === null) return;
-  const touch = event.touches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  const targetRow = el?.closest(".queue-track-row");
-
-  if (targetRow && targetRow.parentElement) {
-    const rows = Array.from(targetRow.parentElement.children);
-    const targetIdx = rows.indexOf(targetRow);
-
-    if (targetIdx !== -1) {
-      hoverIndex.value = targetIdx;
-      const rect = targetRow.getBoundingClientRect();
-      dropPosition.value = calculateDropPosition(
-        touch.clientY,
-        rect,
-        targetIdx,
-      );
-    }
-  }
-}
-
-function handleTouchItemEnd() {
-  if (draggedIndex.value !== null && hoverIndex.value !== null) {
-    handleDrop(hoverIndex.value);
-  } else {
-    handleDragEnd();
-  }
-}
 </script>

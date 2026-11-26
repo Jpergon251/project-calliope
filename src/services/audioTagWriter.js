@@ -64,9 +64,7 @@ async function remuxMp4ToM4a(fileHandle, directoryHandle) {
   await ffmpeg.deleteFile('output.m4a');
 
   const writable = await outputHandle.createWritable();
-  try {
-    await writable.write(outputBytes);
-  } finally {
+  try {await writable.write(outputBytes);} finally {
     await writable.close();
   }
   return outputHandle;
@@ -90,15 +88,11 @@ function getAudioExtension(fileName, isMisnamedMp4 = false) {
   // Strictly match valid audio extension, explicitly ignoring any trailing whitespace,
   // question marks or query string artifacts (e.g. ".mp3 ?", ".mp3?version=1", ".m4a ?")
   const match = fileName.match(/\.(mp3|m4a|flac|wav|ogg|opus|aac|wma|aiff|alac)(?:\s*\?.*|\s+.*)?$/i);
-  if (match) {
-    return '.' + match[1].toLowerCase();
-  }
+  if (match) {return '.' + match[1].toLowerCase();}
 
   // Fallback for standard 2-5 letter extension
   const fallback = fileName.match(/\.([a-zA-Z0-9]{2,5})(?:[^\w].*)?$/);
-  if (fallback) {
-    return '.' + fallback[1].toLowerCase();
-  }
+  if (fallback) {return '.' + fallback[1].toLowerCase();}
 
   return '.mp3';
 }
@@ -145,9 +139,7 @@ async function renameFile(fileHandle, directoryHandle, currentName, title, exten
   while (true) {
     try {
       nextHandle = await directoryHandle.getFileHandle(nextName);
-      if (await nextHandle.isSameEntry?.(fileHandle)) {
-        return { fileHandle, name: currentName };
-      }
+      if (await nextHandle.isSameEntry?.(fileHandle)) {return { fileHandle, name: currentName };}
       nextName = `${safeFileName(title)} (${suffix})${cleanExt}`;
       suffix += 1;
     } catch {
@@ -170,9 +162,7 @@ async function renameFile(fileHandle, directoryHandle, currentName, title, exten
   }
   const source = await fileHandle.getFile();
   const writable = await nextHandle.createWritable();
-  try {
-    await writable.write(source);
-  } finally {
+  try {await writable.write(source);} finally {
     await writable.close();
   }
   await directoryHandle.removeEntry(currentName);
@@ -181,9 +171,7 @@ async function renameFile(fileHandle, directoryHandle, currentName, title, exten
 
 async function coverToBytes(cover) {
   const response = await fetch(cover);
-  if (!response.ok) {
-    throw new Error(`No se pudo descargar la portada (HTTP ${response.status}).`);
-  }
+  if (!response.ok) {throw new Error(`No se pudo descargar la portada (HTTP ${response.status}).`);}
 
   return {
     data: new Uint8Array(await response.arrayBuffer()),
@@ -203,14 +191,10 @@ function tagValues(tags, field) {
     .map(normalizedTagValue);
 }
 
-function normalizedTagValue(value) {
-  return String(value ?? '').trim();
-}
+function normalizedTagValue(value) {return String(value ?? '').trim();}
 
 function tagMismatch(actual, expected) {
-  if (expected.value === undefined || expected.value === null || expected.value === '') {
-    return null;
-  }
+  if (expected.value === undefined || expected.value === null || expected.value === '') {return null;}
 
   const actualValue = Array.isArray(expected.value)
     ? tagValues(actual, expected.field)
@@ -288,7 +272,6 @@ export async function writeAudioMetadata(fileHandle, metadata) {
     }
   }
 
-
   const originalFile = await fileHandle.getFile();
   const detectedFormat = await readFormat(originalFile);
   const isMisnamedMp4 = detectedFormat === 'MP4' && /\.mp3$/i.test(originalFile.name);
@@ -322,9 +305,7 @@ export async function writeAudioMetadata(fileHandle, metadata) {
   const sourceBytes = new Uint8Array(await sourceFile.arrayBuffer());
 
   let cover = null;
-  if (metadata.cover) {
-    cover = await coverToBytes(metadata.cover);
-  }
+  if (metadata.cover) {cover = await coverToBytes(metadata.cover);}
 
   const applyRequestedTags = async source => {
     let contents = await applyTags(source, tags);
@@ -346,9 +327,7 @@ export async function writeAudioMetadata(fileHandle, metadata) {
   }
 
   const writable = await targetHandle.createWritable();
-  try {
-    await writable.write(contents);
-  } finally {
+  try {await writable.write(contents);} finally {
     await writable.close();
   }
 

@@ -255,10 +255,7 @@ import { isTauriEnvironment } from "../../services/tauriBridge.js";
 import { useUserStore } from "../../stores/userStore.js";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { inspectProfileIdentity, normalizeUsername } from "../../lib/profileIdentity.js";
-import {
-  importProfileArchive,
-  validateProfileArchive,
-} from "../../services/profileArchives.js";
+import {importProfileArchive, validateProfileArchive} from "../../services/profileArchives.js";
 import {
   connectGoogleDrive,
   authorizeGoogleDriveProfile,
@@ -330,10 +327,7 @@ const expectedFileName = computed(() => {
   return username ? `${username}_profile_data.json` : "";
 });
 
-function showMessage(text, type = "success") {
-  message.value = text;
-  messageType.value = type;
-}
+function showMessage(text, type = "success") {message.value = text; messageType.value = type;}
 
 function friendlyDriveError(error, fallback = "No se pudo completar. Inténtalo de nuevo.") {
   const detail = String(error?.message || "");
@@ -363,18 +357,13 @@ function friendlyDriveError(error, fallback = "No se pudo completar. Inténtalo 
 
 async function loadLink({ resume = true } = {}) {
   const profileId = props.profile?.id;
-  if (!profileId || profileId === "guest") {
-    driveLink.value = null;
-    return;
-  }
+  if (!profileId || profileId === "guest") {driveLink.value = null; return;}
   try {
     const link = await getProfileDriveLink(profileId);
     if (props.profile.id === profileId) {
       driveLink.value = link;
       await getDriveProfileSyncState(profileId);
-      if (resume && link?.accountId) {
-        await resumeDriveProfileSync(profileId);
-      }
+      if (resume && link?.accountId) {await resumeDriveProfileSync(profileId);}
     }
   } catch (error) {
     if (props.profile.id === profileId) {
@@ -410,10 +399,7 @@ async function connect() {
   try {
     driveLink.value = await connectGoogleDrive(props.profile.id);
     if (wasLinked) {
-      if (driveLink.value.initializationPending) {
-        await beginInitialReconciliation();
-        return;
-      }
+      if (driveLink.value.initializationPending) {await beginInitialReconciliation(); return;}
       await resumeDriveProfileSync(props.profile.id);
       showMessage("Google está conectado. Se guardarán tus cambios automáticamente.");
     } else {
@@ -423,9 +409,7 @@ async function connect() {
     }
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo conectar con Google."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function beginInitialReconciliation() {
@@ -452,14 +436,10 @@ async function resolveInitialVersion(choice) {
       await user.loadProfiles();
       await user.reloadActiveProfile(profileId);
       showMessage("Se conservó la copia de Drive.");
-    } else {
-      showMessage("El perfil se guardó en Drive.");
-    }
+    } else {showMessage("El perfil se guardó en Drive.");}
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo completar. Revisa las copias e inténtalo de nuevo."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function disconnect() {
@@ -472,9 +452,7 @@ async function disconnect() {
     showMessage("Google se desconectó. La copia de Drive no se borró.");
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo desconectar Google."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function saveToDrive(confirmCreateRoot = false, initialize = false) {
@@ -521,14 +499,9 @@ async function saveToDrive(confirmCreateRoot = false, initialize = false) {
       if (initialize) initializationDialogOpen.value = false;
       return;
     }
-    if (error.code === "drive-initialization-required") {
-      await beginInitialReconciliation();
-      return;
-    }
+    if (error.code === "drive-initialization-required") {await beginInitialReconciliation(); return;}
     showMessage(friendlyDriveError(error, "No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 function confirmCreateRoot() {
@@ -554,9 +527,7 @@ async function loadFromDrive() {
     pendingArchive.value = validateDriveProfileArchiveIdentity(archive, targetProfile);
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo leer el perfil de Drive. Tus datos actuales no se han modificado."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function confirmRestore() {
@@ -601,9 +572,7 @@ async function confirmRestore() {
         : friendlyDriveError(error, "No se pudo cargar tu perfil. Tus datos actuales no se han modificado."),
       "error",
     );
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function resolveConflict(choice) {
@@ -620,19 +589,14 @@ async function resolveConflict(choice) {
     if (props.profile.id !== profileId) return;
     conflictDialogOpen.value = false;
     await getDriveProfileSyncState(profileId);
-    if (choice === "drive") {
-      await user.loadProfiles();
-      await user.reloadActiveProfile(profileId);
-    }
+    if (choice === "drive") {await user.loadProfiles(); await user.reloadActiveProfile(profileId);}
     await loadLink({ resume: false });
     showMessage(choice === "local"
       ? "Se conservó la copia de este dispositivo."
       : "Se conservó la copia de Drive.");
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo resolver el conflicto. Revisa las copias e inténtalo de nuevo."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 async function downloadConflictBackups() {
@@ -649,9 +613,7 @@ async function downloadConflictBackups() {
       URL.revokeObjectURL(url);
     }
     showMessage("Se descargaron las copias disponibles del conflicto.");
-  } catch (error) {
-    showMessage("No se pudieron descargar las copias. Inténtalo de nuevo.", "error");
-  }
+  } catch (error) {showMessage("No se pudieron descargar las copias. Inténtalo de nuevo.", "error");}
 }
 
 async function renameRemoteFolder() {
@@ -664,9 +626,7 @@ async function renameRemoteFolder() {
     showMessage("Se cambió el nombre de la carpeta.");
   } catch (error) {
     showMessage(friendlyDriveError(error, "No se pudo cambiar el nombre de la carpeta."), "error");
-  } finally {
-    busy.value = "";
-  }
+  } finally {busy.value = "";}
 }
 
 function formatDate(timestamp) {
@@ -688,9 +648,7 @@ watch(
 );
 watch(
   () => syncState.value?.status,
-  (status) => {
-    if (status === "conflict") conflictDialogOpen.value = true;
-  },
+  (status) => {if (status === "conflict") conflictDialogOpen.value = true;},
 );
 onMounted(initialize);
 </script>

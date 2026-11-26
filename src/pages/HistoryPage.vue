@@ -98,25 +98,14 @@ import { resolveHistoryCover } from '../lib/covers.js';
 import CoverArt from '../components/common/CoverArt.vue';
 import { DiscAlbum, History, ListMusic, Music2, Play } from 'lucide-vue-next';
 import { formatPlayCount } from '../services/listeningHistory.js';
+import { formatDuration, formatTimeOfDay, navigateToArtist, playHistoryEntry } from '../lib/formatters.js';
 
 const library = useLibraryStore();
 const router = useRouter();
 
-function historyItemCover(item) {
-  return resolveHistoryCover(library, item);
-}
+function historyItemCover(item) {return resolveHistoryCover(library, item);}
 
-function playCountLabel(item) {
-  return item.type === 'song' ? formatPlayCount(item.playCount) : '';
-}
-
-function formatTimeOfDay(timestamp) {
-  if (!timestamp) return '--:--';
-  const date = new Date(timestamp);
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
+function playCountLabel(item) {return item.type === 'song' ? formatPlayCount(item.playCount) : '';}
 
 function formatDayLabel(timestamp) {
   if (!timestamp) return 'Anterior';
@@ -146,17 +135,8 @@ function formatDayLabel(timestamp) {
   const month = months[date.getMonth()];
   const year = date.getFullYear();
 
-  if (year === now.getFullYear()) {
-    return `${day} de ${month}`;
-  }
+  if (year === now.getFullYear()) {return `${day} de ${month}`;}
   return `${day} de ${month} de ${year}`;
-}
-
-function formatDuration(seconds) {
-  if (!seconds || Number.isNaN(seconds)) return '';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
 }
 
 function getTypeName(item) {
@@ -176,11 +156,7 @@ const groupedHistory = computed(() => {
 
   for (const item of library.listeningHistory) {
     const day = formatDayLabel(item.timestamp);
-    if (!currentGroup || currentGroup.dateLabel !== day) {
-      currentGroup = {
-        dateLabel: day,
-        items: []
-      };
+    if (!currentGroup || currentGroup.dateLabel !== day) {currentGroup = { dateLabel: day, items: []};
       groups.push(currentGroup);
     }
     currentGroup.items.push(item);
@@ -189,24 +165,7 @@ const groupedHistory = computed(() => {
   return groups;
 });
 
-function goToArtist(name) {
-  if (!name || name === 'Unknown' || name === 'Artista desconocido') return;
-  router.push({ name: 'artist', params: { name: encodeURIComponent(name.trim()) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name);
 
-function playHistoryItem(item) {
-  if (item.type === 'song') {
-    const song = library.songs.find(s => s.id === item.itemId);
-    if (song) {
-      library.playSong(song, false, { releaseId: item.releaseId });
-      if (typeof window !== 'undefined' && window.innerWidth <= 760) {
-        library.openNowPlaying();
-      }
-    }
-  } else if (item.type === 'album' || item.type === 'release') {
-    router.push({ name: 'album', params: { id: item.itemId } });
-  } else if (item.type === 'playlist') {
-    router.push({ name: 'playlist', params: { playlistId: item.itemId } });
-  }
-}
+const playHistoryItem = (item) => playHistoryEntry(item, { library, router, passReleaseId: true });
 </script>

@@ -79,18 +79,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from "vue";
-import {
-  Volume,
-  Volume1,
-  Volume2,
-  VolumeX,
-} from "lucide-vue-next";
+import {Volume, Volume1, Volume2, VolumeX} from "lucide-vue-next";
 
-const props = defineProps({
-  library: {
-    type: Object,
-    required: true,
-  },
+const props = defineProps({library: { type: Object, required: true},
   layout: {
     type: String,
     default: "bar", // 'bar' | 'expanded'
@@ -114,9 +105,7 @@ const progressPercent = computed(() => {
   return Math.min(100, Math.max(0, props.library.volume * 100));
 });
 
-const badgePositionPercent = computed(() => {
-  return Math.min(94, Math.max(6, progressPercent.value));
-});
+const badgePositionPercent = computed(() => {return Math.min(94, Math.max(6, progressPercent.value));});
 
 const badgeText = computed(() => {
   if (isMuted.value) return "Silenciado";
@@ -132,18 +121,12 @@ const shouldShowBadge = computed(() => {
 function flashBadge() {
   showBadgeTemporary.value = true;
   if (hideBadgeTimeout) clearTimeout(hideBadgeTimeout);
-  hideBadgeTimeout = setTimeout(() => {
-    showBadgeTemporary.value = false;
-  }, 1600);
+  hideBadgeTimeout = setTimeout(() => {showBadgeTemporary.value = false;}, 1600);
 }
 
-function handleMouseEnter() {
-  isHovered.value = true;
-}
+function handleMouseEnter() {isHovered.value = true;}
 
-function handleMouseLeave() {
-  isHovered.value = false;
-}
+function handleMouseLeave() {isHovered.value = false;}
 
 function calculateRatio(clientX) {
   if (!sliderRef.value) return 0;
@@ -162,9 +145,7 @@ function updateVolumeFromPosition(clientX) {
   flashBadge();
 }
 
-function cleanupActiveDrag() {
-  activeDragCleanup?.();
-}
+function cleanupActiveDrag() {activeDragCleanup?.();}
 
 function handleMouseDown(e) {
   if (e.button !== 0) return;
@@ -173,9 +154,7 @@ function handleMouseDown(e) {
   isDragging.value = true;
   updateVolumeFromPosition(e.clientX);
 
-  function onMouseMove(moveEvent) {
-    updateVolumeFromPosition(moveEvent.clientX);
-  }
+  function onMouseMove(moveEvent) {updateVolumeFromPosition(moveEvent.clientX);}
 
   function onMouseUp() {
     window.removeEventListener("mousemove", onMouseMove);
@@ -253,8 +232,5 @@ function handleKeydown(e) {
   }
 }
 
-onBeforeUnmount(() => {
-  if (hideBadgeTimeout) clearTimeout(hideBadgeTimeout);
-  cleanupActiveDrag();
-});
+onBeforeUnmount(() => {if (hideBadgeTimeout) clearTimeout(hideBadgeTimeout); cleanupActiveDrag();});
 </script>

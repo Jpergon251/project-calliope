@@ -8,10 +8,6 @@
 <script setup>
 import { BookHeart, ListMusic } from "lucide-vue-next";
 
-defineProps({
-    type: {
-        type: String,
-        default: "playlist"
-    }
+defineProps({type: { type: String, default: "playlist"}
 });
 </script>

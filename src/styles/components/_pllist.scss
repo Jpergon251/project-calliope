@@ -1,6 +1,3 @@
-/* ============================================================
-   PLAYLISTS
-============================================================ */
 
 .all-playlist {
   width: 100%;
@@ -74,11 +71,6 @@
   font-size: 12px;
   white-space: nowrap;
 }
-
-/* ============================================================
-   ACTIONS
-============================================================ */
-
 .playlist-section-actions {
   display: flex;
   align-items: center;
@@ -162,9 +154,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition:
-    color var(--transition-fast),
-    background var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 
   &:hover {
     color: var(--text-primary);
@@ -176,11 +166,6 @@
     outline-offset: 3px;
   }
 }
-
-/* ============================================================
-   PLAYLIST CAROUSEL
-============================================================ */
-
 .playlist-carousel {
   display: flex;
   align-items: stretch;
@@ -233,11 +218,6 @@
 .playlist-carousel-full {
   padding-bottom: 18px;
 }
-
-/* ============================================================
-   PLAYLIST ITEM POLISH
-============================================================ */
-
 .playlist-carousel-item {
   transition: transform var(--transition-normal);
 
@@ -259,11 +239,6 @@
 .playlist-carousel-item button {
   cursor: pointer;
 }
-
-/* ============================================================
-   EMPTY STATE
-============================================================ */
-
 .playlist-empty-state {
   flex: 1 1 100%;
   min-height: 150px;
@@ -312,11 +287,6 @@
   color: var(--text-muted);
   font-size: 12px;
 }
-
-/* ============================================================
-   MOBILE
-============================================================ */
-
 @media (max-width: 760px) {
   .playlist-section-header {
     align-items: flex-start;
@@ -378,11 +348,6 @@
     flex-basis: 158px;
   }
 }
-
-/* ============================================================
-   REDUCED MOTION
-============================================================ */
-
 @media (prefers-reduced-motion: reduce) {
   .playlist-carousel-item,
   .create-playlist-button,

@@ -26,11 +26,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-
             width: min(380px, 35vw);
             height: min(380px, 35vw);
             aspect-ratio: 1 / 1;
-
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
@@ -250,9 +248,7 @@
       white-space: nowrap !important;
       box-shadow: none !important;
       transform: none !important;
-      transition:
-        background 0.14s ease,
-        color 0.14s ease !important;
+      transition: background 0.14s ease, color 0.14s ease !important;
 
       svg {
         width: 15px !important;
@@ -431,10 +427,8 @@
 
             }
 
-
         }
     }
-
 
 .song-list-container > .song-list .song-item:hover { background: var(--surface-hover); border-radius: var(--radius-sm); }
 .song-list .song-item { transition: background .18s ease, transform .18s ease; }
@@ -459,11 +453,6 @@
     margin-left: 14px;
   }
 }
-
-/* ============================================================
-   ESTADO VACÍO: SIN CARPETA DE MÚSICA
-   ============================================================ */
-
 .no-folder-state {
   display: flex;
   align-items: center;

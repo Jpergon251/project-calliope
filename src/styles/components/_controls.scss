@@ -7,9 +7,7 @@
   border-radius: 999px;
   background: var(--accent-surface);
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
   .toggle-thumb {
     position: absolute;
     top: 2px;
@@ -18,9 +16,7 @@
     height: 20px;
     border-radius: 50%;
     background: var(--text-secondary);
-    transition:
-      transform 0.2s ease,
-      background 0.2s ease;
+    transition: transform 0.2s ease, background 0.2s ease;
   }
   &.on {
     border-color: var(--accent);
@@ -50,10 +46,7 @@
   background: var(--accent-surface);
   color: var(--text-primary);
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
   &:active {
     transform: scale(0.94);
     border-color: var(--accent);
@@ -74,9 +67,7 @@
   height: 100%;
   opacity: 0.45;
   filter: saturate(0.75) brightness(0.85);
-  transition:
-    opacity 0.5s ease,
-    filter 0.5s ease;
+  transition: opacity 0.5s ease, filter 0.5s ease;
   pointer-events: none;
   background: var(--visualizer-surface);
   &.active {

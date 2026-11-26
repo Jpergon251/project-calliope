@@ -12,9 +12,7 @@ export function validateUsername(value) {
   if (username.startsWith("@")) username = username.slice(1);
   username = username.toLocaleLowerCase("en-US");
 
-  if (!username) {
-    return { valid: false, username: "", reason: "El nombre de usuario es obligatorio." };
-  }
+  if (!username) {return { valid: false, username: "", reason: "El nombre de usuario es obligatorio." };}
   if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) {
     return {
       valid: false,
@@ -60,9 +58,7 @@ export function inspectProfileIdentity(importedProfile, profiles = []) {
   if (idOwner && usernameOwner && idOwner.id !== usernameOwner.id) {
     return { type: "split-identity", idOwner, usernameOwner, usernameValidation };
   }
-  if (idOwner) {
-    return { type: "id-match", idOwner, usernameOwner, usernameValidation };
-  }
+  if (idOwner) {return { type: "id-match", idOwner, usernameOwner, usernameValidation };}
   if (usernameOwner) {
     return { type: "username-match", idOwner: null, usernameOwner, usernameValidation };
   }
@@ -70,13 +66,4 @@ export function inspectProfileIdentity(importedProfile, profiles = []) {
     return { type: "username-required", idOwner: null, usernameOwner: null, usernameValidation };
   }
   return { type: "new", idOwner: null, usernameOwner: null, usernameValidation };
-}
-
-export function withProfileUsername(profile, username) {
-  const validation = validateUsername(username);
-  if (!validation.valid) throw new Error(validation.reason);
-  return {
-    ...profile,
-    username: validation.username,
-  };
 }

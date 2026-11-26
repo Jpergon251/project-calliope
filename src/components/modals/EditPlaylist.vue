@@ -135,30 +135,21 @@ function open(targetPlaylist) {
   coverLoadError.value = false;
   showModal.value = true;
 
-  nextTick(() => {
-    nameInputRef.value?.focus();
-  });
+  nextTick(() => {nameInputRef.value?.focus();});
 }
 
-function close() {
-  showModal.value = false;
-}
+function close() {showModal.value = false;}
 
 async function save() {
   if (!playlist.value || !editedName.value.trim()) return;
 
   await library.updatePlaylist(
     playlist.value.id,
-    {
-      name: editedName.value.trim(),
-      cover: editedCover.value?.trim() || null
-    }
+    {name: editedName.value.trim(), cover: editedCover.value?.trim() || null}
   );
 
   close();
 }
 
-defineExpose({
-  open
-});
+defineExpose({open});
 </script>

@@ -5,11 +5,9 @@ import {
   smoothVisualizerValue,
   visualizerAmplitude,
   visualizerMode,
-} from "../../lib/visualizerMath.js";
-import {
   normalizeVisualizerStyle,
   VISUALIZER_STYLES,
-} from "../../lib/visualizerStyles.js";
+} from "../../lib/visualizer.js";
 
 test("visualizer is off while paused, dim while muted, and active above 1% volume", () => {
   assert.equal(visualizerMode(false, false, 0.5), "off");

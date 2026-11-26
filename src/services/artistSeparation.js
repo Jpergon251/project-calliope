@@ -12,9 +12,7 @@ export function suggestArtistSplit(input) {
     }
     input = input[0];
   }
-  const text = String(
-    typeof input === "string" ? input : input?.name || "",
-  ).trim();
+  const text = String(typeof input === "string" ? input : input?.name || "").trim();
   if (!text) return [];
 
   const separators = /\s*(?:&|\b(?:and|y|con|feat\.?|ft\.?|featuring)\b|,)\s*/i;
@@ -26,23 +24,12 @@ export function suggestArtistSplit(input) {
 }
 
 export function separateArtists(currentEntity, newArtistNames) {
-  const artists = (
-    Array.isArray(newArtistNames) ? newArtistNames : [newArtistNames]
-  )
+  const artists = (Array.isArray(newArtistNames) ? newArtistNames : [newArtistNames])
     .map((name) => String(name || "").trim())
     .filter(Boolean);
 
   const displayArtist = artists.join(", ");
-  const artistCredits = artists.map((name) => ({
-    name,
-    role: "main",
-    joinphrase: "",
-  }));
+  const artistCredits = artists.map((name) => ({name, role: "main", joinphrase: ""}));
 
-  return {
-    ...currentEntity,
-    artists,
-    artistCredits,
-    artist: displayArtist,
-  };
+  return {...currentEntity, artists, artistCredits, artist: displayArtist};
 }

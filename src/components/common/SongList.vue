@@ -13,10 +13,6 @@
 <script setup>
 import SongItem from '../library/SongItem.vue';
 
-defineProps({
-  songs: {
-    type: Array,
-    required: true
-  }
+defineProps({songs: { type: Array, required: true}
 });
 </script>

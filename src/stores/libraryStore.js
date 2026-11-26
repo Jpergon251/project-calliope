@@ -3,6 +3,7 @@ import { ref, watch, toRaw, computed } from "vue";
 import { parseBlob } from "music-metadata";
 
 import { dbPromise } from "../lib/db.js";
+import { toLocalDateStr, shuffleArray } from "../lib/formatters.js";
 import { readFormat } from "taglib-wasm/simple";
 import {
   isTauriEnvironment,
@@ -11,20 +12,13 @@ import {
   selectMusicFolder,
 } from "../services/tauriBridge.js";
 
-import {
-  sanitizeCoverForStorage,
-  isBlobUrl,
-  isBinaryCover,
-  toDisplayUrl,
-} from "../lib/covers.js";
+import {sanitizeCoverForStorage, isBlobUrl, toDisplayUrl} from "../lib/covers.js";
 
 import {
   volumeToDb,
   dbToGain,
   volumeToGain,
-  gainToDb,
   dbToVolume,
-  gainToVolume,
   formatDb,
   getVolumeIconType,
 } from "../lib/volume.js";
@@ -46,11 +40,8 @@ import {
   normalizeComparable,
   createStableFileId,
 } from "../models/musicEntities.js";
-import {
-  buildReleaseRelations,
-  applyReleaseContext,
-  selectPrimaryRelease,
-} from "../services/musicRelations.js";
+import {buildReleaseRelations, applyReleaseContext} from "../services/musicRelations.js";
+import { uniqueAlbumCards, uniqueReleaseCards } from "../lib/releaseCards.js";
 
 const isTauri = isTauriEnvironment();
 
@@ -60,9 +51,7 @@ function cloneForIndexedDB(value) {
 
   function unwrap(current) {
     const raw = toRaw(current);
-    if (raw === null || typeof raw !== "object") {
-      return typeof raw === "function" ? null : raw;
-    }
+    if (raw === null || typeof raw !== "object") {return typeof raw === "function" ? null : raw;}
     if (raw instanceof Blob || (typeof File !== "undefined" && raw instanceof File) || raw instanceof Date || raw instanceof ArrayBuffer) {
       return raw;
     }
@@ -81,117 +70,10 @@ function cloneForIndexedDB(value) {
   return JSON.parse(JSON.stringify(plainValue));
 }
 
-function releaseCoverValue(release) {
-  const direct = release?.cover || release?.coverUrl;
-  if (direct) return direct;
-
-  const alternatives = release?.coverAlternatives || release?.artworks || [];
-  return alternatives
-    .map((item) => typeof item === "string" ? item : item?.url)
-    .find(Boolean) || null;
-}
-
-function releaseDisplayScore(release) {
-  return Number(Boolean(releaseCoverValue(release))) * 100
-    + Number(release.source === "musicbrainz") * 20
-    + Number(Boolean(release.year)) * 5
-    + Number(release.trackCount || 0) * 0.01;
-}
-
-function mergeReleaseDisplayData(current, duplicate) {
-  const primaryArtists = current.primaryArtists?.length
-    ? current.primaryArtists
-    : duplicate.primaryArtists?.length
-      ? duplicate.primaryArtists
-      : current.artists || duplicate.artists || current.artist || duplicate.artist;
-  const uniqueArtists = [...new Map(
-    (Array.isArray(primaryArtists) ? primaryArtists : [primaryArtists])
-      .map((artist) => typeof artist === "string" ? { name: artist } : artist)
-      .filter((artist) => artist?.name)
-      .map((artist) => [
-        artist.id ? `id:${artist.id}` : `name:${normalizeComparable(artist.name)}`,
-        artist,
-      ]),
-  ).values()];
-
-  return {
-    ...current,
-    primaryArtists: uniqueArtists,
-    artists: uniqueArtists.map((artist) => artist.name),
-    artist: uniqueArtists.map((artist) => artist.name).join(", ") || current.artist || duplicate.artist || "",
-    albumArtist: current.albumArtist || duplicate.albumArtist || "",
-    relatedReleaseIds: [
-      ...new Set([
-        ...(current.relatedReleaseIds || [current.id]),
-        ...(duplicate.relatedReleaseIds || [duplicate.id]),
-      ].filter(Boolean)),
-    ],
-  };
-}
-
-function uniqueReleaseCards(releaseList) {
-  const grouped = new Map();
-
-  for (const release of releaseList || []) {
-    if (!release?.id) continue;
-
-    // El título y el tipo definen la tarjeta visible. Los artistas pueden ser
-    // varios colaboradores del mismo lanzamiento y no deben crear otra tarjeta.
-    const title = normalizeComparable(release.title || release.name);
-    const type = release.type || "unknown";
-    const key = title ? `${title}|${type}` : `id:${release.id}`;
-    const previous = grouped.get(key);
-
-    if (!previous) {
-      grouped.set(key, mergeReleaseDisplayData({
-        ...release,
-        relatedReleaseIds: [...new Set(release.relatedReleaseIds || [release.id])],
-      }, {}));
-      continue;
-    }
-
-    const preferred = releaseDisplayScore(release) > releaseDisplayScore(previous)
-      ? release
-      : previous;
-    const other = preferred === release ? previous : release;
-    grouped.set(key, mergeReleaseDisplayData(preferred, other));
-  }
-
-  return [...grouped.values()];
-}
-
-function uniqueAlbumCards(albumList) {
-  const grouped = new Map();
-
-  for (const album of albumList || []) {
-    if (!album) continue;
-    const title = normalizeComparable(album.name || album.title);
-    if (!title) continue;
-
-    // En la vista de álbumes el nombre es la identidad visible. No se crean
-    // tarjetas adicionales por artista principal o colaboradores.
-    const previous = grouped.get(title);
-    if (!previous) {
-      grouped.set(title, mergeReleaseDisplayData(album, {}));
-      continue;
-    }
-
-    const preferred = releaseDisplayScore(album) > releaseDisplayScore(previous)
-      ? album
-      : previous;
-    const other = preferred === album ? previous : album;
-    grouped.set(title, mergeReleaseDisplayData(preferred, other));
-  }
-
-  return [...grouped.values()];
-}
-
 export const useLibraryStore = defineStore("library", () => {
   const FAVORITES_PLAYLIST_ID = "favorites";
 
-  // =========================
   // STATE
-  // =========================
 
   const initialized = ref(false);
 
@@ -249,9 +131,7 @@ export const useLibraryStore = defineStore("library", () => {
     return volumeToGain(volume.value);
   });
 
-  const volumeIconType = computed(() => {
-    return getVolumeIconType(volume.value, isMuted.value);
-  });
+  const volumeIconType = computed(() => {return getVolumeIconType(volume.value, isMuted.value);});
 
   const currentPlaylistId = ref(null);
 
@@ -260,23 +140,13 @@ export const useLibraryStore = defineStore("library", () => {
   const isNowPlayingOpen = ref(false);
   const isQueueOpen = ref(false);
 
-  // =========================
   // SHUFFLE, AUTOPLAY & RATINGS STATE
-  // =========================
 
   const isShuffleEnabled = ref(false);
   const originalQueueList = ref([]);
   const repeatMode = ref("off"); // 'off' | 'all' | 'one'
   const autoplay = ref(true);
 
-  function shuffleArray(arr) {
-    const copy = [...arr];
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  }
   const songRatings = ref({}); // { [songId]: 'like' | 'dislike' | 'neutral' }
   const playbackEvents = ref([]); // all playback events for current profile
   function createEmptyStatsSummary(profileId = null) {
@@ -326,44 +196,25 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function stopProgressUpdates() {
-    if (progressUpdateTimer !== null) {
-      clearInterval(progressUpdateTimer);
-      progressUpdateTimer = null;
-    }
+    if (progressUpdateTimer !== null) {clearInterval(progressUpdateTimer); progressUpdateTimer = null;}
     syncAudioProgress();
   }
 
-  // =========================
   // NOW PLAYING & QUEUE OVERLAYS
-  // =========================
 
-  function openNowPlaying() {
-    isNowPlayingOpen.value = true;
-  }
+  function openNowPlaying() {isNowPlayingOpen.value = true;}
 
-  function closeNowPlaying() {
-    isNowPlayingOpen.value = false;
-  }
+  function closeNowPlaying() {isNowPlayingOpen.value = false;}
 
-  function toggleNowPlaying() {
-    isNowPlayingOpen.value = !isNowPlayingOpen.value;
-  }
+  function toggleNowPlaying() {isNowPlayingOpen.value = !isNowPlayingOpen.value;}
 
-  function openQueue() {
-    isQueueOpen.value = true;
-  }
+  function openQueue() {isQueueOpen.value = true;}
 
-  function closeQueue() {
-    isQueueOpen.value = false;
-  }
+  function closeQueue() {isQueueOpen.value = false;}
 
-  function toggleQueue() {
-    isQueueOpen.value = !isQueueOpen.value;
-  }
+  function toggleQueue() {isQueueOpen.value = !isQueueOpen.value;}
 
-  // =========================
   // ARTISTS
-  // =========================
 
   function parseArtistNames(rawString) {
     if (!rawString) return [];
@@ -392,17 +243,11 @@ export const useLibraryStore = defineStore("library", () => {
       .filter((name) => {
         if (!name) return false;
         const lower = name.toLocaleLowerCase();
-        return (
-          lower !== "unknown" &&
-          lower !== "varios artistas" &&
-          lower !== "various artists"
-        );
+        return (lower !== "unknown" && lower !== "varios artistas" && lower !== "various artists");
       });
   }
 
-  function normalizeArtistKey(name) {
-    return normalizeComparable(name);
-  }
+  function normalizeArtistKey(name) {return normalizeComparable(name);}
 
   const customArtistCovers = ref({});
   const artistProfiles = ref({});
@@ -439,24 +284,18 @@ export const useLibraryStore = defineStore("library", () => {
       if (
         rawName.trim().length > entry.name.length ||
         (/[A-Z]/.test(rawName) && !/[A-Z]/.test(entry.name))
-      ) {
-        entry.name = rawName.trim();
-      }
+      ) {entry.name = rawName.trim();}
 
       return entry;
     }
 
-    // =========================================================
     // 1. PROCESS ALL SONGS
-    // =========================================================
 
     for (const song of songs.value) {
       const structuredArtists = song.artistCredits?.length ? song.artistCredits : (song.artists?.length ? song.artists : song.artist);
       const names = parseArtistNames(structuredArtists);
 
-      // -------------------------------------------------------
       // Sin artista
-      // -------------------------------------------------------
 
       if (names.length === 0) {
         const fallback = getOrCreateArtist("Artista desconocido");
@@ -469,9 +308,7 @@ export const useLibraryStore = defineStore("library", () => {
         continue;
       }
 
-      // -------------------------------------------------------
       // Artistas de la canción
-      // -------------------------------------------------------
 
       const songArtistEntries = names
         .map((name, index) => {
@@ -505,39 +342,29 @@ export const useLibraryStore = defineStore("library", () => {
           artistEntry.collaborations.push(song);
 
           for (const other of songArtistEntries) {
-            if (other.name !== artistEntry.name) {
-              artistEntry.collaborators.add(other.name);
-            }
+            if (other.name !== artistEntry.name) {artistEntry.collaborators.add(other.name);}
           }
         }
       }
     }
 
-    // =========================================================
     // 2. PROCESS ALL ALBUMS
-    // =========================================================
 
     for (const album of albums.value) {
       const albumArtistNames = parseArtistNames(album.artistCredits?.length ? album.artistCredits : (album.artists?.length ? album.artists : album.artist));
 
       const matchedArtists = new Set();
 
-      // -------------------------------------------------------
       // Artistas declarados en el álbum
-      // -------------------------------------------------------
 
       for (const name of albumArtistNames) {
         const entry = getOrCreateArtist(name);
 
-        if (entry) {
-          matchedArtists.add(entry);
-        }
+        if (entry) {matchedArtists.add(entry);}
       }
 
-      // -------------------------------------------------------
       // Buscar artistas de las canciones pertenecientes
       // al álbum
-      // -------------------------------------------------------
 
       for (const song of songs.value) {
         if (
@@ -547,16 +374,12 @@ export const useLibraryStore = defineStore("library", () => {
           for (const name of parseArtistNames(song.artistCredits?.length ? song.artistCredits : (song.artists?.length ? song.artists : song.artist))) {
             const entry = getOrCreateArtist(name);
 
-            if (entry) {
-              matchedArtists.add(entry);
-            }
+            if (entry) {matchedArtists.add(entry);}
           }
         }
       }
 
-      // -------------------------------------------------------
       // Asociar álbum al artista
-      // -------------------------------------------------------
 
       for (const artistEntry of matchedArtists) {
         if (!artistEntry.albumIds.has(album.id)) {
@@ -571,9 +394,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
-    // =========================================================
     // 3. MERGE WITH ARTIST PROFILES
-    // =========================================================
 
     return Array.from(artistMap.values())
       .map((artist) => {
@@ -586,9 +407,7 @@ export const useLibraryStore = defineStore("library", () => {
         return {
           ...artist,
 
-          // -------------------------
           // Perfil personalizado
-          // -------------------------
 
           artisticName: profile.artisticName || artist.name,
 
@@ -596,17 +415,13 @@ export const useLibraryStore = defineStore("library", () => {
 
           description: profile.description || "",
 
-          // -------------------------
           // Imagen EXCLUSIVA del artista
-          // -------------------------
 
           customCover,
 
           hasCustomCover: !!customCover,
 
-          // -------------------------
           // Estadísticas
-          // -------------------------
 
           songCount: artist.songs.length,
 
@@ -619,17 +434,13 @@ export const useLibraryStore = defineStore("library", () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  // =========================
   // ARTIST PROFILES
-  // =========================
 
   async function loadArtistProfiles() {
     try {
       const db = await dbPromise;
 
-      if (!db.objectStoreNames.contains("settings")) {
-        return;
-      }
+      if (!db.objectStoreNames.contains("settings")) {return;}
 
       const index = (await db.get("settings", "artist-profiles-index")) || [];
 
@@ -650,9 +461,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       artistProfiles.value = profiles;
-    } catch (e) {
-      console.warn("⚠️ Error loading artist profiles:", e);
-    }
+    } catch (e) {console.warn("⚠️ Error loading artist profiles:", e);}
   }
 
   async function saveArtistProfile(artistName, data = {}) {
@@ -680,10 +489,7 @@ export const useLibraryStore = defineStore("library", () => {
       await db.put("settings", index, "artist-profiles-index");
     }
 
-    artistProfiles.value = {
-      ...artistProfiles.value,
-      [key]: profile,
-    };
+    artistProfiles.value = {...artistProfiles.value, [key]: profile};
 
     return profile;
   }
@@ -705,9 +511,7 @@ export const useLibraryStore = defineStore("library", () => {
       "artist-profiles-index",
     );
 
-    const updated = {
-      ...artistProfiles.value,
-    };
+    const updated = {...artistProfiles.value};
 
     delete updated[key];
 
@@ -718,25 +522,17 @@ export const useLibraryStore = defineStore("library", () => {
     const key = normalizeArtistKey(artistName);
 
     return (
-      artistProfiles.value[key] || {
-        artisticName: "",
-        realName: "",
-        description: "",
-      }
+      artistProfiles.value[key] || {artisticName: "", realName: "", description: ""}
     );
   }
 
-  // =========================
   // ARTIST COVERS
-  // =========================
 
   async function loadCustomArtistCovers() {
     try {
       const db = await dbPromise;
 
-      if (!db.objectStoreNames.contains("settings")) {
-        return;
-      }
+      if (!db.objectStoreNames.contains("settings")) {return;}
 
       const index = (await db.get("settings", "artist-covers-index")) || [];
 
@@ -747,21 +543,15 @@ export const useLibraryStore = defineStore("library", () => {
 
         if (!stored) continue;
 
-        if (typeof stored === "string" && stored.trim().length > 0) {
-          map[key] = stored.trim();
-        } else {
+        if (typeof stored === "string" && stored.trim().length > 0) {map[key] = stored.trim();} else {
           const displayUrl = toDisplayUrl(stored);
 
-          if (displayUrl) {
-            map[key] = displayUrl;
-          }
+          if (displayUrl) {map[key] = displayUrl;}
         }
       }
 
       customArtistCovers.value = map;
-    } catch (e) {
-      console.warn("⚠️ Error loading custom artist covers:", e);
-    }
+    } catch (e) {console.warn("⚠️ Error loading custom artist covers:", e);}
   }
 
   async function setCustomArtistCover(artistName, data) {
@@ -786,10 +576,7 @@ export const useLibraryStore = defineStore("library", () => {
     const displayUrl =
       typeof data === "string" ? data.trim() : toDisplayUrl(data);
 
-    customArtistCovers.value = {
-      ...customArtistCovers.value,
-      [key]: displayUrl,
-    };
+    customArtistCovers.value = {...customArtistCovers.value, [key]: displayUrl};
 
     return displayUrl;
   }
@@ -809,9 +596,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     await db.put("settings", nextIndex, "artist-covers-index");
 
-    const updated = {
-      ...customArtistCovers.value,
-    };
+    const updated = {...customArtistCovers.value};
 
     delete updated[key];
 
@@ -833,9 +618,7 @@ export const useLibraryStore = defineStore("library", () => {
     );
   }
 
-  // =========================
   // PLAYBACK STATS & SONG RATINGS
-  // =========================
 
   async function loadStats() {
     const user = useUserStore();
@@ -860,15 +643,11 @@ export const useLibraryStore = defineStore("library", () => {
         let savedSummary = null;
 
         for (const item of allStats || []) {
-          if (item.id === `summary_${currentProfileId}`) {
-            savedSummary = item;
-          } else if (
+          if (item.id === `summary_${currentProfileId}`) {savedSummary = item;} else if (
             item.profileId === currentProfileId &&
             typeof item.id === "string" &&
             item.id.startsWith("event_")
-          ) {
-            profileEvents.push(item);
-          }
+          ) {profileEvents.push(item);}
         }
 
         playbackEvents.value = profileEvents.sort(
@@ -876,13 +655,8 @@ export const useLibraryStore = defineStore("library", () => {
         );
 
         if (savedSummary) {
-          profileStatsSummary.value = {
-            ...createEmptyStatsSummary(currentProfileId),
-            ...savedSummary,
-          };
-        } else {
-          profileStatsSummary.value = createEmptyStatsSummary(currentProfileId);
-        }
+          profileStatsSummary.value = {...createEmptyStatsSummary(currentProfileId), ...savedSummary};
+        } else {profileStatsSummary.value = createEmptyStatsSummary(currentProfileId);}
       }
     } catch (e) {
       console.warn("⚠️ Error loading stats from db:", e);
@@ -908,9 +682,7 @@ export const useLibraryStore = defineStore("library", () => {
         await db.put("playback_stats", summaryToSave);
         scheduleProfileSync(currentProfileId);
       }
-    } catch (err) {
-      console.warn("⚠️ Could not save profile stats summary:", err);
-    }
+    } catch (err) {console.warn("⚠️ Could not save profile stats summary:", err);}
   }
 
   async function loadSongRatings() {
@@ -931,14 +703,10 @@ export const useLibraryStore = defineStore("library", () => {
             }
           }
         }
-      } catch (err) {
-        console.warn("⚠️ Error loading song ratings:", err);
-      }
+      } catch (err) {console.warn("⚠️ Error loading song ratings:", err);}
     }
 
-    for (const song of songs.value) {
-      song.rating = ratingsMap[song.id] || "neutral";
-    }
+    for (const song of songs.value) {song.rating = ratingsMap[song.id] || "neutral";}
 
     songRatings.value = ratingsMap;
   }
@@ -958,15 +726,10 @@ export const useLibraryStore = defineStore("library", () => {
     const normalizedRating =
       rating === "like" || rating === "dislike" ? rating : "neutral";
 
-    songRatings.value = {
-      ...songRatings.value,
-      [songId]: normalizedRating,
-    };
+    songRatings.value = {...songRatings.value, [songId]: normalizedRating};
 
     const song = songs.value.find((s) => s.id === songId);
-    if (song) {
-      song.rating = normalizedRating;
-    }
+    if (song) {song.rating = normalizedRating;}
 
     if (playingSong.value && playingSong.value.id === songId) {
       playingSong.value.rating = normalizedRating;
@@ -991,9 +754,7 @@ export const useLibraryStore = defineStore("library", () => {
           });
           scheduleProfileSync(currentProfileId);
         }
-      } catch (err) {
-        console.warn("⚠️ Could not persist song rating:", err);
-      }
+      } catch (err) {console.warn("⚠️ Could not persist song rating:", err);}
     }
   }
 
@@ -1078,11 +839,7 @@ export const useLibraryStore = defineStore("library", () => {
     for (const aName of artistNames.length ? artistNames : [primaryArtist]) {
       const artistStatsKey = profileMetricArtistId(aName);
       if (!summary.artistStats[artistStatsKey]) {
-        summary.artistStats[artistStatsKey] = {
-          playCount: 0,
-          totalListenTime: 0,
-          lastPlayedAt: now,
-        };
+        summary.artistStats[artistStatsKey] = {playCount: 0, totalListenTime: 0, lastPlayedAt: now};
       }
       summary.artistStats[artistStatsKey].playCount =
         (summary.artistStats[artistStatsKey].playCount || 0) + 1;
@@ -1139,9 +896,7 @@ export const useLibraryStore = defineStore("library", () => {
     };
 
     playbackEvents.value.unshift(event);
-    if (playbackEvents.value.length > 2000) {
-      playbackEvents.value = playbackEvents.value.slice(0, 2000);
-    }
+    if (playbackEvents.value.length > 2000) {playbackEvents.value = playbackEvents.value.slice(0, 2000);}
 
     addToListeningHistory({
       type: "song",
@@ -1163,18 +918,14 @@ export const useLibraryStore = defineStore("library", () => {
           await saveProfileStatsSummary();
           scheduleProfileSync(currentProfileId);
         }
-      } catch (err) {
-        console.warn("⚠️ Could not save playback event:", err);
-      }
+      } catch (err) {console.warn("⚠️ Could not save playback event:", err);}
     }
   }
 
   function formatListenTime(seconds) {
     if (!seconds || seconds <= 0) return "0 min";
     const totalMins = Math.round(seconds / 60);
-    if (totalMins < 60) {
-      return `${totalMins} min`;
-    }
+    if (totalMins < 60) {return `${totalMins} min`;}
     const hours = Math.floor(totalMins / 60);
     const mins = totalMins % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
@@ -1186,13 +937,6 @@ export const useLibraryStore = defineStore("library", () => {
   // Si no se pasa, se usa "ahora" (comportamiento original).
   function generateChartData(events, period, now = new Date()) {
     const buckets = [];
-    // Fecha en formato YYYY-MM-DD usando los componentes LOCALES.
-    // toISOString() convierte a UTC, lo que desplazaba los días en
-    // zonas horarias por delante de UTC (p. ej. España) y hacía que
-    // los minutos de "hoy" aparecieran en el día siguiente.
-    function toLocalDateStr(d) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    }
     function isSameDay(d1, d2) {
       return (
         d1.getFullYear() === d2.getFullYear() &&
@@ -1222,10 +966,7 @@ export const useLibraryStore = defineStore("library", () => {
         const evDate = new Date(ev.timestamp);
         if (isSameDay(evDate, now)) {
           const h = evDate.getHours();
-          if (buckets[h]) {
-            buckets[h].plays++;
-            buckets[h].minutes += (Number(ev.listenTime) || 0) / 60;
-          }
+          if (buckets[h]) {buckets[h].plays++; buckets[h].minutes += (Number(ev.listenTime) || 0) / 60;}
         }
       }
     } else if (period === "week") {
@@ -1255,10 +996,7 @@ export const useLibraryStore = defineStore("library", () => {
       for (const ev of events) {
         const evDate = toLocalDateStr(new Date(ev.timestamp));
         const b = buckets.find((item) => item.date === evDate);
-        if (b) {
-          b.plays++;
-          b.minutes += (Number(ev.listenTime) || 0) / 60;
-        }
+        if (b) {b.plays++; b.minutes += (Number(ev.listenTime) || 0) / 60;}
       }
     } else if (period === "month") {
       // 3. Mes: todos los 28, 29, 30 o 31 días que tenga el mes actual
@@ -1323,10 +1061,7 @@ export const useLibraryStore = defineStore("library", () => {
         const evDate = new Date(ev.timestamp);
         if (evDate.getFullYear() === year) {
           const b = buckets[evDate.getMonth()];
-          if (b) {
-            b.plays++;
-            b.minutes += (Number(ev.listenTime) || 0) / 60;
-          }
+          if (b) {b.plays++; b.minutes += (Number(ev.listenTime) || 0) / 60;}
         }
       }
     }
@@ -1430,12 +1165,7 @@ export const useLibraryStore = defineStore("library", () => {
       for (const aName of artistNames) {
         if (!aName) continue;
         if (!artistAgg.has(aName)) {
-          artistAgg.set(aName, {
-            name: aName,
-            plays: 0,
-            listenTime: 0,
-            lastPlayedAt: ev.timestamp,
-          });
+          artistAgg.set(aName, {name: aName, plays: 0, listenTime: 0, lastPlayedAt: ev.timestamp});
         }
         const aItem = artistAgg.get(aName);
         aItem.plays++;
@@ -1524,9 +1254,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
       const item = playlistAgg.get(pId);
       item.plays++;
-      if ((entry.timestamp || 0) > item.lastPlayedAt) {
-        item.lastPlayedAt = entry.timestamp || 0;
-      }
+      if ((entry.timestamp || 0) > item.lastPlayedAt) {item.lastPlayedAt = entry.timestamp || 0;}
       if (!item.cover && entry.cover) item.cover = entry.cover;
     }
 
@@ -1552,10 +1280,7 @@ export const useLibraryStore = defineStore("library", () => {
     for (const aItem of artistAgg.values()) {
       if (!aItem.cover) {
         let cover = getArtistCover(aItem.name);
-        if (!cover) {
-          const art = getArtistByName(aItem.name);
-          cover = art?.customCover || null;
-        }
+        if (!cover) {const art = getArtistByName(aItem.name); cover = art?.customCover || null;}
         aItem.cover = cover || null;
       }
     }
@@ -1563,20 +1288,12 @@ export const useLibraryStore = defineStore("library", () => {
     const topSongs = Array.from(songAgg.values())
       .sort((a, b) => b.plays - a.plays || b.listenTime - a.listenTime)
       .slice(0, 10)
-      .map((s, idx) => ({
-        ...s,
-        rank: idx + 1,
-        listenTimeFormatted: formatListenTime(s.listenTime),
-      }));
+      .map((s, idx) => ({...s, rank: idx + 1, listenTimeFormatted: formatListenTime(s.listenTime)}));
 
     const topArtists = Array.from(artistAgg.values())
       .sort((a, b) => b.plays - a.plays || b.listenTime - a.listenTime)
       .slice(0, 10)
-      .map((a, idx) => ({
-        ...a,
-        rank: idx + 1,
-        listenTimeFormatted: formatListenTime(a.listenTime),
-      }));
+      .map((a, idx) => ({...a, rank: idx + 1, listenTimeFormatted: formatListenTime(a.listenTime)}));
 
     // Playlists más abiertas en el periodo. Se ordenan por número de
     // aperturas y, a igualdad, por la más reciente.
@@ -1631,9 +1348,7 @@ export const useLibraryStore = defineStore("library", () => {
       };
     }
 
-  // =========================
   // SHUFFLE & AUTOPLAY LOGIC
-  // =========================
 
   const AUTOPLAY_MIN_QUEUE_SIZE = 5;
 
@@ -1658,9 +1373,7 @@ export const useLibraryStore = defineStore("library", () => {
       const nextSong = getSmartNextSong(lastSong);
       if (!nextSong) break;
 
-      if (playQueue.value.some((s) => s.id === nextSong.id)) {
-        break;
-      }
+      if (playQueue.value.some((s) => s.id === nextSong.id)) {break;}
 
       playQueue.value.push(nextSong);
 
@@ -1698,27 +1411,19 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function toggleRepeat() {
-    if (repeatMode.value === "off") {
-      repeatMode.value = "all";
-    } else if (repeatMode.value === "all") {
+    if (repeatMode.value === "off") {repeatMode.value = "all";} else if (repeatMode.value === "all") {
       repeatMode.value = "one";
-    } else {
-      repeatMode.value = "off";
-    }
+    } else {repeatMode.value = "off";}
   }
 
   function toggleAutoplay() {
     autoplay.value = !autoplay.value;
     try {
       const user = useUserStore();
-      if (user.loaded && !user.isGuest) {
-        user.updateProfile({ autoplay: autoplay.value });
-      }
+      if (user.loaded && !user.isGuest) {user.updateProfile({ autoplay: autoplay.value });}
     } catch {}
 
-    if (autoplay.value) {
-      fillAutoplayQueue();
-    }
+    if (autoplay.value) {fillAutoplayQueue();}
   }
 
   function getSmartNextSong(referenceSong = playingSong.value) {
@@ -1746,9 +1451,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (candidates.length === 0) return null;
 
-    // ----------------------------------------------------
     // User Likes Data: songs with Heart (favorite) or Thumbs Up (like)
-    // ----------------------------------------------------
     const allLikedSongs = songs.value.filter(
       (s) => isSongLiked(s) && getSongRating(s.id) !== "dislike",
     );
@@ -1765,21 +1468,13 @@ export const useLibraryStore = defineStore("library", () => {
         .filter(Boolean),
     );
 
-    // ----------------------------------------------------
     // Context: Last song and queued songs to enforce variety & prevent consecutive tracks
-    // ----------------------------------------------------
     const activeQueue = playQueue.value || [];
     const lastTrack =
       referenceSong || activeQueue[activeQueue.length - 1] || playingSong.value;
 
-    const lastAlbumKey = (
-      lastTrack?.albumId ||
-      lastTrack?.album ||
-      ""
-    ).toLowerCase();
-    const lastArtistKeys = parseArtistNames(lastTrack?.artist).map(
-      normalizeArtistKey,
-    );
+    const lastAlbumKey = (lastTrack?.albumId || lastTrack?.album || "").toLowerCase();
+    const lastArtistKeys = parseArtistNames(lastTrack?.artist).map(normalizeArtistKey);
     const lastTrackNumber = Number(lastTrack?.track) || null;
 
     const lastSongIndex = lastTrack?.id
@@ -1791,40 +1486,27 @@ export const useLibraryStore = defineStore("library", () => {
     const queueArtistsCount = new Map();
     for (const qSong of activeQueue) {
       const alb = (qSong.albumId || qSong.album || "").toLowerCase();
-      if (alb) {
-        queueAlbumsCount.set(alb, (queueAlbumsCount.get(alb) || 0) + 1);
-      }
+      if (alb) {queueAlbumsCount.set(alb, (queueAlbumsCount.get(alb) || 0) + 1);}
       for (const aName of parseArtistNames(qSong.artist).map(
         normalizeArtistKey,
-      )) {
-        queueArtistsCount.set(aName, (queueArtistsCount.get(aName) || 0) + 1);
-      }
+      )) {queueArtistsCount.set(aName, (queueArtistsCount.get(aName) || 0) + 1);}
     }
 
-    // ----------------------------------------------------
     // Listening History: avoid repeating recently heard tracks
-    // ----------------------------------------------------
     const recentHistoryIds = (listeningHistory.value || [])
       .slice(0, 30)
       .map((h) => h.itemId);
     const recentQueueHistoryIds = (historyQueue.value || [])
       .slice(-15)
       .map((s) => s.id);
-    const recentPlayedList = [
-      ...recentQueueHistoryIds.reverse(),
-      ...recentHistoryIds,
-    ];
+    const recentPlayedList = [...recentQueueHistoryIds.reverse(), ...recentHistoryIds];
 
-    // ----------------------------------------------------
     // Calculate Weights (Higher weight = higher random probability based on likes)
-    // ----------------------------------------------------
     const weightedCandidates = candidates.map((song) => {
       let weight = 15; // Base neutral discovery weight
 
       const songLiked = isSongLiked(song);
-      const songArtistKeys = parseArtistNames(song.artist).map(
-        normalizeArtistKey,
-      );
+      const songArtistKeys = parseArtistNames(song.artist).map(normalizeArtistKey);
       const songAlbumKey = (song.albumId || song.album || "").toLowerCase();
       const songTrackNumber = Number(song.track) || null;
 
@@ -1839,20 +1521,13 @@ export const useLibraryStore = defineStore("library", () => {
 
       // 2. PLAY COUNT & ENGAGEMENT BONUS
       const sStat = profileStatsSummary.value?.songStats?.[song.id];
-      if (sStat?.playCount) {
-        weight += Math.min(30, sStat.playCount * 6);
-      }
+      if (sStat?.playCount) {weight += Math.min(30, sStat.playCount * 6);}
 
       // 3. RECENCY PENALTY (don't repeat tracks played recently)
       const recentIndex = recentPlayedList.indexOf(song.id);
-      if (recentIndex !== -1) {
-        if (recentIndex < 3) {
-          weight *= 0.05;
-        } else if (recentIndex < 10) {
+      if (recentIndex !== -1) {if (recentIndex < 3) { weight *= 0.05;} else if (recentIndex < 10) {
           weight *= 0.25;
-        } else {
-          weight *= 0.6;
-        }
+        } else {weight *= 0.6;}
       }
 
       // 4. ANTI-CONSECUTIVE & ANTI-CLUSTERING PENALTIES
@@ -1865,9 +1540,7 @@ export const useLibraryStore = defineStore("library", () => {
           lastTrackNumber !== null &&
           songTrackNumber !== null &&
           Math.abs(songTrackNumber - lastTrackNumber) === 1
-        ) {
-          isConsecutive = true;
-        }
+        ) {isConsecutive = true;}
 
         // Check adjacent position in the scanned songs list
         if (!isConsecutive && lastSongIndex !== -1) {
@@ -1875,9 +1548,7 @@ export const useLibraryStore = defineStore("library", () => {
           if (
             candidateIndex !== -1 &&
             Math.abs(candidateIndex - lastSongIndex) === 1
-          ) {
-            isConsecutive = true;
-          }
+          ) {isConsecutive = true;}
         }
 
         if (isConsecutive) {
@@ -1896,14 +1567,9 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       // Queue diversity penalty: avoid clustering multiple tracks from same album/artist
-      if (songAlbumKey && (queueAlbumsCount.get(songAlbumKey) || 0) >= 1) {
-        weight *= 0.35;
-      }
+      if (songAlbumKey && (queueAlbumsCount.get(songAlbumKey) || 0) >= 1) {weight *= 0.35;}
       for (const aKey of songArtistKeys) {
-        if ((queueArtistsCount.get(aKey) || 0) >= 1) {
-          weight *= 0.45;
-          break;
-        }
+        if ((queueArtistsCount.get(aKey) || 0) >= 1) {weight *= 0.45; break;}
       }
 
       // Subtle random jitter
@@ -1912,9 +1578,7 @@ export const useLibraryStore = defineStore("library", () => {
       return { song, weight };
     });
 
-    // ----------------------------------------------------
     // Weighted Random Roulette Selection (Pure randomness based on likes)
-    // ----------------------------------------------------
     const totalWeight = weightedCandidates.reduce(
       (sum, item) => sum + item.weight,
       0,
@@ -1929,16 +1593,10 @@ export const useLibraryStore = defineStore("library", () => {
     let runningSum = 0;
     for (const item of weightedCandidates) {
       runningSum += item.weight;
-      if (runningSum >= randomVal) {
-        return item.song;
-      }
+      if (runningSum >= randomVal) {return item.song;}
     }
 
-    return (
-      weightedCandidates[weightedCandidates.length - 1]?.song ||
-      candidates[0] ||
-      null
-    );
+    return (weightedCandidates[weightedCandidates.length - 1]?.song || candidates[0] || null);
   }
 
   function smartShuffle(songsList) {
@@ -1964,9 +1622,7 @@ export const useLibraryStore = defineStore("library", () => {
         const diffIndex = pool.findIndex(
           (s) => (s.artist || "").toLowerCase() !== lastArtist,
         );
-        if (diffIndex !== -1) {
-          bestIndex = diffIndex;
-        }
+        if (diffIndex !== -1) {bestIndex = diffIndex;}
       }
       result.push(pool.splice(bestIndex, 1)[0]);
     }
@@ -1974,9 +1630,7 @@ export const useLibraryStore = defineStore("library", () => {
     return result;
   }
 
-  // =========================
   // LISTENING HISTORY
-  // =========================
 
   const listeningHistory = ref([]);
 
@@ -1990,10 +1644,7 @@ export const useLibraryStore = defineStore("library", () => {
         const dirtyRecords = [];
         for (const record of records || []) {
           let dirty = false;
-          if (isBlobUrl(record.cover)) {
-            record.cover = null;
-            dirty = true;
-          }
+          if (isBlobUrl(record.cover)) {record.cover = null; dirty = true;}
           if (!Number.isFinite(Number(record.playCount)) || Number(record.playCount) < 1) {
             record.playCount = 1;
             dirty = true;
@@ -2003,22 +1654,14 @@ export const useLibraryStore = defineStore("library", () => {
         if (dirtyRecords.length) {
           try {
             await Promise.all(dirtyRecords.map((record) => db.put("history", toRaw(record))));
-          } catch (e) {
-            console.warn("Could not migrate history records:", e);
-          }
+          } catch (e) {console.warn("Could not migrate history records:", e);}
         }
 
         const user = useUserStore();
-        if (user.isGuest) {
-          listeningHistory.value = [];
-          return;
-        }
+        if (user.isGuest) {listeningHistory.value = []; return;}
 
         const currentProfileId = user.currentSession?.profileId;
-        if (!currentProfileId) {
-          listeningHistory.value = [];
-          return;
-        }
+        if (!currentProfileId) {listeningHistory.value = []; return;}
 
         const profileRecords = [];
         for (const record of records || []) {
@@ -2026,9 +1669,7 @@ export const useLibraryStore = defineStore("library", () => {
             profileRecords.push(record);
           } else if (!record.profileId) {
             record.profileId = currentProfileId;
-            try {
-              await db.put("history", toRaw(record));
-            } catch {}
+            try {await db.put("history", toRaw(record));} catch {}
             profileRecords.push(record);
           }
         }
@@ -2037,9 +1678,7 @@ export const useLibraryStore = defineStore("library", () => {
           (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
         ));
       }
-    } catch (e) {
-      console.warn("Could not load history from db:", e);
-    }
+    } catch (e) {console.warn("Could not load history from db:", e);}
   }
 
   function hydrateHistoryRecords(records = listeningHistory.value) {
@@ -2078,9 +1717,7 @@ export const useLibraryStore = defineStore("library", () => {
     });
   }
 
-  function refreshHistoryPresentation() {
-    listeningHistory.value = hydrateHistoryRecords();
-  }
+  function refreshHistoryPresentation() {listeningHistory.value = hydrateHistoryRecords();}
 
   async function addToListeningHistory(entry) {
     if (!entry || !entry.title) return;
@@ -2088,9 +1725,7 @@ export const useLibraryStore = defineStore("library", () => {
     try {
       const user = useUserStore();
 
-      if (user.loaded && user.profile.saveListeningHistory === false) {
-        return;
-      }
+      if (user.loaded && user.profile.saveListeningHistory === false) {return;}
     } catch {}
 
     const now = Date.now();
@@ -2121,10 +1756,7 @@ export const useLibraryStore = defineStore("library", () => {
       if (
         last && last.type === normalizedEntry.type &&
         last.itemId === normalizedEntry.itemId && now - (last.timestamp || 0) < 60000
-      ) {
-        last.timestamp = now;
-        newRecord = last;
-      } else {
+      ) {last.timestamp = now; newRecord = last;} else {
         newRecord = {
           ...normalizedEntry,
           id: `${now}-${Math.random().toString(36).slice(2, 7)}`,
@@ -2148,9 +1780,7 @@ export const useLibraryStore = defineStore("library", () => {
           await db.put("history", toRaw(newRecord));
           scheduleProfileSync(currentProfileId);
         }
-      } catch (e) {
-        console.warn("Could not save history to db:", e);
-      }
+      } catch (e) {console.warn("Could not save history to db:", e);}
     }
   }
 
@@ -2183,9 +1813,7 @@ export const useLibraryStore = defineStore("library", () => {
   // Listening history is append-only from the playback UI. It must never be
   // cleared as a side effect of queue navigation or queue management.
 
-  // =========================
   // QUEUE
-  // =========================
 
   function removeFromQueue(index) {
     if (index >= 0 && index < playQueue.value.length) {
@@ -2208,21 +1836,13 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
-  function clearQueue() {
-    playQueue.value = [];
-    originalQueueList.value = [];
-  }
+  function clearQueue() {playQueue.value = []; originalQueueList.value = [];}
 
-  function clearHistoryQueue() {
-    activeQueueHistory.value = [];
-    historyQueue.value = [];
-  }
+  function clearHistoryQueue() {activeQueueHistory.value = []; historyQueue.value = [];}
 
   function addToQueue(song) {
     if (!song || !song.id) return;
-    if (playQueue.value.some((item) => item.id === song.id)) {
-      return;
-    }
+    if (playQueue.value.some((item) => item.id === song.id)) {return;}
     playQueue.value.push(song);
     if (isShuffleEnabled.value) {
       if (!originalQueueList.value.some((item) => item.id === song.id)) {
@@ -2250,18 +1870,13 @@ export const useLibraryStore = defineStore("library", () => {
     const existingIds = new Set(playQueue.value.map((s) => s.id));
     const toAdd = [];
     for (const song of songsList) {
-      if (song && song.id && !existingIds.has(song.id)) {
-        existingIds.add(song.id);
-        toAdd.push(song);
-      }
+      if (song && song.id && !existingIds.has(song.id)) {existingIds.add(song.id); toAdd.push(song);}
     }
     if (toAdd.length > 0) {
       if (isShuffleEnabled.value) {
         originalQueueList.value.push(...toAdd);
         playQueue.value.push(...shuffleArray(toAdd));
-      } else {
-        playQueue.value.push(...toAdd);
-      }
+      } else {playQueue.value.push(...toAdd);}
     }
   }
 
@@ -2292,10 +1907,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (isShuffleEnabled.value) {
       originalQueueList.value = [...cleanList];
       playQueue.value = shuffleArray(cleanList);
-    } else {
-      playQueue.value = cleanList;
-      originalQueueList.value = [];
-    }
+    } else {playQueue.value = cleanList; originalQueueList.value = [];}
   }
 
   function moveQueueItem(fromIndex, toIndex) {
@@ -2305,9 +1917,7 @@ export const useLibraryStore = defineStore("library", () => {
       toIndex < 0 ||
       toIndex >= playQueue.value.length ||
       fromIndex === toIndex
-    ) {
-      return;
-    }
+    ) {return;}
     const [movedSong] = playQueue.value.splice(fromIndex, 1);
     playQueue.value.splice(toIndex, 0, movedSong);
   }
@@ -2323,19 +1933,12 @@ export const useLibraryStore = defineStore("library", () => {
       );
     }
 
-    if (targetSong) {
-      playSong(targetSong, true);
-    }
+    if (targetSong) {playSong(targetSong, true);}
   }
 
-  function playHistorySong(song) {
-    if (!song) return;
-    playSong(song, true, { removeFromQueue: true });
-  }
+  function playHistorySong(song) {if (!song) return; playSong(song, true, { removeFromQueue: true });}
 
-  // =========================
   // QUEUE PERSISTENCE
-  // =========================
 
   const QUEUE_STORAGE_KEY_PREFIX = "calliope:queue_state:";
   const queueSaveTimers = new Map();
@@ -2350,9 +1953,7 @@ export const useLibraryStore = defineStore("library", () => {
       const user = useUserStore();
       const profileId = user.currentSession?.profileId || "guest";
       return `${QUEUE_STORAGE_KEY_PREFIX}${profileId}`;
-    } catch {
-      return `${QUEUE_STORAGE_KEY_PREFIX}default`;
-    }
+    } catch {return `${QUEUE_STORAGE_KEY_PREFIX}default`;}
   }
 
   function persistQueueState(profileId, state) {
@@ -2369,15 +1970,11 @@ export const useLibraryStore = defineStore("library", () => {
       .catch(() => {})
       .then(() => persistQueueState(profileId, state))
       .then(() => {
-        if (pendingQueueStates.get(profileId) === state) {
-          pendingQueueStates.delete(profileId);
-        }
+        if (pendingQueueStates.get(profileId) === state) {pendingQueueStates.delete(profileId);}
       });
     queueSavePromises.set(profileId, promise);
     promise.finally(() => {
-      if (queueSavePromises.get(profileId) === promise) {
-        queueSavePromises.delete(profileId);
-      }
+      if (queueSavePromises.get(profileId) === promise) {queueSavePromises.delete(profileId);}
     }).catch(() => {});
     return promise;
   }
@@ -2400,10 +1997,7 @@ export const useLibraryStore = defineStore("library", () => {
       || queueSavePromises.has(profileId)
     ) {
       const timer = queueSaveTimers.get(profileId);
-      if (timer) {
-        clearTimeout(timer);
-        queueSaveTimers.delete(profileId);
-      }
+      if (timer) {clearTimeout(timer); queueSaveTimers.delete(profileId);}
       const pendingWrite = pendingQueueStates.has(profileId)
         ? writePendingQueueState(profileId)
         : queueSavePromises.get(profileId);
@@ -2422,9 +2016,7 @@ export const useLibraryStore = defineStore("library", () => {
     const nextIds = [];
     let currentIndex = 0;
     for (const id of savedIds) {
-      if (!availableSongIds.has(id)) {
-        nextIds.push(id);
-      } else if (currentIndex < currentIds.length) {
+      if (!availableSongIds.has(id)) {nextIds.push(id);} else if (currentIndex < currentIds.length) {
         nextIds.push(currentIds[currentIndex++]);
       }
     }
@@ -2436,9 +2028,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (suppressQueueStateWrites || (queueRestoreDeferred && !songs.value.length)) return;
     try {
       const user = useUserStore();
-      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {
-        return;
-      }
+      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {return;}
 
       const key = getQueueStorageKey();
       const profileId = user.currentSession?.profileId;
@@ -2472,21 +2062,14 @@ export const useLibraryStore = defineStore("library", () => {
           : null,
       };
       localStorage.setItem(key, JSON.stringify(state));
-      if (profileId) {
-        scheduleQueueStateSave(profileId, state);
-        scheduleProfileSync(profileId);
-      }
-    } catch (e) {
-      console.warn("Could not save queue state to localStorage:", e);
-    }
+      if (profileId) {scheduleQueueStateSave(profileId, state); scheduleProfileSync(profileId);}
+    } catch (e) {console.warn("Could not save queue state to localStorage:", e);}
   }
 
   function restoreQueueState() {
     try {
       const user = useUserStore();
-      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {
-        return;
-      }
+      if (user?.loaded && user.profile?.keepQueueWhenClosing === false) {return;}
 
       const key = getQueueStorageKey();
       const raw = localStorage.getItem(key);
@@ -2496,26 +2079,19 @@ export const useLibraryStore = defineStore("library", () => {
         && (!localState || Number(profileState.savedAt || 0) > Number(localState.savedAt || 0))
         ? profileState
         : localState;
-      if (!state || typeof state !== "object") {
-        restoredQueueReferenceState = null;
-        return;
-      }
+      if (!state || typeof state !== "object") {restoredQueueReferenceState = null; return;}
       restoredQueueReferenceState = state;
 
       if (!songs.value.length) {
         queueRestoreDeferred = true;
-        if (state.savedPlayingSong && !playingSong.value) {
-          playingSong.value = state.savedPlayingSong;
-        }
+        if (state.savedPlayingSong && !playingSong.value) {playingSong.value = state.savedPlayingSong;}
         return;
       }
       queueRestoreDeferred = false;
 
       if (!playingSong.value && state.playingSongId) {
         const found = songs.value.find((s) => s.id === state.playingSongId);
-        if (found) {
-          playingSong.value = found;
-        } else if (state.savedPlayingSong) {
+        if (found) {playingSong.value = found;} else if (state.savedPlayingSong) {
           playingSong.value = state.savedPlayingSong;
         }
       }
@@ -2528,9 +2104,7 @@ export const useLibraryStore = defineStore("library", () => {
         const restoredQueue = state.queueIds
           .map((id) => songs.value.find((s) => s.id === id))
           .filter(Boolean);
-        if (restoredQueue.length) {
-          playQueue.value = dedupeById(restoredQueue);
-        }
+        if (restoredQueue.length) {playQueue.value = dedupeById(restoredQueue);}
       }
 
       const activeHistoryIds = Array.isArray(state.activeQueueHistoryIds)
@@ -2543,9 +2117,7 @@ export const useLibraryStore = defineStore("library", () => {
         historyQueue.value = [...activeQueueHistory.value];
       }
 
-      if (typeof state.isShuffleEnabled === "boolean") {
-        isShuffleEnabled.value = state.isShuffleEnabled;
-      }
+      if (typeof state.isShuffleEnabled === "boolean") {isShuffleEnabled.value = state.isShuffleEnabled;}
 
       if (
         Array.isArray(state.originalQueueIds) &&
@@ -2556,20 +2128,12 @@ export const useLibraryStore = defineStore("library", () => {
           .filter(Boolean);
       }
 
-      if (typeof state.autoplay === "boolean") {
-        autoplay.value = state.autoplay;
-      }
+      if (typeof state.autoplay === "boolean") {autoplay.value = state.autoplay;}
 
-      if (typeof state.repeatMode === "string") {
-        repeatMode.value = state.repeatMode;
-      }
+      if (typeof state.repeatMode === "string") {repeatMode.value = state.repeatMode;}
 
-      if (autoplay.value && playingSong.value) {
-        fillAutoplayQueue();
-      }
-    } catch (e) {
-      console.warn("Could not restore queue state:", e);
-    }
+      if (autoplay.value && playingSong.value) {fillAutoplayQueue();}
+    } catch (e) {console.warn("Could not restore queue state:", e);}
   }
 
   watch(
@@ -2583,19 +2147,13 @@ export const useLibraryStore = defineStore("library", () => {
       autoplay,
       repeatMode,
     ],
-    () => {
-      saveQueueState();
-    },
+    () => {saveQueueState();},
     { deep: true },
   );
 
-  // =========================
   // INITIALIZATION
-  // =========================
 
-  function songIdForFile(file) {
-    return createStableFileId(file);
-  }
+  function songIdForFile(file) {return createStableFileId(file);}
 
   function legacySongIdForFile(file) {
     const name = normalizeComparable(file?.name || file?.filename);
@@ -2624,10 +2182,7 @@ export const useLibraryStore = defineStore("library", () => {
         // Así, cuando una canción busque la portada de su álbum,
         // albums.value ya está disponible.
         await scanFolder();
-      } else {
-        albums.value = [];
-        songs.value = [];
-      }
+      } else {albums.value = []; songs.value = [];}
 
       await loadSongRatings();
       await loadStats();
@@ -2641,9 +2196,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
 
       restoreQueueState();
-    } catch (e) {
-      console.warn("⚠️ Error during init:", e);
-    } finally {
+    } catch (e) {console.warn("⚠️ Error during init:", e);} finally {
       initialized.value = true;
     }
   }
@@ -2664,10 +2217,7 @@ export const useLibraryStore = defineStore("library", () => {
       activeQueueHistory.value = [];
       restoredQueueReferenceState = null;
 
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl);
-        currentUrl = null;
-      }
+      if (currentUrl) {URL.revokeObjectURL(currentUrl); currentUrl = null;}
 
       currentTime.value = 0;
       duration.value = 0;
@@ -2715,18 +2265,11 @@ export const useLibraryStore = defineStore("library", () => {
         await loadSongRatings();
         await loadStats();
         restoreQueueState();
-      } else {
-        queueRestoreDeferred = false;
-        restoredQueueReferenceState = null;
-      }
-    } finally {
-      suppressQueueStateWrites = false;
-    }
+      } else {queueRestoreDeferred = false; restoredQueueReferenceState = null;}
+    } finally {suppressQueueStateWrites = false;}
   }
 
-  // =========================
   // ALBUMS
-  // =========================
 
   async function loadNormalizedEntities() {
     // Release-era data is intentionally left in IndexedDB for compatibility,
@@ -2767,11 +2310,7 @@ export const useLibraryStore = defineStore("library", () => {
     // Covers and song metadata are now authoritative on the song itself.
     // Do not overwrite them from a legacy release relation while loading.
     return song;
-    const related = buildReleaseRelations(
-      [song],
-      releases.value,
-      releaseTracks.value,
-    )[0];
+    const related = buildReleaseRelations([song], releases.value, releaseTracks.value)[0];
     if (related) Object.assign(song, related);
     return song;
   }
@@ -2829,9 +2368,7 @@ export const useLibraryStore = defineStore("library", () => {
       identifiedMetadata,
       cover: coverBlob,
     });
-    const primaryCover = sanitizeCoverForStorage(
-      metadata.cover ?? song.cover ?? coverBlob ?? null,
-    );
+    const primaryCover = sanitizeCoverForStorage(metadata.cover ?? song.cover ?? coverBlob ?? null);
 
     const releaseRecords = releaseIds.map((id) => {
       const source = knownReleases.get(id) || {};
@@ -2951,9 +2488,7 @@ export const useLibraryStore = defineStore("library", () => {
     const unique = new Map();
     for (const release of releases.value) {
       if (!release?.id) continue;
-      if (!unique.has(release.id)) {
-        unique.set(release.id, release);
-      }
+      if (!unique.has(release.id)) {unique.set(release.id, release);}
     }
     releases.value = [...unique.values()];
   }
@@ -2971,10 +2506,7 @@ export const useLibraryStore = defineStore("library", () => {
     albums.value = uniqueAlbumCards(
       data
         .filter((album) => !["single", "ep"].includes(album.type) && !nonAlbumIds.has(album.id) && !nonAlbumIds.has(album.name))
-        .map((album) => ({
-          ...album,
-          cover: isBlobUrl(album.cover) ? null : toDisplayUrl(album.cover),
-        })),
+        .map((album) => ({...album, cover: isBlobUrl(album.cover) ? null : toDisplayUrl(album.cover)})),
     );
 
     sortAlbums();
@@ -2997,68 +2529,32 @@ export const useLibraryStore = defineStore("library", () => {
         cover,
       };
 
-      if (existing) {
-        Object.assign(existing, album);
-      } else {
+      if (existing) {Object.assign(existing, album);} else {
         albums.value.push(album);
       }
 
-      await db.put("albums", {
-        ...album,
-        cover: sanitizeCoverForStorage(cover),
-      });
+      await db.put("albums", {...album, cover: sanitizeCoverForStorage(cover)});
     }
 
     albums.value = uniqueAlbumCards(albums.value);
     sortAlbums();
   }
 
-  function isBinaryCoverInternal(cover) {
-    return cover instanceof Blob || cover instanceof File;
-  }
-
-  function toCoverUrl(cover) {
-    if (!cover) return null;
-
-    if (typeof cover === "string") {
-      return isBlobUrl(cover) ? null : cover;
-    }
-
-    return isBinaryCoverInternal(cover) ? URL.createObjectURL(cover) : null;
-  }
-
-  // =========================
   // FOLDER
-  // =========================
 
   async function loadSavedFolder(shouldScan = true) {
     const user = useUserStore();
 
-    if (user.isGuest) {
-      folderHandle.value = null;
-      songs.value = [];
-      albums.value = [];
-      return;
-    }
+    if (user.isGuest) {folderHandle.value = null; songs.value = []; albums.value = []; return;}
 
     const currentProfileId = user.currentSession?.profileId;
-    if (!currentProfileId) {
-      folderHandle.value = null;
-      songs.value = [];
-      albums.value = [];
-      return;
-    }
+    if (!currentProfileId) {folderHandle.value = null; songs.value = []; albums.value = []; return;}
 
     const db = await dbPromise;
 
     if (isTauri) {
       const savedPath = await db.get("settings", `music-folder-${currentProfileId}`);
-      if (!savedPath) {
-        folderHandle.value = null;
-        songs.value = [];
-        albums.value = [];
-        return;
-      }
+      if (!savedPath) {folderHandle.value = null; songs.value = []; albums.value = []; return;}
 
       folderHandle.value = { type: "tauri", path: savedPath, canWrite: false };
       if (shouldScan) await scanFolderTauri(savedPath);
@@ -3081,27 +2577,15 @@ export const useLibraryStore = defineStore("library", () => {
           savedHandle = globalHandle;
         }
         await tx.done;
-      } catch (e) {
-        console.warn("No se pudo migrar la carpeta previa al perfil:", e);
-      }
+      } catch (e) {console.warn("No se pudo migrar la carpeta previa al perfil:", e);}
     }
 
-    if (!savedHandle) {
-      folderHandle.value = null;
-      songs.value = [];
-      albums.value = [];
-      return;
-    }
+    if (!savedHandle) {folderHandle.value = null; songs.value = []; albums.value = []; return;}
 
-    try {
-      const permission = await savedHandle.queryPermission({
-        mode: "read",
-      });
+    try {const permission = await savedHandle.queryPermission({ mode: "read"});
 
       if (permission !== "granted") {
-        const newPermission = await savedHandle.requestPermission({
-          mode: "read",
-        });
+        const newPermission = await savedHandle.requestPermission({mode: "read"});
 
         if (newPermission !== "granted") {
           folderHandle.value = null;
@@ -3114,9 +2598,7 @@ export const useLibraryStore = defineStore("library", () => {
       folderHandle.value = savedHandle;
       scheduleProfileSync(currentProfileId);
 
-      if (shouldScan) {
-        await scanFolder();
-      }
+      if (shouldScan) {await scanFolder();}
     } catch (e) {
       console.warn("No se pudo cargar la carpeta guardada del perfil:", e);
       folderHandle.value = null;
@@ -3158,10 +2640,7 @@ export const useLibraryStore = defineStore("library", () => {
               : pl.id,
         };
         await db.put("playlists", migrated);
-        if (pl.id !== migrated.id) {
-          try {
-            await db.delete("playlists", pl.id);
-          } catch {}
+        if (pl.id !== migrated.id) {try { await db.delete("playlists", pl.id);} catch {}
         }
         userPlaylists.push({
           ...migrated,
@@ -3212,42 +2691,28 @@ export const useLibraryStore = defineStore("library", () => {
       await transaction.objectStore("settings").put(true, migrationKey);
       await transaction.done;
       scheduleProfileSync(profileId);
-    } catch (error) {
-      try { transaction.abort(); } catch {}
-      throw error;
-    }
+    } catch (error) {try { transaction.abort(); } catch {} throw error;}
   }
 
   function applyProfileFavorites() {
     const favorites = playlists.value.find((playlist) => playlist.id === FAVORITES_PLAYLIST_ID);
     const favoriteIds = new Set(favorites?.songIds || []);
-    for (const song of songs.value) {
-      song.favorite = favoriteIds.has(song.id);
-    }
-    if (playingSong.value?.id) {
-      playingSong.value.favorite = favoriteIds.has(playingSong.value.id);
-    }
+    for (const song of songs.value) {song.favorite = favoriteIds.has(song.id);}
+    if (playingSong.value?.id) {playingSong.value.favorite = favoriteIds.has(playingSong.value.id);}
   }
 
-  // =========================
   // AUDIO ENGINE & WEB AUDIO GRAPH
   // Audio element -> MediaElementSource -> GainNode -> AnalyserNode -> AudioContext Destination
-  // =========================
 
   let audioContext = null;
   let audioAnalyser = null;
   let audioSource = null;
   let audioGainNode = null;
 
-  function initAudioEngine() {
-    if (audioContext) {
-      return audioAnalyser;
-    }
+  function initAudioEngine() {if (audioContext) { return audioAnalyser;}
 
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-      return null;
-    }
+    if (!AudioContextClass) {return null;}
 
     try {
       audioContext = new AudioContextClass();
@@ -3265,32 +2730,22 @@ export const useLibraryStore = defineStore("library", () => {
       audioGainNode.connect(audioContext.destination);
 
       applyAudioGain();
-    } catch (e) {
-      console.warn("⚠️ Web Audio init error:", e);
-    }
+    } catch (e) {console.warn("⚠️ Web Audio init error:", e);}
 
     return audioAnalyser;
   }
 
-  function getAudioAnalyser() {
-    if (audioAnalyser) {
-      return audioAnalyser;
-    }
+  function getAudioAnalyser() {if (audioAnalyser) { return audioAnalyser;}
     return initAudioEngine();
   }
 
-  function resumeAudioAnalyser() {
-    if (!audioContext) {
-      initAudioEngine();
-    }
+  function resumeAudioAnalyser() {if (!audioContext) { initAudioEngine();}
     return audioContext?.state === "suspended"
       ? audioContext.resume()
       : Promise.resolve();
   }
 
-  // =========================
   // AUDIO EVENTS & PLAYBACK TRACKING
-  // =========================
 
   function addRealListeningTime(deltaSec) {
     if (deltaSec <= 0) return;
@@ -3380,9 +2835,7 @@ export const useLibraryStore = defineStore("library", () => {
     handlingEnded = false;
     startProgressUpdates();
     lastTimeUpdateTimestamp = performance.now();
-    if (!audioContext) {
-      initAudioEngine();
-    }
+    if (!audioContext) {initAudioEngine();}
     resumeAudioAnalyser();
     applyAudioGain();
   });
@@ -3443,9 +2896,7 @@ export const useLibraryStore = defineStore("library", () => {
     playNextSong(true);
   });
 
-  // =========================
   // VOLUME & MUTE
-  // =========================
 
   const VOLUME_STORAGE_KEY = "calliope:volume";
   const VOLUME_MUTED_STORAGE_KEY = "calliope:volume_muted";
@@ -3462,10 +2913,7 @@ export const useLibraryStore = defineStore("library", () => {
     // When Web Audio API is active, apply the perceptual gain curve ONLY ONCE via audioGainNode.
     // HTMLAudioElement is kept at unity gain (1.0) so audioSource is not double-attenuated.
     if (audioGainNode && audioContext && audioContext.state !== "closed") {
-      try {
-        audio.volume = 1.0;
-        audio.muted = false;
-      } catch (e) {
+      try {audio.volume = 1.0; audio.muted = false;} catch (e) {
         console.warn("Could not set audio.volume:", e);
       }
 
@@ -3474,15 +2922,10 @@ export const useLibraryStore = defineStore("library", () => {
         audioGainNode.gain.cancelScheduledValues(now);
         audioGainNode.gain.setValueAtTime(audioGainNode.gain.value, now);
         audioGainNode.gain.linearRampToValueAtTime(gain, now + 0.015);
-      } catch (e) {
-        audioGainNode.gain.value = gain;
-      }
+      } catch (e) {audioGainNode.gain.value = gain;}
     } else {
       // Direct HTMLAudioElement volume & muted when Web Audio is not available
-      try {
-        audio.volume = Math.max(0, Math.min(1, gain));
-        audio.muted = isMuted.value;
-      } catch (e) {
+      try {audio.volume = Math.max(0, Math.min(1, gain)); audio.muted = isMuted.value;} catch (e) {
         console.warn("Could not set audio.volume:", e);
       }
     }
@@ -3495,21 +2938,15 @@ export const useLibraryStore = defineStore("library", () => {
         const parsed = Number(saved);
         if (Number.isFinite(parsed)) {
           volume.value = Math.min(1, Math.max(0, parsed));
-          if (volume.value > 0.005) {
-            previousVolume.value = volume.value;
-          }
+          if (volume.value > 0.005) {previousVolume.value = volume.value;}
         }
       }
 
       const savedMuted = localStorage.getItem(VOLUME_MUTED_STORAGE_KEY);
-      if (savedMuted !== null) {
-        isMuted.value = savedMuted === "true";
-      }
+      if (savedMuted !== null) {isMuted.value = savedMuted === "true";}
 
       applyAudioGain();
-    } catch (error) {
-      console.warn("⚠️ Could not load saved volume:", error);
-    }
+    } catch (error) {console.warn("⚠️ Could not load saved volume:", error);}
   }
 
   function saveLegacyVolume(value, muted) {
@@ -3517,17 +2954,12 @@ export const useLibraryStore = defineStore("library", () => {
       const normalized = Math.min(1, Math.max(0, Number(value) || 0));
       localStorage.setItem(VOLUME_STORAGE_KEY, String(normalized));
       localStorage.setItem(VOLUME_MUTED_STORAGE_KEY, String(Boolean(muted)));
-    } catch (error) {
-      console.warn("⚠️ Could not save guest volume:", error);
-    }
+    } catch (error) {console.warn("⚠️ Could not save guest volume:", error);}
   }
 
   function persistProfileVolume(value, muted, profileId, revision, ownerKey) {
     if (revision !== volumePersistenceRevisions.get(ownerKey)) return Promise.resolve();
-    if (!profileId) {
-      saveLegacyVolume(value, muted);
-      return Promise.resolve();
-    }
+    if (!profileId) {saveLegacyVolume(value, muted); return Promise.resolve();}
     return useUserStore().updateProfilePreferences(profileId, { volume: value, volumeMuted: muted });
   }
 
@@ -3576,10 +3008,7 @@ export const useLibraryStore = defineStore("library", () => {
   async function loadProfileVolume() {
     const user = useUserStore();
     const profileId = user.currentSession?.profileId;
-    if (!profileId || user.isGuest) {
-      loadSavedVolume();
-      return;
-    }
+    if (!profileId || user.isGuest) {loadSavedVolume(); return;}
 
     try {
       let savedVolume = user.profile.preferences?.volume;
@@ -3614,21 +3043,14 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (normalized > 0) {
       previousVolume.value = normalized;
-      if (isMuted.value) {
-        isMuted.value = false;
-      }
-    } else {
-      isMuted.value = true;
-    }
+      if (isMuted.value) {isMuted.value = false;}
+    } else {isMuted.value = true;}
 
     applyAudioGain();
     debouncedSaveVolume(normalized, useUserStore().currentSession?.profileId, isMuted.value);
   }
 
-  function setVolumeDb(db) {
-    const v = dbToVolume(db);
-    setVolume(v);
-  }
+  function setVolumeDb(db) {const v = dbToVolume(db); setVolume(v);}
 
   function toggleMute() {
     if (isMuted.value) {
@@ -3640,24 +3062,18 @@ export const useLibraryStore = defineStore("library", () => {
       }
     } else {
       // Muting: remember current non-zero volume for subsequent restore
-      if (volume.value > 0.005) {
-        previousVolume.value = volume.value;
-      }
+      if (volume.value > 0.005) {previousVolume.value = volume.value;}
       isMuted.value = true;
     }
     applyAudioGain();
     debouncedSaveVolume(volume.value, useUserStore().currentSession?.profileId, isMuted.value);
   }
 
-  function stepVolume(delta) {
-    setVolume(volume.value + delta);
-  }
+  function stepVolume(delta) {setVolume(volume.value + delta);}
 
   loadSavedVolume();
 
-  // =========================
   // PLAYLIST MANAGEMENT
-  // =========================
 
   async function ensureFavoritesPlaylist() {
     const existing = playlists.value.find(
@@ -3674,12 +3090,7 @@ export const useLibraryStore = defineStore("library", () => {
       return existing;
     }
 
-    const playlist = {
-      id: FAVORITES_PLAYLIST_ID,
-      name: "Favoritos",
-      cover: null,
-      songIds: [],
-    };
+    const playlist = {id: FAVORITES_PLAYLIST_ID, name: "Favoritos", cover: null, songIds: []};
 
     playlists.value = [
       playlist,
@@ -3704,16 +3115,11 @@ export const useLibraryStore = defineStore("library", () => {
     await savePlaylist(playlist);
   }
 
-  async function updatePlaylist(id, { name, cover }) {
-    if (id === FAVORITES_PLAYLIST_ID) {
-      return;
-    }
+  async function updatePlaylist(id, { name, cover }) {if (id === FAVORITES_PLAYLIST_ID) { return;}
 
     const playlist = playlists.value.find((item) => item.id === id);
 
-    if (!playlist || !name.trim()) {
-      return;
-    }
+    if (!playlist || !name.trim()) {return;}
 
     playlist.name = name.trim();
 
@@ -3732,9 +3138,7 @@ export const useLibraryStore = defineStore("library", () => {
     const db = await dbPromise;
     const data = JSON.parse(JSON.stringify(toRaw(playlist)));
     data.profileId = currentProfileId;
-    if (data.id === FAVORITES_PLAYLIST_ID) {
-      data.id = `favorites_${currentProfileId}`;
-    }
+    if (data.id === FAVORITES_PLAYLIST_ID) {data.id = `favorites_${currentProfileId}`;}
 
     await db.put("playlists", data);
     scheduleProfileSync(currentProfileId);
@@ -3747,13 +3151,9 @@ export const useLibraryStore = defineStore("library", () => {
 
     if (!playlist) return;
 
-    if (!playlist.songIds) {
-      playlist.songIds = [];
-    }
+    if (!playlist.songIds) {playlist.songIds = [];}
 
-    if (playlist.songIds.includes(songId)) {
-      return;
-    }
+    if (playlist.songIds.includes(songId)) {return;}
 
     playlist.songIds.push(songId);
 
@@ -3763,19 +3163,14 @@ export const useLibraryStore = defineStore("library", () => {
   async function removeSongFromPlaylist(playlistId, songId) {
     const playlist = playlists.value.find((item) => item.id === playlistId);
 
-    if (!playlist || !Array.isArray(playlist.songIds)) {
-      return;
-    }
+    if (!playlist || !Array.isArray(playlist.songIds)) {return;}
 
     playlist.songIds = playlist.songIds.filter((id) => id !== songId);
 
     await savePlaylist(playlist);
   }
 
-  async function deletePlaylist(playlistId) {
-    if (playlistId === FAVORITES_PLAYLIST_ID) {
-      return;
-    }
+  async function deletePlaylist(playlistId) {if (playlistId === FAVORITES_PLAYLIST_ID) { return;}
 
     const playlist = playlists.value.find((item) => item.id === playlistId);
 
@@ -3803,9 +3198,7 @@ export const useLibraryStore = defineStore("library", () => {
     await savePlaylist(playlist);
   }
 
-  // =========================
   // FAVORITES
-  // =========================
 
   function dedupeById(items) {
     const seen = new Set();
@@ -3813,9 +3206,7 @@ export const useLibraryStore = defineStore("library", () => {
     return items.filter((item) => {
       const itemId = item?.id ?? item;
 
-      if (!itemId || seen.has(itemId)) {
-        return false;
-      }
+      if (!itemId || seen.has(itemId)) {return false;}
 
       seen.add(itemId);
 
@@ -3828,9 +3219,7 @@ export const useLibraryStore = defineStore("library", () => {
       (playlist) => playlist.id === FAVORITES_PLAYLIST_ID,
     );
 
-    if (!favoritesPlaylist) {
-      return null;
-    }
+    if (!favoritesPlaylist) {return null;}
 
     const favoriteSongIds = dedupeById(
       songs.value.filter((song) => song.favorite).map((song) => song.id),
@@ -3880,9 +3269,7 @@ export const useLibraryStore = defineStore("library", () => {
     return (playlist.songIds ?? []).includes(songId);
   }
 
-  // =========================
   // PLAYER ACTIONS
-  // =========================
 
   function playFromPlaylist(song, songsList, options = {}) {
     const playlistRequestId = ++playbackRequestId;
@@ -3910,10 +3297,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (isShuffleEnabled.value) {
       originalQueueList.value = [...remaining];
       playQueue.value = shuffleArray(remaining);
-    } else {
-      playQueue.value = remaining;
-      originalQueueList.value = [];
-    }
+    } else {playQueue.value = remaining; originalQueueList.value = [];}
 
     const songLoadRequestId = playbackRequestId + 1;
     playSong(contextualSong, false, { releaseId, shouldPlay: true }).then((loaded) => {
@@ -3926,23 +3310,14 @@ export const useLibraryStore = defineStore("library", () => {
     });
   }
 
-  async function ensureSongFile(song) {
-    if (song.file) {
-      return song.file;
-    }
+  async function ensureSongFile(song) {if (song.file) { return song.file;}
 
     if (song.nativeUri) {
-      try {
-        if (isTauri) {
-          song.file = await readMusicFile(song.nativeUri);
-          return song.file;
-        }
+      try {if (isTauri) { song.file = await readMusicFile(song.nativeUri); return song.file;}
 
         song.file = await readMusicFile(song.nativeUri);
         return song.file;
-      } catch (e) {
-        console.error("Error loading native audio file blob:", e);
-      }
+      } catch (e) {console.error("Error loading native audio file blob:", e);}
     }
 
     return null;
@@ -3967,18 +3342,13 @@ export const useLibraryStore = defineStore("library", () => {
       playQueue.value.filter((item) => getSongRating(item?.id) !== "dislike"),
     );
 
-    if (song.rating === undefined) {
-      song.rating = getSongRating(song.id);
-    }
+    if (song.rating === undefined) {song.rating = getSongRating(song.id);}
 
     await ensureSongFile(song);
 
     // Ignore stale/failed selections without disturbing the active track.
     if (thisRequestId !== playbackRequestId) return false;
-    if (!song.file) {
-      console.warn("Cannot play song: file not loaded", song);
-      return false;
-    }
+    if (!song.file) {console.warn("Cannot play song: file not loaded", song); return false;}
 
     // Commit navigation and queue mutations only for the winning, loadable request.
     if (addToHistory && playingSong.value && playingSong.value.id !== song.id) {
@@ -4003,10 +3373,7 @@ export const useLibraryStore = defineStore("library", () => {
 
     stopProgressUpdates();
     isProgressScrubbing.value = false;
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl);
-      currentUrl = null;
-    }
+    if (currentUrl) {URL.revokeObjectURL(currentUrl); currentUrl = null;}
 
     currentUrl = URL.createObjectURL(song.file);
     audio.src = currentUrl;
@@ -4021,23 +3388,12 @@ export const useLibraryStore = defineStore("library", () => {
     currentSongPlayCounted = false;
     lastTimeUpdateTimestamp = performance.now();
 
-    if (shouldPlay) {
-      try {
-        await audio.play();
-        isPlaying.value = true;
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("Audio playback error:", err);
-        }
+    if (shouldPlay) {try { await audio.play(); isPlaying.value = true;} catch (err) {
+        if (err.name !== "AbortError") {console.error("Audio playback error:", err);}
       }
-    } else {
-      audio.pause();
-      isPlaying.value = false;
-    }
+    } else {audio.pause(); isPlaying.value = false;}
 
-    if (autoplay.value) {
-      fillAutoplayQueue();
-    }
+    if (autoplay.value) {fillAutoplayQueue();}
     return true;
   }
 
@@ -4055,23 +3411,14 @@ export const useLibraryStore = defineStore("library", () => {
         : (currentTime.value || 0);
 
     // Restart the current track after 3 seconds; otherwise navigate to the previous track.
-    if (currentSec > 3.0) {
-      try {
-        audio.currentTime = 0;
-        currentTime.value = 0;
-      } catch (e) {
+    if (currentSec > 3.0) {try { audio.currentTime = 0; currentTime.value = 0;} catch (e) {
         console.warn("Seek error in playPreviousSong:", e);
       }
 
       if (!wasPaused) {
-        audio.play().catch((err) => {
-          if (err.name !== "AbortError") console.error(err);
-        });
+        audio.play().catch((err) => {if (err.name !== "AbortError") console.error(err);});
         isPlaying.value = true;
-      } else {
-        audio.pause();
-        isPlaying.value = false;
-      }
+      } else {audio.pause(); isPlaying.value = false;}
       return;
     }
 
@@ -4116,29 +3463,18 @@ export const useLibraryStore = defineStore("library", () => {
       // Wrap to the beginning of the active sequence.
       const wrapSong = activeQueueHistory.value[activeQueueHistory.value.length - 1]
         || playQueue.value[playQueue.value.length - 1];
-      if (wrapSong) {
-        playSong(wrapSong, false, { shouldPlay: !wasPaused });
-        return;
-      }
+      if (wrapSong) {playSong(wrapSong, false, { shouldPlay: !wasPaused }); return;}
     }
 
     // Boundary limit behavior: restart current song from beginning
-    try {
-      audio.currentTime = 0;
-      currentTime.value = 0;
-    } catch (e) {
+    try {audio.currentTime = 0; currentTime.value = 0;} catch (e) {
       console.warn("Seek error in playPreviousSong boundary:", e);
     }
 
     if (!wasPaused) {
-      audio.play().catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      });
+      audio.play().catch((err) => {if (err.name !== "AbortError") console.error(err);});
       isPlaying.value = true;
-    } else {
-      audio.pause();
-      isPlaying.value = false;
-    }
+    } else {audio.pause(); isPlaying.value = false;}
   }
 
   async function playNextSong(autoAdvance = false) {
@@ -4176,16 +3512,11 @@ export const useLibraryStore = defineStore("library", () => {
         const cleanAll = dedupeById(allPlayed).filter(
           (s) => getSongRating(s.id) !== "dislike",
         );
-        if (cleanAll.length === 1 && cleanAll[0].id === playingSong.value?.id) {
-          nextSong = cleanAll[0];
-        }
+        if (cleanAll.length === 1 && cleanAll[0].id === playingSong.value?.id) {nextSong = cleanAll[0];}
         if (isShuffleEnabled.value) {
           originalQueueList.value = [...cleanAll];
           playQueue.value = shuffleArray(cleanAll);
-        } else {
-          playQueue.value = cleanAll;
-          originalQueueList.value = [];
-        }
+        } else {playQueue.value = cleanAll; originalQueueList.value = [];}
         if (!nextSong) nextSong = playQueue.value.shift();
       }
     }
@@ -4201,18 +3532,11 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
-    if (!nextSong) {
-      handlingEnded = false;
-      isPlaying.value = false;
-      audio.pause();
-      return;
-    }
+    if (!nextSong) {handlingEnded = false; isPlaying.value = false; audio.pause(); return;}
 
     // Advance to next song and ensure current song is added to the queue-navigation back-stack.
     const requestBeforePlay = playbackRequestId;
-    const loaded = await playSong(nextSong, true, {
-      shouldPlay: !wasPaused,
-    });
+    const loaded = await playSong(nextSong, true, {shouldPlay: !wasPaused});
     if (!loaded && playbackRequestId === requestBeforePlay + 1) {
       playQueue.value = queueSnapshot;
       activeQueueHistory.value = historySnapshot;
@@ -4222,20 +3546,13 @@ export const useLibraryStore = defineStore("library", () => {
   }
 
   function togglePlay() {
-    if (!audio.src) {
-      if (playingSong.value) {
-        playSong(playingSong.value, false);
-      }
+    if (!audio.src) {if (playingSong.value) { playSong(playingSong.value, false);}
       return;
     }
 
     if (audio.paused) {
-      audio.play().catch((err) => {
-        console.error(err);
-      });
-    } else {
-      audio.pause();
-    }
+      audio.play().catch((err) => {console.error(err);});
+    } else {audio.pause();}
   }
 
   function seek(time) {
@@ -4253,39 +3570,15 @@ export const useLibraryStore = defineStore("library", () => {
     return currentTime.value || 0;
   }
 
-  // =========================
   // LIBRARY / FILESYSTEM
-  // =========================
 
-  function cleanFileName(name) {
-    if (!name || typeof name !== "string") {
-      return "";
-    }
+  function cleanFileName(name) {if (!name || typeof name !== "string") { return "";}
 
     return name
-      .replace(
-        /\.(mp3|m4a|flac|wav|ogg|opus|aac|wma)(?:\s*[-_.].*|\s+.*)?$/i,
-        "",
-      )
+      .replace(/\.(mp3|m4a|flac|wav|ogg|opus|aac|wma)(?:\s*[-_.].*|\s+.*)?$/i, "")
       .replace(/\.[^/.]+$/, "")
       .replace(/\s+$/, "")
       .trim();
-  }
-
-  function getAudioDuration(file) {
-    return new Promise((resolve) => {
-      const audio = document.createElement("audio");
-
-      audio.preload = "metadata";
-
-      audio.onloadedmetadata = () => {
-        URL.revokeObjectURL(audio.src);
-
-        resolve(audio.duration);
-      };
-
-      audio.src = URL.createObjectURL(file);
-    });
   }
 
   function sortSongs(mode = sortMode.value) {
@@ -4306,9 +3599,7 @@ export const useLibraryStore = defineStore("library", () => {
 
   function sortAlbums() {
     albums.value.sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, {
-        sensitivity: "base",
-      }),
+      a.name.localeCompare(b.name, undefined, {sensitivity: "base"}),
     );
   }
 
@@ -4331,10 +3622,7 @@ export const useLibraryStore = defineStore("library", () => {
     await Promise.all([loadHistory(), loadStats(), loadSongRatings()]);
   }
 
-  async function scanFolder(forceMetadata = false) {
-    if (!folderHandle.value) {
-      return;
-    }
+  async function scanFolder(forceMetadata = false) {if (!folderHandle.value) { return;}
 
     loading.value = true;
 
@@ -4347,15 +3635,11 @@ export const useLibraryStore = defineStore("library", () => {
 
         let format;
 
-        try {
-          format = await readFormat(file);
-        } catch {
+        try {format = await readFormat(file);} catch {
           continue;
         }
 
-        if (!format || format === "unknown") {
-          continue;
-        }
+        if (!format || format === "unknown") {continue;}
 
         list.push({
           id: songIdForFile(file),
@@ -4390,9 +3674,7 @@ export const useLibraryStore = defineStore("library", () => {
       await resolveImportedProfileReferences();
       refreshHistoryPresentation();
       restoreQueueState();
-    } finally {
-      loading.value = false;
-    }
+    } finally {loading.value = false;}
   }
 
   async function scanFolderTauri(uri) {
@@ -4437,29 +3719,20 @@ export const useLibraryStore = defineStore("library", () => {
       await resolveImportedProfileReferences();
       refreshHistoryPresentation();
       restoreQueueState();
-    } catch (e) {
-      console.error("Error scanning Tauri folder:", e);
-    } finally {
+    } catch (e) {console.error("Error scanning Tauri folder:", e);} finally {
       loading.value = false;
     }
   }
 
-  async function rescanLibrary() {
-    if (!folderHandle.value) {
-      return;
-    }
+  async function rescanLibrary() {if (!folderHandle.value) { return;}
 
     loading.value = true;
 
     try {
       if (isTauri && folderHandle.value.type === "tauri") {
         await scanFolderTauri(folderHandle.value.path);
-      } else {
-        await scanFolder();
-      }
-    } finally {
-      loading.value = false;
-    }
+      } else {await scanFolder();}
+    } finally {loading.value = false;}
   }
 
   async function selectFolder() {
@@ -4478,9 +3751,7 @@ export const useLibraryStore = defineStore("library", () => {
         }
 
         await scanFolderTauri(selection.path);
-      } catch (e) {
-        console.error("Error selecting Tauri music folder:", e);
-      }
+      } catch (e) {console.error("Error selecting Tauri music folder:", e);}
       return;
     }
 
@@ -4502,9 +3773,7 @@ export const useLibraryStore = defineStore("library", () => {
         if (permission !== "granted") {
           permission = await handle.requestPermission({ mode: "readwrite" });
         }
-      } catch (error) {
-        console.warn("No se pudo autorizar la copia externa del perfil:", error);
-      }
+      } catch (error) {console.warn("No se pudo autorizar la copia externa del perfil:", error);}
       scheduleProfileSync(currentProfileId);
     }
 
@@ -4550,9 +3819,7 @@ export const useLibraryStore = defineStore("library", () => {
     const list = [];
 
     for (const file of files) {
-      if (!/\.(mp3|m4a|flac|wav|ogg|opus|aac|wma)$/i.test(file.name)) {
-        continue;
-      }
+      if (!/\.(mp3|m4a|flac|wav|ogg|opus|aac|wma)$/i.test(file.name)) {continue;}
 
       list.push({
         id: songIdForFile(file),
@@ -4582,18 +3849,14 @@ export const useLibraryStore = defineStore("library", () => {
     await loadMetadataForSongs();
   }
 
-  // =========================
   // METADATA
-  // =========================
 
   async function loadMetadataForSongs(forceRescan = false) {
     const db = await dbPromise;
 
     for (const song of songs.value) {
       try {
-        // -------------------------
         // Metadata cache
-        // -------------------------
 
         let cached = await db.get("metadata", song.id);
 
@@ -4642,13 +3905,9 @@ export const useLibraryStore = defineStore("library", () => {
         // Albums are text metadata only. Never create or join a collection.
         let belongsToAlbumCollection = false;
 
-        // -------------------------
         // Ensure file
-        // -------------------------
 
-        if (!song.file && song.nativeUri) {
-          await ensureSongFile(song);
-        }
+        if (!song.file && song.nativeUri) {await ensureSongFile(song);}
 
         if (!song.file) {
           song.title = cleanFileName(song.name);
@@ -4660,9 +3919,7 @@ export const useLibraryStore = defineStore("library", () => {
           continue;
         }
 
-        // -------------------------
         // Read metadata
-        // -------------------------
 
         const metadata = await parseBlob(song.file);
 
@@ -4698,9 +3955,7 @@ export const useLibraryStore = defineStore("library", () => {
           ? album.toLowerCase().replace(/[^a-z0-9]+/g, "-")
           : `standalone-${song.id}`;
 
-        // -------------------------
         // Album cover
-        // -------------------------
 
         let albumData = belongsToAlbumCollection && albumId
           ? albums.value.find((item) => item.id === albumId)
@@ -4749,9 +4004,7 @@ export const useLibraryStore = defineStore("library", () => {
           });
         }
 
-        // -------------------------
         // Metadata object
-        // -------------------------
 
         const persistedCover = sanitizeCoverForStorage(
           coverBlob || cachedCover || storedAlbumCover || song.cover || albumData?.cover || null,
@@ -4832,15 +4085,11 @@ export const useLibraryStore = defineStore("library", () => {
           musicBrainzReleaseGroupId: preservedRelations?.musicBrainzReleaseGroupId || "",
         };
 
-        // -------------------------
         // Save metadata
-        // -------------------------
 
         await db.put("metadata", cloneForIndexedDB(data));
 
-        // -------------------------
         // Update song
-        // -------------------------
 
         Object.assign(song, data);
 
@@ -4866,9 +4115,7 @@ export const useLibraryStore = defineStore("library", () => {
       }
     }
 
-    for (const song of songs.value) {
-      refreshSongReleaseRelations(song);
-    }
+    for (const song of songs.value) {refreshSongReleaseRelations(song);}
 
     applyProfileFavorites();
     await syncFavoritesPlaylistFromSongs();
@@ -4888,9 +4135,7 @@ export const useLibraryStore = defineStore("library", () => {
       songs.value.flatMap((song) => {
         const relatedIds = Array.isArray(song.releaseIds) ? song.releaseIds : [];
         const relatedAlbumIds = relatedIds.filter((releaseId) => albumReleaseIds.has(releaseId));
-        if (song.releaseType === "single" || song.releaseType === "ep") {
-          return [];
-        }
+        if (song.releaseType === "single" || song.releaseType === "ep") {return [];}
 
         return [song.albumId, ...relatedAlbumIds].filter(Boolean);
       }),
@@ -4915,20 +4160,14 @@ export const useLibraryStore = defineStore("library", () => {
     }
   }
 
-  async function rebuildLibrary() {
-    if (!folderHandle.value) {
-      return;
-    }
+  async function rebuildLibrary() {if (!folderHandle.value) { return;}
 
     loading.value = true;
 
     try {
       const db = await dbPromise;
 
-      for (const album of albums.value) {
-        if (album.cover) {
-          URL.revokeObjectURL(album.cover);
-        }
+      for (const album of albums.value) {if (album.cover) { URL.revokeObjectURL(album.cover);}
       }
 
       songs.value = [];
@@ -4941,14 +4180,10 @@ export const useLibraryStore = defineStore("library", () => {
       await loadAlbums();
       await syncAlbumsFromReleases();
       await scanFolder(true);
-    } finally {
-      loading.value = false;
-    }
+    } finally {loading.value = false;}
   }
 
-  // =========================
   // UPDATE SONG METADATA
-  // =========================
 
   async function updateSongMetadata(songId, updatedData) {
     const song = songs.value.find((item) => item.id === songId);
@@ -4981,10 +4216,7 @@ export const useLibraryStore = defineStore("library", () => {
     if (nextSongId !== previousSongId) {
       await db.delete("metadata", previousSongId);
 
-      for (const playlist of playlists.value) {
-        if (!Array.isArray(playlist.songIds)) {
-          continue;
-        }
+      for (const playlist of playlists.value) {if (!Array.isArray(playlist.songIds)) { continue;}
 
         playlist.songIds = playlist.songIds.map((id) =>
           id === previousSongId ? nextSongId : id,
@@ -5004,301 +4236,31 @@ export const useLibraryStore = defineStore("library", () => {
     return true;
   }
 
-  // =========================
-  // RETURN
-  // =========================
-
   return {
-    // -------------------------
-    // LIBRARY STATE
-    // -------------------------
-
-    init,
-
-    switchProfile,
-
-    initialized,
-
-    songs,
-
-    playlists,
-
-    folderHandle,
-
-    historyQueue,
-
-    albums,
-    releases,
-    releaseAlbums,
-    releaseGroups,
-    releaseGroupsView,
-    releaseTracks,
-    singles,
-    eps,
-    singlesAndEps,
-
-    loading,
-
-    // -------------------------
-    // PLAYER STATE
-    // -------------------------
-
-    playingSong,
-
-    isPlaying,
-
-    currentTime,
-
-    duration,
-
-    isProgressScrubbing,
-
-    setProgressScrubbing,
-
-    volume,
-
-    isNowPlayingOpen,
-
-    openNowPlaying,
-
-    closeNowPlaying,
-
-    toggleNowPlaying,
-
-    // -------------------------
-    // ARTISTS
-    // -------------------------
-
-    artists,
-
-    getArtistByName,
-
-    parseArtistNames,
-
-    customArtistCovers,
-
-    loadCustomArtistCovers,
-
-    setCustomArtistCover,
-
-    removeCustomArtistCover,
-
-    getArtistCover,
-
-    artistProfiles,
-
-    loadArtistProfiles,
-
-    saveArtistProfile,
-
-    removeArtistProfile,
-
-    getArtistProfile,
-
-    // -------------------------
-    // HISTORY
-    // -------------------------
-
-    listeningHistory,
-
-    loadHistory,
-
-    addToListeningHistory,
-
-    recordAlbumPlayed,
-
-    recordPlaylistPlayed,
-
-
-    // -------------------------
-    // QUEUE
-    // -------------------------
-
-    isQueueOpen,
-
-    openQueue,
-
-    closeQueue,
-
-    toggleQueue,
-
-    removeFromQueue,
-
-    removeSongFromQueue,
-
-    clearQueue,
-
-    clearHistoryQueue,
-
-    addToQueue,
-
-    playNext,
-
-    addSongsToQueue,
-
-    addAlbumToQueue,
-
-    addPlaylistToQueue,
-
-    setPlayQueue,
-
-    moveQueueItem,
-
-    playQueueSong,
-
-    playHistorySong,
-
-    // -------------------------
-    // PLAYER ACTIONS
-    // -------------------------
-
-    playPreviousSong,
-
-    playNextSong,
-
-    playQueue,
-
-    playSong,
-
-    playFromPlaylist,
-
-    togglePlay,
-
-    getAudioElement: () => audio,
-
-    getAudioAnalyser,
-
-    resumeAudioAnalyser,
-
-    seek,
-
-    getAudioCurrentTime,
-
-    // -------------------------
-    // FOLDER
-    // -------------------------
-
-    selectFolder,
-
-    removeFolder,
-
-    selectFiles,
-
-    rescanLibrary,
-
-    rebuildLibrary,
-
-    sortSongs,
-
-    sortMode,
-
-    updateSongMetadata,
-
-    // -------------------------
-    // PLAYLISTS
-    // -------------------------
-
-    createPlaylist,
-
-    updatePlaylist,
-
-    addSongToPlaylist,
-
-    removeSongFromPlaylist,
-
-    deletePlaylist,
-
-    reorderPlaylistSongs,
-
-    toggleFavorite,
-
-    isSongInPlaylist,
-
-    // -------------------------
-    // SHUFFLE & REPEAT
-    // -------------------------
-
-    isShuffleEnabled,
-
-    toggleShuffle,
-
-    repeatMode,
-
-    toggleRepeat,
-
-    // -------------------------
-    // AUTOPLAY, RATINGS & STATS
-    // -------------------------
-
-    autoplay,
-
-    toggleAutoplay,
-
-    fillAutoplayQueue,
-
-    getSmartNextSong,
-
-    smartShuffle,
-
-    songRatings,
-
-    getSongRating,
-
-    isSongLiked,
-
-    setSongRating,
-
-    toggleLike,
-
-    toggleDislike,
-
-    playbackEvents,
-
-    profileStatsSummary,
-
-    loadStats,
-
-    loadSongRatings,
-
-    getSongStats,
-
-    getProfileStats,
-    getPeriodRange,
-    shiftPeriod,
-    formatListenTime,
-
-    // -------------------------
-    // VOLUME & MUTE
-    // -------------------------
-
-    volume,
-
-    isMuted,
-
-    currentDb,
-
-    currentDbFormatted,
-
-    effectiveGain,
-
-    volumeIconType,
-
-    setVolume,
-
-    flushPendingProfileChanges,
-
-    setVolumeDb,
-
-    toggleMute,
-
-    stepVolume,
-
-    volumeToDb,
-
-    dbToGain,
-
-    formatDb,
-
-    FAVORITES_PLAYLIST_ID,
+    init, switchProfile, initialized, songs, playlists, folderHandle, historyQueue,
+    albums, releases, releaseAlbums, releaseGroups, releaseGroupsView, releaseTracks,
+    singles, eps, singlesAndEps, loading,
+    playingSong, isPlaying, currentTime, duration, isProgressScrubbing, setProgressScrubbing,
+    isNowPlayingOpen, openNowPlaying, closeNowPlaying, toggleNowPlaying,
+    artists, getArtistByName, parseArtistNames, customArtistCovers, loadCustomArtistCovers,
+    setCustomArtistCover, removeCustomArtistCover, getArtistCover, artistProfiles,
+    loadArtistProfiles, saveArtistProfile, removeArtistProfile, getArtistProfile,
+    listeningHistory, loadHistory, addToListeningHistory, recordAlbumPlayed, recordPlaylistPlayed,
+    isQueueOpen, openQueue, closeQueue, toggleQueue, removeFromQueue, removeSongFromQueue,
+    clearQueue, clearHistoryQueue, addToQueue, playNext, addSongsToQueue, addAlbumToQueue,
+    addPlaylistToQueue, setPlayQueue, moveQueueItem, playQueueSong, playHistorySong,
+    playPreviousSong, playNextSong, playQueue, playSong, playFromPlaylist, togglePlay,
+    getAudioElement: () => audio, getAudioAnalyser, resumeAudioAnalyser, seek, getAudioCurrentTime,
+    selectFolder, removeFolder, selectFiles, rescanLibrary, rebuildLibrary, sortSongs, sortMode, updateSongMetadata,
+    createPlaylist, updatePlaylist, addSongToPlaylist, removeSongFromPlaylist, deletePlaylist,
+    reorderPlaylistSongs, toggleFavorite, isSongInPlaylist,
+    isShuffleEnabled, toggleShuffle, repeatMode, toggleRepeat,
+    autoplay, toggleAutoplay, fillAutoplayQueue, getSmartNextSong, smartShuffle,
+    songRatings, getSongRating, isSongLiked, setSongRating, toggleLike, toggleDislike,
+    playbackEvents, profileStatsSummary, loadStats, loadSongRatings, getSongStats,
+    getProfileStats, getPeriodRange, shiftPeriod, formatListenTime,
+    volume, isMuted, currentDb, currentDbFormatted, effectiveGain, volumeIconType,
+    setVolume, flushPendingProfileChanges, setVolumeDb, toggleMute, stepVolume,
+    volumeToDb, dbToGain, formatDb, FAVORITES_PLAYLIST_ID,
   };
 });

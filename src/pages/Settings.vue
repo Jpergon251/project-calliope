@@ -111,7 +111,6 @@
         </p>
       </div>
 
-
       <div class="library-info">
         <span>
           Canciones cargadas
@@ -121,7 +120,6 @@
           {{ library.songs.length }}
         </strong>
       </div>
-
 
       <div class="settings-actions">
 
@@ -139,7 +137,6 @@
           </p>
 
         </div>
-
 
         <div class="setting-action">
 
@@ -161,8 +158,6 @@
 
     </section>
 
-
-
     <section class="settings-card">
 
       <div class="settings-card-header">
@@ -174,7 +169,6 @@
         </p>
 
       </div>
-
 
       <div class="metadata-status">
 
@@ -188,17 +182,12 @@
 
       </div>
 
-
-
       <p class="health-description">
         Puedes completar datos como el título, el artista, el álbum y la portada.
         Calliope usa esta información para organizar tu biblioteca.
       </p>
 
-
-
       <div class="settings-actions">
-
 
         <div class="setting-action">
 
@@ -210,14 +199,11 @@
             Editar información de canciones
           </button>
 
-
           <p>
             Revisa y completa la información de tus canciones.
           </p>
 
         </div>
-
-
 
         <div class="setting-action">
 
@@ -229,14 +215,11 @@
             Escanear de nuevo
           </button>
 
-
           <p>
             Busca nuevos archivos añadidos a la carpeta seleccionada.
           </p>
 
         </div>
-
-
 
         <div class="setting-action">
 
@@ -248,23 +231,18 @@
             Reconstruir biblioteca
           </button>
 
-
           <p>
             Elimina la información guardada y vuelve a analizar todos los archivos desde cero.
           </p>
 
         </div>
 
-
       </div>
-
 
     </section>
 
-
   </main>
 </template>
-
 
 <script setup>
 
@@ -283,7 +261,6 @@ import {
   importProfileArchive as saveImportedProfile,
 } from "../services/profileArchives.js";
 import { inspectProfileIdentity, validateUsername } from "../lib/profileIdentity.js";
-
 
 const router = useRouter();
 const library = useLibraryStore();
@@ -306,7 +283,6 @@ const syncStatusMessage = computed(() => ({
   error: "Comprueba los permisos de la carpeta e inténtalo de nuevo.",
   unavailable: "Puedes guardar una copia en tu dispositivo.",
 }[syncStatus.value?.status] || ""));
-
 
 const songsWithoutMetadata = computed(() =>
   library.songs.filter(song => !song.hasMetadata).length
@@ -343,9 +319,7 @@ async function createProfile() {
       username: validation.username,
     });
     await user.loadProfiles();
-  } catch (error) {
-    reportError(error);
-  }
+  } catch (error) {reportError(error);}
 }
 
 async function selectProfile(item) {
@@ -356,17 +330,13 @@ async function selectProfile(item) {
   try {
     const result = await user.loginProfile(item.id, password);
     if (!result.success) throw new Error(result.error || "No se pudo activar el perfil.");
-  } catch (error) {
-    reportError(error);
-  }
+  } catch (error) {reportError(error);}
 }
 
 async function renameProfile(item) {
   const name = window.prompt("Nuevo nombre del perfil:", item.displayName || item.name);
   if (!name?.trim() || name.trim() === (item.displayName || item.name)) return;
-  try {
-    await user.renameProfile(item.id, name);
-  } catch (error) {
+  try {await user.renameProfile(item.id, name);} catch (error) {
     reportError(error);
   }
 }
@@ -379,17 +349,12 @@ async function deleteProfile(item) {
     + "\n\n¿Continuar?",
   );
   if (!confirmed) return;
-  try {
-    await user.deleteProfile(item.id);
-  } catch (error) {
+  try {await user.deleteProfile(item.id);} catch (error) {
     reportError(error);
   }
 }
 
-async function associateFolder() {
-  try {
-    await library.selectFolder();
-  } catch (error) {
+async function associateFolder() {try { await library.selectFolder();} catch (error) {
     reportError(error);
   }
 }
@@ -408,9 +373,7 @@ async function exportProfile() {
     link.download = fileName;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (error) {
-    reportError(error);
-  }
+  } catch (error) {reportError(error);}
 }
 
 async function importProfile(event) {
@@ -455,10 +418,7 @@ async function importProfile(event) {
       if (!window.confirm(
         `El perfil «${target.displayName || target.name}» (@${username || "sin nombre de usuario"}) ya existe. Se reemplazarán sus datos por los del archivo. La biblioteca de canciones no cambiará. ¿Continuar?`,
       )) return;
-      importArchive = {
-        ...validated,
-        profile: { ...validated.profile, username },
-      };
+      importArchive = {...validated, profile: { ...validated.profile, username }};
       mode = "update";
       targetProfileId = target.id;
     } else if (identity.type === "username-match" || identity.type === "username-required") {
@@ -473,19 +433,12 @@ async function importProfile(event) {
         item.id !== validated.profile.id
         && validateUsername(item.username || "").username === validation.username
         && validateUsername(item.username || "").valid,
-      )) {
-        throw new Error(`El nombre de usuario @${validation.username} ya está en uso.`);
-      }
-      importArchive = {
-        ...validated,
-        profile: { ...validated.profile, username: validation.username },
-      };
+      )) {throw new Error(`El nombre de usuario @${validation.username} ya está en uso.`);}
+      importArchive = {...validated, profile: { ...validated.profile, username: validation.username }};
     } else if (!window.confirm(
       `¿Quieres importar «${name}» como perfil nuevo?\nIncluye ${validated.playlists.length} listas y ${validated.history.length} reproducciones recientes.\n`
       + `${resolution.unresolvedCount ? `${resolution.unresolvedCount} canciones no están disponibles en esta biblioteca.` : "Las canciones coinciden con la biblioteca actual."}`,
-    )) {
-      return;
-    }
+    )) {return;}
 
     const result = await saveImportedProfile(importArchive, {
       mode,
@@ -504,15 +457,11 @@ async function importProfile(event) {
         if (!login.success) throw new Error(login.error || "El perfil se importó, pero no se pudo activar.");
       }
     }
-  } catch (error) {
-    reportError(error);
-  }
+  } catch (error) {reportError(error);}
 }
 
 async function retrySync() {
-  try {
-    await flushProfileSync(activeProfileId.value, { requestPermission: true });
-  } catch (error) {
+  try {await flushProfileSync(activeProfileId.value, { requestPermission: true });} catch (error) {
     reportError(error);
   }
 }
@@ -523,15 +472,11 @@ async function removeLibrary() {
     "¿Quieres eliminar la carpeta de música seleccionada?\n\nTus archivos originales no serán borrados."
   );
 
-
   if (!confirmDelete) return;
-
 
   await library.removeFolder();
 
 }
-
-
 
 async function rebuild() {
 
@@ -539,9 +484,7 @@ async function rebuild() {
     "Se reconstruirá la biblioteca desde cero.\n\nLas playlists y configuraciones no se eliminarán.\n\n¿Continuar?"
   );
 
-
   if (!confirmRebuild) return;
-
 
   await library.rebuildLibrary();
 

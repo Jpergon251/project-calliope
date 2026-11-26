@@ -1,104 +1,26 @@
 <template>
   <main class="metadata-page">
-    <!-- Encabezado de la página -->
     <header class="metadata-header">
       <div class="header-titles">
         <div class="title-with-icon">
           <Tags class="title-icon" />
-          <h1>Información de canciones</h1>
+          <h1>Metadatos</h1>
         </div>
-        <p>
-          Revisa y completa los datos de tus canciones. También puedes buscar información para rellenar lo que falta.
-        </p>
       </div>
 
-      <!-- Resumen estadístico: 3 estados -->
-      <div class="metadata-stats-bar" v-if="library.songs.length > 0">
-        <div class="stat-item">
-          <span class="stat-label">Total</span>
-          <strong class="stat-value">{{ totalSongsCount }}</strong>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item stat-complete">
-          <span class="stat-label">Completos</span>
-          <strong class="stat-value">{{ completeMetadataCount }}</strong>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item stat-necessary">
-          <span class="stat-label">Necesarios</span>
-          <strong class="stat-value">{{ necessaryMetadataCount }}</strong>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item stat-incomplete">
-          <span class="stat-label">Incompletos</span>
-          <strong class="stat-value">{{ incompleteMetadataCount }}</strong>
-        </div>
-      </div>
+      <nav v-if="library.songs.length" class="metadata-stats-bar" aria-label="Filtrar canciones por estado">
+        <button type="button" class="stat-item" :class="{ active: currentFilter === 'all' }" :aria-pressed="currentFilter === 'all'" @click="currentFilter = 'all'"><span class="stat-label">Total</span><strong class="stat-value">{{ totalSongsCount }}</strong></button>
+        <button type="button" class="stat-item stat-complete" :class="{ active: currentFilter === 'complete' }" :aria-pressed="currentFilter === 'complete'" @click="currentFilter = 'complete'"><span class="stat-label">Completos</span><strong class="stat-value">{{ completeMetadataCount }}</strong></button>
+        <button type="button" class="stat-item stat-necessary" :class="{ active: currentFilter === 'necessary' }" :aria-pressed="currentFilter === 'necessary'" @click="currentFilter = 'necessary'"><span class="stat-label">Básicos</span><strong class="stat-value">{{ necessaryMetadataCount }}</strong></button>
+        <button type="button" class="stat-item stat-incomplete" :class="{ active: currentFilter === 'incomplete' }" :aria-pressed="currentFilter === 'incomplete'" @click="currentFilter = 'incomplete'"><span class="stat-label">Incompletos</span><strong class="stat-value">{{ incompleteMetadataCount }}</strong></button>
+      </nav>
     </header>
 
-    <!-- Barra de Búsqueda y Filtros -->
-    <section class="metadata-controls" v-if="library.songs.length > 0">
+    <section v-if="library.songs.length" class="metadata-controls">
       <div class="search-wrapper">
         <Search class="search-icon" />
-        <input
-          v-model="searchQuery"
-          type="search"
-          placeholder="Buscar por título, artista, álbum o archivo..."
-          class="metadata-search-input"
-        />
-        <button
-          v-if="searchQuery"
-          class="clear-search-btn"
-          @click="searchQuery = ''"
-          type="button"
-          aria-label="Limpiar búsqueda"
-        >
-          <X class="icon-sm" />
-        </button>
-      </div>
-
-      <!-- Pestañas de Filtro (Todas, Incompletos, Necesarios, Completos) -->
-      <div class="filter-tabs">
-        <button
-          type="button"
-          :class="['filter-tab', { active: currentFilter === 'all' }]"
-          @click="currentFilter = 'all'"
-        >
-          Todas ({{ totalSongsCount }})
-        </button>
-        <button
-          type="button"
-          :class="[
-            'filter-tab',
-            'tab-incomplete',
-            { active: currentFilter === 'incomplete' },
-          ]"
-          @click="currentFilter = 'incomplete'"
-        >
-          Por completar ({{ incompleteMetadataCount }})
-        </button>
-        <button
-          type="button"
-          :class="[
-            'filter-tab',
-            'tab-necessary',
-            { active: currentFilter === 'necessary' },
-          ]"
-          @click="currentFilter = 'necessary'"
-        >
-          Información básica ({{ necessaryMetadataCount }})
-        </button>
-        <button
-          type="button"
-          :class="[
-            'filter-tab',
-            'tab-complete',
-            { active: currentFilter === 'complete' },
-          ]"
-          @click="currentFilter = 'complete'"
-        >
-          Completos ({{ completeMetadataCount }})
-        </button>
+        <input v-model="searchQuery" type="search" placeholder="Buscar título, artista, álbum o archivo..." class="metadata-search-input" />
+        <button v-if="searchQuery" class="clear-search-btn" type="button" aria-label="Limpiar búsqueda" @click="searchQuery = ''"><X class="icon-sm" /></button>
       </div>
     </section>
 
@@ -134,146 +56,41 @@
         </button>
       </div>
 
-      <!-- Cuadrícula / Lista de Canciones -->
-      <div class="metadata-songs-grid metadata-songs-scroll" v-else>
-        <article
-          v-for="song in filteredSongs"
-          :key="song.id"
-          class="metadata-song-card"
-          @click="openEditModal(song)"
-          tabindex="0"
-          role="button"
-          @keyup.enter="openEditModal(song)"
-          @keyup.space.prevent="openEditModal(song)"
-        >
-          <input
-            class="metadata-song-select"
-            type="checkbox"
-            :checked="autoSelectedIds.includes(song.id)"
-            :disabled="autoRunning"
-            :aria-label="`Seleccionar ${song.title || song.name} para análisis automático`"
-            @click.stop
-            @change="toggleAutoSong(song)"
-          />
-          <!-- Portada -->
-          <div class="card-cover">
-            <img
-              v-if="song.cover"
-              :src="song.cover"
-              :alt="song.title || song.name"
-              class="cover-image"
-              loading="lazy"
-              @error="handleCoverError($event, song)"
-            />
-            <SongIconCover v-else class="cover-image fallback" />
+      <div v-else class="metadata-songs-list metadata-songs-scroll">
+        <article v-for="song in filteredSongs" :key="song.id" class="metadata-song-row" @click="openEditModal(song)" tabindex="0" role="button" @keyup.enter="openEditModal(song)" @keyup.space.prevent="openEditModal(song)">
+          <input class="metadata-song-select" type="checkbox" :checked="autoSelectedIds.includes(song.id)" :disabled="autoRunning" :aria-label="`Seleccionar ${song.title || song.name} para análisis automático`" @click.stop @change="toggleAutoSong(song)" />
+          <div class="row-cover">
+            <img v-if="song.cover" :src="song.cover" :alt="song.title || song.name" loading="lazy" @error="handleCoverError($event, song)" />
+            <SongIconCover v-else class="fallback" />
           </div>
-
-          <!-- Información de la pista -->
-          <div class="card-body">
-            <div class="card-titles">
-              <h3 class="song-title" :title="song.title || song.name">
-                {{ song.title || song.name }}
-              </h3>
-              <p
-                class="song-artist"
-                :title="song.artist || 'Artista desconocido'"
-              >
-                {{ song.artist || "Artista desconocido" }}
-              </p>
-            </div>
-
-            <p class="song-album" :title="formatReleases(song)">
-              <Disc3 class="inline-icon" />
-              <span>{{ formatReleases(song) }}</span>
-            </p>
-
-            <div class="card-meta-bottom">
-              <!-- Indicador del estado de la información de la canción -->
-              <span
-                :class="['status-pill', `pill-${getSongStatus(song).status}`]"
-              >
-                <component :is="getSongStatus(song).icon" class="pill-icon" />
-                {{ getSongStatus(song).label }}
-              </span>
-
-              <span class="edit-hint">
-                <Pencil class="hint-icon" />
-                Editar
-              </span>
-            </div>
+          <div class="row-track-info">
+            <h3 class="song-title" :title="song.title || song.name">{{ song.title || song.name }}</h3>
+            <p class="song-artist" :title="song.artist || 'Artista desconocido'">{{ song.artist || "Artista desconocido" }}</p>
           </div>
+          <p class="row-album" :title="formatReleases(song)">{{ formatReleases(song) }}</p>
+          <span :class="['status-dot', `status-${getSongStatus(song).status}`]" :title="getSongStatus(song).label" :aria-label="getSongStatus(song).label"><span>{{ getSongStatus(song).status === 'complete' ? 'OK' : getSongStatus(song).status === 'necessary' ? 'Básico' : 'Incompleto' }}</span></span>
+          <button class="row-edit" type="button" :aria-label="`Editar ${song.title || song.name}`" @click.stop="openEditModal(song)"><Pencil :size="16" /></button>
         </article>
       </div>
     </section>
 
-    <section v-if="library.songs.length" class="metadata-auto-panel">
-      <div class="metadata-auto-copy">
-        <span class="metadata-auto-kicker">Modo automático</span>
-        <h2>Buscar y completar información</h2>
-        <p>
-          Analiza las canciones seleccionadas una por una y aplica la mejor
-          coincidencia encontrada. Puede haber errores: revisa los resultados
-          manualmente después.
-        </p>
+    <Transition name="metadata-actions">
+      <section v-if="autoSelectedIds.length" class="metadata-auto-floating" aria-live="polite">
+        <span class="selected-count">{{ autoSelectedIds.length }} seleccionadas</span>
+        <span v-if="autoRunning" class="metadata-auto-progress">{{ autoProgress.current }}/{{ autoProgress.total }} · {{ autoProgress.percent }}%</span>
+        <button v-if="autoRunning" type="button" class="metadata-auto-stop" @click="stopAutomaticMetadata">Parar</button>
+        <button type="button" class="metadata-auto-button" :disabled="autoRunning" @click="runAutomaticMetadata">
+          <span v-if="autoRunning" class="auto-spinner" aria-hidden="true"></span>
+          {{ autoRunning ? 'Autocompletando…' : 'Autocompletar seleccionadas' }}
+        </button>
+        <button type="button" class="metadata-auto-clear" :disabled="autoRunning" @click="autoSelectedIds = []">Deseleccionar</button>
+      </section>
+    </Transition>
+    <TransitionGroup v-if="autoResults.length" name="metadata-result" tag="div" class="metadata-auto-results" aria-live="polite">
+      <div v-for="result in autoResults" :key="result.id" :class="['metadata-auto-result', `result-${result.status}`]">
+        <strong>{{ result.title }}</strong><span>{{ result.message }}</span>
       </div>
-      <div class="metadata-auto-actions">
-        <span>{{ autoSelectedIds.length }} seleccionadas</span>
-        <span v-if="autoRunning" class="metadata-auto-timer"
-          >{{ formatElapsed(autoProgress.elapsedMs) }} · queda
-          {{ formatElapsed(autoProgress.etaMs) }}</span
-        >
-        <button
-          type="button"
-          class="btn-subtle"
-          :disabled="autoRunning"
-          @click="selectVisibleForAuto"
-        >
-          Seleccionar visibles
-        </button>
-        <button
-          type="button"
-          class="metadata-auto-clear"
-          :disabled="autoRunning || !autoSelectedIds.length"
-          @click="autoSelectedIds = []"
-        >
-          Deseleccionar todo
-        </button>
-        <button
-          v-if="autoRunning"
-          type="button"
-          class="metadata-auto-stop"
-          @click="stopAutomaticMetadata"
-        >
-          Parar
-        </button>
-        <button
-          type="button"
-          class="metadata-auto-button"
-          :disabled="autoRunning || !autoSelectedIds.length"
-          @click="runAutomaticMetadata"
-        >
-          {{
-            autoRunning
-              ? `Analizando ${autoProgress.current}/${autoProgress.total} · ${autoProgress.percent}%`
-              : "Analizar y aplicar"
-          }}
-        </button>
-      </div>
-      <div
-        v-if="autoRunning || autoResults.length"
-        class="metadata-auto-results"
-        aria-live="polite"
-      >
-        <div
-          v-for="result in autoResults"
-          :key="result.id"
-          :class="['metadata-auto-result', `result-${result.status}`]"
-        >
-          <strong>{{ result.title }}</strong
-          ><span>{{ result.message }}</span>
-        </div>
-      </div>
-    </section>
+    </TransitionGroup>
 
     <!-- Modal de edición de metadatos -->
     <MetadataModal
@@ -293,7 +110,6 @@ import {
   SearchX,
   X,
   Music2,
-  Disc3,
   CheckCheck,
   Check,
   AlertCircle,
@@ -312,13 +128,7 @@ const selectedSong = ref(null);
 const autoSelectedIds = ref([]);
 const autoRunning = ref(false);
 const autoResults = ref([]);
-const autoProgress = ref({
-  current: 0,
-  total: 0,
-  percent: 0,
-  elapsedMs: 0,
-  etaMs: 0,
-});
+const autoProgress = ref({current: 0, total: 0, percent: 0, elapsedMs: 0, etaMs: 0});
 let autoStartedAt = 0;
 let autoTimer = null;
 let stopRequested = false;
@@ -329,19 +139,12 @@ function updateProgressTimer() {
   autoProgress.value.elapsedMs = elapsed;
   if (autoProgress.value.current > 0) {
     const avgPerItem = elapsed / autoProgress.value.current;
-    const remaining = Math.max(
-      0,
-      autoProgress.value.total - autoProgress.value.current,
-    );
+    const remaining = Math.max(0, autoProgress.value.total - autoProgress.value.current);
     autoProgress.value.etaMs = avgPerItem * remaining;
-  } else {
-    autoProgress.value.etaMs = 0;
-  }
+  } else {autoProgress.value.etaMs = 0;}
 }
 
-function stopAutomaticMetadata() {
-  stopRequested = true;
-}
+function stopAutomaticMetadata() {stopRequested = true;}
 
 /**
  * Evalúa el estado de los metadatos de una canción en 3 niveles:
@@ -363,11 +166,7 @@ function getSongStatus(song) {
   const meetsNecessary = hasTitle && hasArtist && hasRelease && hasCover;
 
   if (!meetsNecessary) {
-    return {
-      status: "incomplete",
-      label: "Información por completar",
-      icon: AlertCircle,
-    };
+    return {status: "incomplete", label: "Información por completar", icon: AlertCircle};
   }
 
   const hasGenre = Array.isArray(song.genre)
@@ -377,18 +176,10 @@ function getSongStatus(song) {
   const hasTrack = Boolean(song.track);
 
   if (hasGenre && hasYear && hasTrack) {
-    return {
-      status: "complete",
-      label: "Información completa",
-      icon: CheckCheck,
-    };
+    return {status: "complete", label: "Información completa", icon: CheckCheck};
   }
 
-  return {
-    status: "necessary",
-    label: "Información básica completa",
-    icon: Check,
-  };
+  return {status: "necessary", label: "Información básica completa", icon: Check};
 }
 
 function formatReleases(song) {
@@ -456,34 +247,14 @@ const filteredSongs = computed(() => {
   return list;
 });
 
-function openEditModal(song) {
-  selectedSong.value = song;
-}
+function openEditModal(song) {selectedSong.value = song;}
 
-function handleCoverError(event, song) {
-  event.currentTarget.hidden = true;
-  if (song) song.cover = null;
-}
-
-function formatElapsed(milliseconds) {
-  const seconds = Math.max(0, Math.round(Number(milliseconds || 0) / 1000));
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
-}
+function handleCoverError(event, song) {event.currentTarget.hidden = true; if (song) song.cover = null;}
 
 function toggleAutoSong(song) {
   autoSelectedIds.value = autoSelectedIds.value.includes(song.id)
     ? autoSelectedIds.value.filter((id) => id !== song.id)
     : [...autoSelectedIds.value, song.id];
-}
-
-function selectVisibleForAuto() {
-  autoSelectedIds.value = [
-    ...new Set([
-      ...autoSelectedIds.value,
-      ...filteredSongs.value.map((song) => song.id),
-    ]),
-  ];
 }
 
 async function runAutomaticMetadata() {
@@ -497,13 +268,7 @@ async function runAutomaticMetadata() {
   stopRequested = false;
   autoResults.value = [];
   autoStartedAt = performance.now();
-  autoProgress.value = {
-    current: 0,
-    total: queue.length,
-    percent: 0,
-    elapsedMs: 0,
-    etaMs: 0,
-  };
+  autoProgress.value = {current: 0, total: queue.length, percent: 0, elapsedMs: 0, etaMs: 0};
 
   clearInterval(autoTimer);
   autoTimer = setInterval(updateProgressTimer, 1000);
@@ -513,9 +278,7 @@ async function runAutomaticMetadata() {
       if (stopRequested) break;
 
       autoProgress.value.current += 1;
-      autoProgress.value.percent = Math.round(
-        (autoProgress.value.current / queue.length) * 100,
-      );
+      autoProgress.value.percent = Math.round((autoProgress.value.current / queue.length) * 100);
       updateProgressTimer();
 
       const title = song.title || song.name;
@@ -533,13 +296,9 @@ async function runAutomaticMetadata() {
         const result = await identifyAudio(song.file);
         if (stopRequested) break;
 
-        const confidence = Number(
-          result?.confidence || result?.metadata?.confidence || 0,
-        );
+        const confidence = Number(result?.confidence || result?.metadata?.confidence || 0);
         const warnings = result?.diagnostics?.warnings || [];
-        const hasCompetingEvidence = warnings.includes(
-          "competing-candidates-reviewable",
-        );
+        const hasCompetingEvidence = warnings.includes("competing-candidates-reviewable");
         const hasStableIdentity = Boolean(
           result?.musicBrainzRecordingId ||
             result?.metadata?.musicBrainzRecordingId ||
@@ -600,29 +359,18 @@ async function runAutomaticMetadata() {
   }
 }
 
-onUnmounted(() => {
-  if (autoTimer) {
-    clearInterval(autoTimer);
-    autoTimer = null;
-  }
+onUnmounted(() => {if (autoTimer) { clearInterval(autoTimer); autoTimer = null;}
   stopRequested = true;
 });
 
-function closeEditModal() {
-  selectedSong.value = null;
-}
+function closeEditModal() {selectedSong.value = null;}
 
 function handleSongUpdated(songId) {
   if (selectedSong.value && selectedSong.value.id === songId) {
     const updated = library.songs.find((s) => s.id === songId);
-    if (updated) {
-      selectedSong.value = updated;
-    }
+    if (updated) {selectedSong.value = updated;}
   }
 }
 
-function resetFilters() {
-  searchQuery.value = "";
-  currentFilter.value = "all";
-}
+function resetFilters() {searchQuery.value = ""; currentFilter.value = "all";}
 </script>

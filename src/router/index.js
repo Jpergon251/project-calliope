@@ -26,30 +26,20 @@ const routes = [
   { path: '/player', name: 'player', component: () => import('../pages/PlayerPage.vue') },
 ]
 
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes,
-})
+const router = createRouter({history: createWebHashHistory(), routes})
 
 router.beforeEach(async (to) => {
   const user = useUserStore()
 
-  if (!user.loaded) {
-    await user.load()
-  }
+  if (!user.loaded) {await user.load()}
 
   // 1. Si NO existe una sesión válida, el router debe llevar siempre a /welcome
-  if (!user.hasSession) {
-    if (to.name !== 'Welcome') {
-      return { name: 'Welcome' }
-    }
+  if (!user.hasSession) {if (to.name !== 'Welcome') { return { name: 'Welcome' }}
     return true
   }
 
   // 2. Si existe sesión válida y el usuario intenta acceder a /welcome, llevar a Home
-  if (to.name === 'Welcome') {
-    return { name: 'Home' }
-  }
+  if (to.name === 'Welcome') {return { name: 'Home' }}
 
   return true
 })

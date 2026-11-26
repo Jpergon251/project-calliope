@@ -271,9 +271,7 @@
           height: 19px;
           flex: 0 0 19px;
           color: var(--text-muted);
-          transition:
-            color var(--transition-fast),
-            transform var(--transition-fast);
+          transition: color var(--transition-fast), transform var(--transition-fast);
         }
 
         .page-name {
@@ -417,9 +415,7 @@
       height: 19px;
       flex: 0 0 19px;
       color: var(--text-muted);
-      transition:
-        color var(--transition-fast),
-        transform var(--transition-fast);
+      transition: color var(--transition-fast), transform var(--transition-fast);
     }
 
     @media (hover: hover) and (pointer: fine) {
@@ -456,11 +452,6 @@
     }
   }
 }
-
-/* =========================================================
-   DESKTOP SIDEBAR
-   ========================================================= */
-
 @media (min-width: 761px) {
   .sidebar {
     width: 256px;
@@ -496,11 +487,6 @@
     }
   }
 }
-
-/* =========================================================
-   MOBILE BOTTOM NAVIGATION
-   ========================================================= */
-
 @media (max-width: 760px) {
   .navbar {
     display: flex;
@@ -568,9 +554,7 @@
           background: transparent;
           color: var(--text-muted);
           transform: none;
-          transition:
-            color var(--transition-fast),
-            opacity var(--transition-fast);
+          transition: color var(--transition-fast), opacity var(--transition-fast);
 
           &::before {
             top: 5px;
@@ -587,9 +571,7 @@
             height: 22px;
             flex: 0 0 22px;
             color: var(--text-muted);
-            transition:
-              color var(--transition-fast),
-              transform var(--transition-fast);
+            transition: color var(--transition-fast), transform var(--transition-fast);
           }
 
           .page-name {
@@ -650,22 +632,12 @@
     }
   }
 
-  .desktop-only-nav {
-    display: none !important;
-  }
-
   .mobile-nav-visible {
     display: flex !important;
     flex: 1 1 33.333%;
     max-width: 33.333%;
   }
 }
-
-/* =========================================================
-   TOUCH DEVICES
-   Evita estados hover persistentes después de tocar.
-   ========================================================= */
-
 @media (hover: none) and (pointer: coarse) {
   .navbar {
     .page-link,

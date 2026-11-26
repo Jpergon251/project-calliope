@@ -13,10 +13,6 @@
 <script setup>
 import AlbumItem from "../library/AlbumItem.vue";
 
-defineProps({
-  albums: {
-    type: Array,
-    required: true
-  }
+defineProps({albums: { type: Array, required: true}
 });
 </script>

@@ -28,14 +28,7 @@ const user = useUserStore();
 const route = useRoute();
 const router = useRouter();
 
-if (typeof window !== "undefined") {
-  window.__library__ = library;
-  window.__router__ = router;
-}
+if (typeof window !== "undefined") {window.__library__ = library; window.__router__ = router;}
 
-onMounted(async () => {
-  await user.load();
-  user.applyPreferences();
-  await library.init();
-});
+onMounted(async () => {await user.load(); user.applyPreferences(); await library.init();});
 </script>

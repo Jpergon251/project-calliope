@@ -60,44 +60,30 @@ const library = useLibraryStore();
 const isPlayerRoute = computed(() => route.name === 'player');
 const isMobile = ref(false);
 
-function checkIsMobile() {
-  isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;
-}
+function checkIsMobile() {isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;}
 
 onMounted(() => {
   checkIsMobile();
   window.addEventListener('resize', checkIsMobile);
-  if (route.name === 'player' && isMobile.value) {
-    library.openNowPlaying();
-  }
+  if (route.name === 'player' && isMobile.value) {library.openNowPlaying();}
 });
 
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkIsMobile);
-});
+onBeforeUnmount(() => {window.removeEventListener('resize', checkIsMobile);});
 
 watch(
   () => route.name,
-  (name) => {
-    if (name === 'player' && isMobile.value) {
-      library.openNowPlaying();
-    }
+  (name) => {if (name === 'player' && isMobile.value) { library.openNowPlaying();}
   }
 );
 
 const shouldShowNowPlayingSheet = computed(() => {
-  if (isMobile.value) {
-    return library.isNowPlayingOpen || isPlayerRoute.value;
-  }
+  if (isMobile.value) {return library.isNowPlayingOpen || isPlayerRoute.value;}
   return library.isNowPlayingOpen && !isPlayerRoute.value;
 });
 
 function handleCloseNowPlaying() {
   library.closeNowPlaying();
-  if (route.name === 'player') {
-    if (window.history.length > 1) {
-      router.back();
-    } else {
+  if (route.name === 'player') {if (window.history.length > 1) { router.back();} else {
       router.push('/');
     }
   }

@@ -15,24 +15,20 @@ const GENERIC_GENRES = new Set([
   "misc", "general", "various", "n/a", "n a",
 ]);
 
-function clean(value) {
-  return value === null || value === undefined ? "" : String(value).trim();
-}
+export function clean(value) {return value === null || value === undefined ? "" : String(value).trim();}
 
-export function normalizeComparable(value) {
-  return clean(value)
+export function normalizeComparable(value, { alnumOnly = true } = {}) {
+  const base = clean(value)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[()[\]{}]/g, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/[()[\]{}]/g, " ");
+  return (alnumOnly ? base.replace(/[^\p{L}\p{N}]+/gu, " ") : base)
     .replace(/\s+/g, " ")
     .trim();
 }
 
-export function normalizeIsrc(value) {
-  return clean(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
+export function normalizeIsrc(value) {return clean(value).toUpperCase().replace(/[^A-Z0-9]/g, "");}
 
 export function normalizeReleaseTitle(value) {
   return clean(value)
@@ -61,9 +57,7 @@ export function createStableFileId(file) {
   if (directPath) parts.push(normalizeComparable(directPath));
   if (rawName) parts.push(normalizeComparable(rawName));
 
-  if (parts.length) {
-    return parts.join("::");
-  }
+  if (parts.length) {return parts.join("::");}
 
   return `file:${crypto.randomUUID()}`;
 }
@@ -102,14 +96,7 @@ export function normalizeArtistCredits(credits, fallback) {
   }
 
   const names = parseArtistString(fallback);
-  return names.map((name, index) => ({
-    name,
-    role: index === 0 ? "main" : "featured",
-  }));
-}
-
-function artistEntityKey(entity) {
-  return normalizeComparable(entity?.id || entity?.musicBrainzId || entity?.name || entity);
+  return names.map((name, index) => ({name, role: index === 0 ? "main" : "featured"}));
 }
 
 export function resolveArtistEntities(value, evidence = {}) {
@@ -144,9 +131,7 @@ export function resolveArtistEntities(value, evidence = {}) {
   return [{ name: text, role: "main", joinphrase: "" }];
 }
 
-export function artistEntityName(value) {
-  return clean(typeof value === "string" ? value : value?.name);
-}
+export function artistEntityName(value) {return clean(typeof value === "string" ? value : value?.name);}
 
 export function artistEntityId(value) {
   return clean(typeof value === "string" ? "" : value?.id || value?.artistId || value?.musicBrainzId);
@@ -159,19 +144,10 @@ export function mergeArtists(...sources) {
     for (const entity of (Array.isArray(source) ? source : [source])) {
       const name = artistEntityName(entity);
       const key = artistEntityId(entity) || normalizeComparable(name);
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        result.push(name);
-      }
+      if (key && !seen.has(key)) {seen.add(key); result.push(name);}
     }
   }
   return result;
-}
-
-export function artistsEquivalent(left, right) {
-  const a = mergeArtists(left).map(normalizeComparable).sort();
-  const b = mergeArtists(right).map(normalizeComparable).sort();
-  return a.length > 0 && a.length === b.length && a.every((name, index) => name === b[index]);
 }
 
 export function artistsToDisplayString(artists) {
@@ -265,18 +241,11 @@ function normalizeReleaseArtistEntities(values) {
       ? { name: value }
       : value || {};
     const name = clean(entity.name || entity.artist?.name);
-    const id = clean(
-      entity.id || entity.artistId || entity.musicBrainzId || entity.artist?.id,
-    );
+    const id = clean(entity.id || entity.artistId || entity.musicBrainzId || entity.artist?.id);
     const key = id ? `id:${id}` : `name:${normalizeComparable(name)}`;
     if (!name || seen.has(key)) continue;
     seen.add(key);
-    result.push({
-      id,
-      name,
-      role: clean(entity.role) || "main",
-      joinphrase: clean(entity.joinphrase),
-    });
+    result.push({id, name, role: clean(entity.role) || "main", joinphrase: clean(entity.joinphrase)});
   }
 
   return result;
@@ -347,28 +316,6 @@ export function createRelease(input = {}) {
     isPrimary: Boolean(input.isPrimary),
     source: clean(input.source),
     metadataSources: input.metadataSources || {},
-  };
-}
-
-export function setReleaseCover(release = {}, newCoverUrl, source = 'manual') {
-  const currentArtworks = Array.isArray(release.artworks)
-    ? release.artworks.map((a) => ({ ...a }))
-    : Array.isArray(release.coverAlternatives)
-      ? release.coverAlternatives.map((a) => ({ ...a }))
-      : [];
-  const prevCover = release.cover || release.coverUrl;
-  if (prevCover && !currentArtworks.some((a) => a.url === prevCover)) {
-    currentArtworks.push({ url: prevCover, source: release.source || 'release' });
-  }
-  if (newCoverUrl && !currentArtworks.some((a) => a.url === newCoverUrl)) {
-    currentArtworks.push({ url: newCoverUrl, source });
-  }
-  return {
-    ...release,
-    cover: newCoverUrl,
-    coverUrl: newCoverUrl,
-    artworks: currentArtworks,
-    coverAlternatives: currentArtworks.map((a) => ({ ...a })),
   };
 }
 

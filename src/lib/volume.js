@@ -43,10 +43,7 @@ export function volumeToDb(v) {
  * @param {number} db
  * @returns {number} Gain factor 0.0 to 1.0
  */
-export function dbToGain(db) {
-  if (db === -Infinity || !Number.isFinite(db) || db <= -70) {
-    return 0;
-  }
+export function dbToGain(db) {if (db === -Infinity || !Number.isFinite(db) || db <= -70) { return 0;}
   if (db >= 0) return 1.0;
   return Math.min(1.0, Math.max(0, Math.pow(10, db / 20)));
 }
@@ -110,9 +107,7 @@ export function gainToVolume(gain) {
  */
 export function formatDb(db, { isMuted = false } = {}) {
   if (isMuted) return "Silenciado";
-  if (db === -Infinity || !Number.isFinite(db) || db <= -65) {
-    return "-∞ dB";
-  }
+  if (db === -Infinity || !Number.isFinite(db) || db <= -65) {return "-∞ dB";}
   const rounded = Math.round(db);
   return rounded === 0 ? "0 dB" : `${rounded} dB`;
 }

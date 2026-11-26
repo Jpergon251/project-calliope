@@ -170,57 +170,20 @@
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ListMusic,
-  PlusCircleIcon,
-} from "lucide-vue-next";
+import {ChevronLeft, ChevronRight, ListMusic, PlusCircleIcon} from "lucide-vue-next";
 
 import PlaylistItem from "./PlaylistItem.vue";
 import CreatePlaylist from "../modals/CreatePlaylist.vue";
 import { useLibraryStore } from "../../stores/libraryStore.js";
+const props = defineProps({searchQuery: { type: String, default: ""},
 
-/* ============================================================
-   PROPS
-============================================================ */
-
-const props = defineProps({
-  searchQuery: {
-    type: String,
-    default: "",
-  },
-
-  preview: {
-    type: Boolean,
-    default: false,
-  },
+  preview: {type: Boolean, default: false},
 });
-
-/* ============================================================
-   STORES / ROUTER
-============================================================ */
-
 const library = useLibraryStore();
 const router = useRouter();
-
-/* ============================================================
-   CONSTANTS
-============================================================ */
-
 const PREVIEW_LIMIT = 10;
-
-/* ============================================================
-   REFS
-============================================================ */
-
 const createPlaylistModal = ref(null);
 const playlistsCarousel = ref(null);
-
-/* ============================================================
-   PLAYLISTS
-============================================================ */
-
 /*
  * Favorites is always first.
  *
@@ -238,17 +201,10 @@ const orderedPlaylists = computed(() => {
 
   return favorites ? [favorites, ...others] : others;
 });
-
-/* ============================================================
-   SEARCH
-============================================================ */
-
 const filteredPlaylists = computed(() => {
   const query = String(props.searchQuery || "").trim().toLowerCase();
 
-  if (!query) {
-    return orderedPlaylists.value;
-  }
+  if (!query) {return orderedPlaylists.value;}
 
   return orderedPlaylists.value.filter((playlist) => {
     const name = String(playlist.name || "").toLowerCase();
@@ -256,72 +212,28 @@ const filteredPlaylists = computed(() => {
     return name.includes(query);
   });
 });
-
-/* ============================================================
-   PREVIEW
-============================================================ */
-
-const previewPlaylists = computed(() => {
-  return filteredPlaylists.value.slice(0, PREVIEW_LIMIT);
-});
-
-/* ============================================================
-   CAROUSEL CONTROLS
-============================================================ */
-
+const previewPlaylists = computed(() => {return filteredPlaylists.value.slice(0, PREVIEW_LIMIT);});
 const visiblePlaylists = computed(() => {
   return props.preview
     ? previewPlaylists.value
     : filteredPlaylists.value;
 });
 
-const showCarouselControls = computed(() => {
-  return visiblePlaylists.value.length > 1;
-});
-
-/* ============================================================
-   SCROLL
-============================================================ */
-
+const showCarouselControls = computed(() => {return visiblePlaylists.value.length > 1;});
 function scrollPlaylists(direction) {
   const container = playlistsCarousel.value;
 
   if (!container) return;
 
-  const amount = Math.max(
-    container.clientWidth * 0.78,
-    280,
-  );
+  const amount = Math.max(container.clientWidth * 0.78, 280);
 
-  container.scrollBy({
-    left: amount * direction,
-    behavior: "smooth",
+  container.scrollBy({left: amount * direction, behavior: "smooth"});
+}
+function openAllPlaylists() {router.push({ path: "/library", query: { category: "playlists"},
   });
 }
-
-/* ============================================================
-   NAVIGATION
-============================================================ */
-
-function openAllPlaylists() {
-  router.push({
-    path: "/library",
-    query: {
-      category: "playlists",
-    },
-  });
-}
-
-/* ============================================================
-   REFRESH CAROUSEL
-============================================================ */
-
 watch(
-  () => [
-    library.playlists.length,
-    props.searchQuery,
-    props.preview,
-  ],
+  () => [library.playlists.length, props.searchQuery, props.preview],
   async () => {
     await nextTick();
 
@@ -334,10 +246,7 @@ watch(
      * return to the beginning instead of leaving the user
      * somewhere in the middle of the previous result set.
      */
-    container.scrollTo({
-      left: 0,
-      behavior: "auto",
-    });
+    container.scrollTo({left: 0, behavior: "auto"});
   },
 );
 </script>

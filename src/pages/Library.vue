@@ -35,8 +35,6 @@
       </div>
     </header>
 
-
-
     <main class="library-content-body">
       <NoFolderState v-if="!library.folderHandle" />
       <div v-else class="library-carousels">
@@ -79,23 +77,17 @@ const searchQuery = ref(typeof route.query.search === 'string' ? route.query.sea
 
 watch(searchQuery, (search) => {
   const query = { ...route.query };
-  if (search) {
-    query.search = search;
-  } else {
+  if (search) {query.search = search;} else {
     delete query.search;
   }
-  if (String(route.query.search || '') !== (search || '')) {
-    router.replace({ query });
-  }
+  if (String(route.query.search || '') !== (search || '')) {router.replace({ query });}
 });
 
 watch(
   () => route.query.search,
   (val) => {
     const next = typeof val === 'string' ? val : '';
-    if (searchQuery.value !== next) {
-      searchQuery.value = next;
-    }
+    if (searchQuery.value !== next) {searchQuery.value = next;}
   }
 );
 </script>

@@ -40,32 +40,6 @@
         font-size: 0.94rem;
       }
     }
-
-    .history-actions {
-      .clear-history-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 115, 115, 0.35);
-        background: rgba(255, 115, 115, 0.08);
-        color: #ff7373;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
-
-        &:hover {
-          background: rgba(255, 115, 115, 0.16);
-          border-color: rgba(255, 115, 115, 0.6);
-          transform: translateY(-1px);
-        }
-        &:active {
-          transform: scale(0.96);
-        }
-      }
-    }
   }
 
   .history-content {

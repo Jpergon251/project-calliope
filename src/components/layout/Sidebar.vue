@@ -129,19 +129,16 @@ import {
 } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore.js";
 import { resolveHistoryCover } from "../../lib/covers.js";
+import { playHistoryEntry } from "../../lib/formatters.js";
 import CoverArt from "../common/CoverArt.vue";
 import Logo from "../common/Logo.vue";
 
 const library = useLibraryStore();
 const router = useRouter();
 
-const recentHistory = computed(() => {
-  return (library.listeningHistory || []).slice(0, 15);
-});
+const recentHistory = computed(() => {return (library.listeningHistory || []).slice(0, 15);});
 
-function historyItemCover(item) {
-  return resolveHistoryCover(library, item);
-}
+function historyItemCover(item) {return resolveHistoryCover(library, item);}
 
 function getTypeName(type) {
   switch (type) {
@@ -154,20 +151,5 @@ function getTypeName(type) {
   }
 }
 
-function playHistoryItem(item) {
-  if (!item) return;
-  if (item.type === "song") {
-    const song = library.songs.find((s) => s.id === item.itemId);
-    if (song) {
-      library.playSong(song);
-      if (typeof window !== "undefined" && window.innerWidth <= 760) {
-        library.openNowPlaying();
-      }
-    }
-  } else if (item.type === "album") {
-    router.push({ name: "album", params: { id: item.itemId } });
-  } else if (item.type === "playlist") {
-    router.push({ name: "playlist", params: { playlistId: item.itemId } });
-  }
-}
+const playHistoryItem = (item) => playHistoryEntry(item, { library, router });
 </script>

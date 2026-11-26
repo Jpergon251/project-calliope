@@ -81,6 +81,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLibraryStore } from '../stores/libraryStore.js';
+import { navigateToArtist } from '../lib/formatters.js';
 import NoFolderState from '../components/common/NoFolderState.vue';
 import { Mic2, Search, User, X } from 'lucide-vue-next';
 
@@ -94,7 +95,5 @@ const filteredArtists = computed(() => {
   return library.artists.filter((a) => a.name.toLowerCase().includes(query));
 });
 
-function goToArtist(name) {
-  router.push({ name: 'artist', params: { name: encodeURIComponent(name) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name);
 </script>

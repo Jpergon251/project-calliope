@@ -1,7 +1,6 @@
 <template>
     <MediaCard class="album-item">
 
-
         <template #cover>
             <router-link
                 :to="`/album/${album.id}`"
@@ -41,14 +40,8 @@ import { useLibraryStore } from "../../stores/libraryStore.js";
 
 const library = useLibraryStore();
 
-const props = defineProps({
-    album: {
-        type: Object,
-        required: true
-    }
+const props = defineProps({album: { type: Object, required: true}
 });
 
-function recordClick() {
-    library.recordAlbumPlayed(props.album);
-}
+function recordClick() {library.recordAlbumPlayed(props.album);}
 </script>

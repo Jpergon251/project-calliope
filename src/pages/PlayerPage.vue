@@ -192,12 +192,9 @@ import { useLibraryStore } from '../stores/libraryStore.js';
 import AudioVisualizer from '../components/common/AudioVisualizer.vue';
 import VolumeModal from '../components/player/VolumeModal.vue';
 import SongIconCover from '../components/common/SongIconCover.vue';
+import { formatTime, navigateToArtist } from '../lib/formatters.js';
 
-defineProps({
-  isOverlay: {
-    type: Boolean,
-    default: false
-  }
+defineProps({isOverlay: { type: Boolean, default: false}
 });
 const emit = defineEmits(['close']);
 
@@ -217,26 +214,15 @@ const currentRating = computed(() => {
   return library.getSongRating(song.value.id);
 });
 
-function goToArtist(name) {
-  if (!name || name === 'Unknown' || name === 'Artista desconocido') return;
-  emit('close');
-  library.closeNowPlaying();
-  library.closeQueue();
-  router.push({ name: 'artist', params: { name: encodeURIComponent(name.trim()) } });
-}
+const goToArtist = (name) => navigateToArtist(router, name, { library, closeOverlays: true, onClose: () => emit('close') });
 
-function handleToggleAutoplay() {
-  library.toggleAutoplay();
-}
+function handleToggleAutoplay() {library.toggleAutoplay();}
 
 // Minimize logic
 function handleMinimize() {
   emit('close');
   library.closeNowPlaying();
-  if (route.name === 'player') {
-    if (window.history.length > 1) {
-      router.back();
-    } else {
+  if (route.name === 'player') {if (window.history.length > 1) { router.back();} else {
       router.push('/');
     }
   }
@@ -248,25 +234,17 @@ let isSwipeActive = false;
 
 function handleTouchStart(e) {
   const touch = e.touches[0];
-  if (touch.clientY < window.innerHeight * 0.4) {
-    touchStartY = touch.clientY;
-    isSwipeActive = true;
-  }
+  if (touch.clientY < window.innerHeight * 0.4) {touchStartY = touch.clientY; isSwipeActive = true;}
 }
 
 function handleTouchMove(e) {
   if (!isSwipeActive) return;
   const currentY = e.touches[0].clientY;
   const diff = currentY - touchStartY;
-  if (diff > 80) {
-    isSwipeActive = false;
-    handleMinimize();
-  }
+  if (diff > 80) {isSwipeActive = false; handleMinimize();}
 }
 
-function handleTouchEnd() {
-  isSwipeActive = false;
-}
+function handleTouchEnd() {isSwipeActive = false;}
 
 // Timeline scrubber logic
 const scrubberRef = ref(null);
@@ -291,20 +269,13 @@ function calculateTimeFromX(clientX) {
   return ratio * library.duration;
 }
 
-function handleScrubberFocus() {
-  isScrubberFocused.value = true;
-}
+function handleScrubberFocus() {isScrubberFocused.value = true;}
 
-function handleScrubberBlur() {
-  isScrubberFocused.value = false;
-}
+function handleScrubberBlur() {isScrubberFocused.value = false;}
 
 function handleScrubberKeydown(e) {
   const offsets = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -10, PageUp: 10 };
-  if (e.key === 'Home') {
-    e.preventDefault();
-    library.seek(0);
-  } else if (e.key === 'End') {
+  if (e.key === 'Home') {e.preventDefault(); library.seek(0);} else if (e.key === 'End') {
     e.preventDefault();
     library.seek(library.duration);
   } else if (offsets[e.key]) {
@@ -336,9 +307,7 @@ function handleScrubberClick(e) {
   library.seek(time);
 }
 
-function handleScrubberTouchStart(e) {
-  beginScrubbing(calculateTimeFromX(e.touches[0].clientX));
-}
+function handleScrubberTouchStart(e) {beginScrubbing(calculateTimeFromX(e.touches[0].clientX));}
 
 function handleScrubberTouchMove(e) {
   if (!isScrubbing.value) return;
@@ -346,9 +315,7 @@ function handleScrubberTouchMove(e) {
   library.currentTime = scrubTime.value;
 }
 
-function handleScrubberTouchEnd() {
-  if (isScrubbing.value) finishScrubbing();
-}
+function handleScrubberTouchEnd() {if (isScrubbing.value) finishScrubbing();}
 
 function handleScrubberMouseDown(e) {
   if (e.button !== 0) return;
@@ -369,12 +336,5 @@ function handleScrubberMouseDown(e) {
 
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
-}
-
-function formatTime(seconds) {
-  if (!seconds || Number.isNaN(seconds)) return '0:00';
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.floor(seconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${remaining}`;
 }
 </script>

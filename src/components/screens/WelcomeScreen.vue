@@ -826,11 +826,7 @@ import {
   MAX_PROFILE_ARCHIVE_BYTES,
   validateProfileArchive,
 } from "../../services/profileArchives.js";
-import {
-  findUsernameOwner,
-  inspectProfileIdentity,
-  validateUsername,
-} from "../../lib/profileIdentity.js";
+import {findUsernameOwner, inspectProfileIdentity, validateUsername} from "../../lib/profileIdentity.js";
 
 const library = useLibraryStore();
 const user = useUserStore();
@@ -862,18 +858,9 @@ const selectedDriveProfile = computed(() =>
 );
 
 const steps = [
-  {
-    id: 1,
-    label: "Perfil",
-  },
-  {
-    id: 2,
-    label: "Apariencia",
-  },
-  {
-    id: 3,
-    label: "Biblioteca",
-  },
+  {id: 1, label: "Perfil"},
+  {id: 2, label: "Apariencia"},
+  {id: 3, label: "Biblioteca"},
 ];
 
 const draft = reactive({
@@ -903,21 +890,13 @@ function startCreatingProfile() {
   viewMode.value = "create";
 }
 
-function cancelCreate() {
-  viewMode.value = "choice";
-  createPasswordError.value = "";
-}
+function cancelCreate() {viewMode.value = "choice"; createPasswordError.value = "";}
 
 const isTauriApp = isTauriEnvironment();
 
-const isMobile = computed(() => {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
+const isMobile = computed(() => {if (typeof navigator === "undefined") { return false;}
 
-  return /Android|iPhone|iPad|iPod/i.test(
-    navigator.userAgent
-  );
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 });
 
 const isSupported = computed(() => {
@@ -926,18 +905,11 @@ const isSupported = computed(() => {
 });
 
 const hasProfile = computed(() => {
-  return Boolean(
-    user.profile.displayName?.trim() ||
-    user.profile.username?.trim()
-  );
+  return Boolean(user.profile.displayName?.trim() || user.profile.username?.trim());
 });
 
 const welcomeName = computed(() => {
-  return (
-    user.profile.displayName?.trim() ||
-    user.profile.username?.trim() ||
-    ""
-  );
+  return (user.profile.displayName?.trim() || user.profile.username?.trim() || "");
 });
 
 const draftInitials = computed(() => {
@@ -945,24 +917,15 @@ const draftInitials = computed(() => {
     draft.displayName.trim() ||
     draft.username.trim();
 
-  if (!name) {
-    return "C";
-  }
+  if (!name) {return "C";}
 
   const parts = name
     .split(/\s+/)
     .filter(Boolean);
 
-  if (parts.length === 1) {
-    return parts[0]
-      .slice(0, 2)
-      .toUpperCase();
-  }
+  if (parts.length === 1) {return parts[0].slice(0, 2).toUpperCase();}
 
-  return (
-    parts[0][0] +
-    parts[parts.length - 1][0]
-  ).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 });
 
 const selectedPalette = computed(() => {
@@ -984,9 +947,7 @@ const draftUsernameStatus = computed(() => {
   if (!draft.username.trim()) {
     return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
   }
-  if (!validation.valid) {
-    return { state: "invalid", message: validation.reason, available: false };
-  }
+  if (!validation.valid) {return { state: "invalid", message: validation.reason, available: false };}
   const owner = findUsernameOwner(validation.username, user.profilesList);
   if (owner) {
     return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
@@ -1005,9 +966,7 @@ const importUsernameStatus = computed(() => {
   if (!pending?.usernameDraft?.trim()) {
     return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
   }
-  if (!validation.valid) {
-    return { state: "invalid", message: validation.reason, available: false };
-  }
+  if (!validation.valid) {return { state: "invalid", message: validation.reason, available: false };}
   const owner = findUsernameOwner(validation.username, user.profilesList);
   if (owner) {
     return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
@@ -1021,25 +980,17 @@ const importUsernameStatus = computed(() => {
 });
 
 function isPaletteSelected(value) {
-  if (user.profile.id && user.profile.id !== "guest") {
-    return user.profile.accentColor === value;
-  }
+  if (user.profile.id && user.profile.id !== "guest") {return user.profile.accentColor === value;}
 
   return user.pendingPreferences.accentColor === value;
 }
 
 const selectedAccentLabel = computed(() => selectedPalette.value.label);
 
-function goToNextStep() {
-  if (currentStep.value < steps.length) {
-    currentStep.value += 1;
-  }
+function goToNextStep() {if (currentStep.value < steps.length) { currentStep.value += 1;}
 }
 
-function goToPreviousStep() {
-  if (currentStep.value > 1) {
-    currentStep.value -= 1;
-  }
+function goToPreviousStep() {if (currentStep.value > 1) { currentStep.value -= 1;}
 }
 
 async function onSelectProfile(p) {
@@ -1054,9 +1005,7 @@ async function onSelectProfile(p) {
 
   selectedProfileId.value = p.id;
   const res = await user.loginProfile(p.id);
-  if (res.success) {
-    router.push("/");
-  }
+  if (res.success) {router.push("/");}
 }
 
 async function confirmUnlock() {
@@ -1064,18 +1013,11 @@ async function confirmUnlock() {
   isUnlocking.value = true;
   unlockError.value = "";
   try {
-    const res = await user.loginProfile(
-      unlockingProfile.value.id,
-      unlockPassword.value
-    );
-    if (res.success) {
-      router.push("/");
-    } else {
+    const res = await user.loginProfile(unlockingProfile.value.id, unlockPassword.value);
+    if (res.success) {router.push("/");} else {
       unlockError.value = res.error || "Contraseña incorrecta";
     }
-  } catch (err) {
-    unlockError.value = "Error al verificar la contraseña";
-  } finally {
+  } catch (err) {unlockError.value = "Error al verificar la contraseña";} finally {
     isUnlocking.value = false;
   }
 }
@@ -1089,10 +1031,7 @@ async function continueAsGuest() {
 async function submitNewProfile() {
   createPasswordError.value = "";
   const displayName = draft.displayName.trim();
-  if (!displayName) {
-    createPasswordError.value = "El nombre es obligatorio";
-    return;
-  }
+  if (!displayName) {createPasswordError.value = "El nombre es obligatorio"; return;}
   if (!draftUsernameStatus.value.available) {
     createPasswordError.value = draftUsernameStatus.value.message;
     return;
@@ -1121,14 +1060,10 @@ async function submitNewProfile() {
       password: draft.password,
     });
 
-    if (!library.folderHandle) {
-      goToNextStep();
-    }
+    if (!library.folderHandle) {goToNextStep();}
   } catch (err) {
     createPasswordError.value = err?.message || "No se pudo crear el perfil local";
-  } finally {
-    isCreatingProfile.value = false;
-  }
+  } finally {isCreatingProfile.value = false;}
 }
 
 async function selectPalette(value) {
@@ -1147,50 +1082,30 @@ async function selectPalette(value) {
     return;
   }
 
-  if (user.profile.accentColor === value) {
-    return;
-  }
+  if (user.profile.accentColor === value) {return;}
 
   await user.updateProfile({ accentColor: value });
 }
 
-async function selectFolder() {
-  if (selectingFolder.value) {
-    return;
-  }
+async function selectFolder() {if (selectingFolder.value) { return;}
 
   selectingFolder.value = true;
 
-  try {
-    await library.selectFolder();
-    router.push("/");
-  } catch (error) {
-    console.error(
-      "[WelcomeScreen] No se pudo seleccionar la carpeta:",
-      error
-    );
-  } finally {
-    selectingFolder.value = false;
-  }
+  try {await library.selectFolder(); router.push("/");} catch (error) {
+    console.error("[WelcomeScreen] No se pudo seleccionar la carpeta:", error);
+  } finally {selectingFolder.value = false;}
 }
 
-function enterApp() {
-  router.push("/");
-}
+function enterApp() {router.push("/");}
 
 watch(pendingProfileImport, async (pending) => {
-  if (pending) {
-    await nextTick();
-    cancelProfileImportButton.value?.focus();
-  }
+  if (pending) {await nextTick(); cancelProfileImportButton.value?.focus();}
 });
 
 watch(
   () => user.profilesList.map((item) => item.id),
   (profileIds) => {
-    if (!profileIds.includes(driveProfileId.value)) {
-      driveProfileId.value = profileIds[0] || "";
-    }
+    if (!profileIds.includes(driveProfileId.value)) {driveProfileId.value = profileIds[0] || "";}
   },
 );
 
@@ -1245,9 +1160,7 @@ async function saveImportedProfile(archive, {
 
     profileImportStage.value = "Activando el perfil…";
     const login = await user.loginProfile(result.profileId);
-    if (!login.success) {
-      throw new Error(login.error || "No se pudo activar el perfil restaurado.");
-    }
+    if (!login.success) {throw new Error(login.error || "No se pudo activar el perfil restaurado.");}
     await holdImportLoadingScreen(loadingStartedAt);
     router.push("/");
   } catch (error) {
@@ -1255,10 +1168,7 @@ async function saveImportedProfile(archive, {
       ? "El perfil se guardó, pero no se pudo activar. Vuelve a seleccionarlo."
       : friendlyProfileImportError(error);
     console.error("[WelcomeScreen] No se pudo importar el perfil:", error);
-  } finally {
-    await holdImportLoadingScreen(loadingStartedAt);
-    isImportingProfile.value = false;
-  }
+  } finally {await holdImportLoadingScreen(loadingStartedAt); isImportingProfile.value = false;}
 }
 
 function holdImportLoadingScreen(startedAt) {
@@ -1288,10 +1198,7 @@ function friendlyProfileImportError(error) {
 function confirmOverwriteProfile() {
   const pending = pendingProfileImport.value;
   if (!pending || isImportingProfile.value) return;
-  return saveImportedProfile(pending.archive, {
-    mode: "update",
-    targetProfileId: pending.profileId,
-  });
+  return saveImportedProfile(pending.archive, {mode: "update", targetProfileId: pending.profileId});
 }
 
 function confirmImportWithUsername() {
@@ -1299,10 +1206,7 @@ function confirmImportWithUsername() {
   if (!pending || isImportingProfile.value || !importUsernameStatus.value.available) return;
   const archive = {
     ...pending.archive,
-    profile: {
-      ...pending.archive.profile,
-      username: importUsernameStatus.value.username,
-    },
+    profile: {...pending.archive.profile, username: importUsernameStatus.value.username},
   };
   const isOverwrite = pending.type === "overwrite-username-required";
   return saveImportedProfile(archive, {
@@ -1357,10 +1261,7 @@ async function importProfile(event) {
       }
       const restoredArchive = {
         ...archive,
-        profile: {
-          ...archive.profile,
-          username: archive.profile.username || ownerUsername,
-        },
+        profile: {...archive.profile, username: archive.profile.username || ownerUsername},
       };
       pendingProfileImport.value = {
         type: "overwrite",
@@ -1384,10 +1285,7 @@ async function importProfile(event) {
     }
 
     isImportingProfile.value = false;
-    await saveImportedProfile(archive, {
-      mode: "new",
-      preserveSourceId: true,
-    });
+    await saveImportedProfile(archive, {mode: "new", preserveSourceId: true});
   } catch (error) {
     profileImportError.value = friendlyProfileImportError(error);
     console.error("[WelcomeScreen] No se pudo importar el perfil:", error);
@@ -1401,21 +1299,11 @@ async function importProfile(event) {
 onMounted(async () => {
   try {
     await user.load();
-    if (!driveProfileId.value) {
-      driveProfileId.value = user.profilesList[0]?.id || "";
-    }
+    if (!driveProfileId.value) {driveProfileId.value = user.profilesList[0]?.id || "";}
 
-    if (user.hasSession) {
-      router.push("/");
-      return;
-    }
+    if (user.hasSession) {router.push("/"); return;}
 
     viewMode.value = "choice";
-  } catch (error) {
-    console.error(
-      "[WelcomeScreen] No se pudieron cargar los perfiles:",
-      error
-    );
-  }
+  } catch (error) {console.error("[WelcomeScreen] No se pudieron cargar los perfiles:", error);}
 });
 </script>

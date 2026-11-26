@@ -208,14 +208,11 @@ import {
   Music2
 } from "lucide-vue-next";
 import { useLibraryStore } from "../../stores/libraryStore";
+import { formatDuration } from "../../lib/formatters.js";
 
 const library = useLibraryStore();
 
-const props = defineProps({
-  playlist: {
-    type: Object,
-    required: true
-  },
+const props = defineProps({playlist: { type: Object, required: true},
   songs: {
     type: Array,
     default: () => []
@@ -229,26 +226,20 @@ const searchInputRef = ref(null);
 const selectedIds = ref(new Set());
 const isSubmitting = ref(false);
 
-onMounted(() => {
-  searchInputRef.value?.focus();
-});
+onMounted(() => {searchInputRef.value?.focus();});
 
 function isAlreadyAdded(songId) {
   if (!props.playlist) return false;
   return library.isSongInPlaylist(props.playlist.id, songId);
 }
 
-function isSelected(songId) {
-  return selectedIds.value.has(songId);
-}
+function isSelected(songId) {return selectedIds.value.has(songId);}
 
 function toggleSelection(songId) {
   if (isAlreadyAdded(songId) || isSubmitting.value) return;
 
   const next = new Set(selectedIds.value);
-  if (next.has(songId)) {
-    next.delete(songId);
-  } else {
+  if (next.has(songId)) {next.delete(songId);} else {
     next.add(songId);
   }
   selectedIds.value = next;
@@ -259,10 +250,7 @@ function handleRowClick(song) {
   toggleSelection(song.id);
 }
 
-function clearSearch() {
-  search.value = "";
-  searchInputRef.value?.focus();
-}
+function clearSearch() {search.value = ""; searchInputRef.value?.focus();}
 
 function releaseNames(song) {
   const names = (song.releases || [])
@@ -299,17 +287,13 @@ const areAllSelectableSelected = computed(() => {
 
 function selectAllFiltered() {
   const next = new Set(selectedIds.value);
-  selectableFilteredSongs.value.forEach((song) => {
-    next.add(song.id);
-  });
+  selectableFilteredSongs.value.forEach((song) => {next.add(song.id);});
   selectedIds.value = next;
 }
 
 function deselectAllFiltered() {
   const next = new Set(selectedIds.value);
-  selectableFilteredSongs.value.forEach((song) => {
-    next.delete(song.id);
-  });
+  selectableFilteredSongs.value.forEach((song) => {next.delete(song.id);});
   selectedIds.value = next;
 }
 
@@ -327,27 +311,16 @@ const confirmButtonLabel = computed(() => {
   return `Añadir ${count} canciones`;
 });
 
-function formatDuration(seconds) {
-  if (!seconds || Number.isNaN(seconds)) return "";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
 async function confirmAddSongs() {
   if (selectedIds.value.size === 0 || isSubmitting.value) return;
 
   isSubmitting.value = true;
   try {
     for (const songId of selectedIds.value) {
-      if (!isAlreadyAdded(songId)) {
-        await library.addSongToPlaylist(props.playlist.id, songId);
-      }
+      if (!isAlreadyAdded(songId)) {await library.addSongToPlaylist(props.playlist.id, songId);}
     }
     emit("close");
-  } catch (error) {
-    console.error("Error al añadir canciones a la playlist:", error);
-  } finally {
+  } catch (error) {console.error("Error al añadir canciones a la playlist:", error);} finally {
     isSubmitting.value = false;
   }
 }

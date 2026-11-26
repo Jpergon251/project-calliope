@@ -176,42 +176,14 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         NAVEGACIÓN DE CATEGORÍAS
-         ============================================================ -->
-
-    <nav class="profile-categories" aria-label="Secciones de perfil">
-      <button
-        v-for="category in categories"
-        :key="category.id"
-        type="button"
-        class="category-pill"
-        :class="{ active: activeCategory === category.id }"
-        @click="activeCategory = category.id"
-      >
-        <component :is="category.icon" :size="15" />
-        <span>{{ category.label }}</span>
-      </button>
-    </nav>
-
-    <!-- ============================================================
-         ESTADÍSTICAS DEL USUARIO
-         ============================================================ -->
-
-    <section
-      v-show="activeCategory === 'stats'"
-      class="profile-section profile-stats-section"
-    >
+    <section class="profile-section profile-stats-section">
       <div class="stats-section-header">
         <div class="stats-title-wrap">
           <h2>
             <BarChart3 :size="18" />
-            Tus estadísticas de escucha
+            Estadísticas
           </h2>
-          <p class="stats-subtitle">
-            Métricas, hábitos y descubrimientos musicales registrados en este
-            perfil.
-          </p>
+          <p class="stats-subtitle">Tu resumen de actividad en Calliope.</p>
         </div>
       </div>
 
@@ -727,11 +699,7 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         APARIENCIA
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'appearance'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <Palette :size="17" />
         Apariencia
@@ -892,11 +860,7 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         REPRODUCCIÓN
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'playback'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <Play :size="17" />
         Reproducción
@@ -935,11 +899,7 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         BIBLIOTECA
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'library'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <LibraryIcon :size="17" />
         Biblioteca e Inicio
@@ -1047,11 +1007,7 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         AJUSTES
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'settings'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <SettingsIcon :size="17" />
         Ajustes
@@ -1196,11 +1152,7 @@
       </div>
     </section>
 
-    <!-- ============================================================
-         CONEXIONES
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'connections'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <Link2 :size="17" />
         Conexiones
@@ -1211,11 +1163,7 @@
       <GoogleDriveProfile :profile="user.profile" />
     </section>
 
-    <!-- ============================================================
-         PRIVACIDAD Y DATOS
-         ============================================================ -->
-
-    <section v-show="activeCategory === 'privacy'" class="profile-section">
+    <section v-if="false" class="profile-section">
       <h2>
         <ShieldCheck :size="17" />
         Privacidad y datos
@@ -1286,24 +1234,6 @@
 
           <button type="button" class="btn btn-ghost" @click="resetPreferences">
             Restablecer
-          </button>
-        </div>
-
-        <div class="pref-row">
-          <div class="pref-text">
-            <strong>Cerrar sesión</strong>
-            <p>
-              {{
-                user.isGuest
-                  ? "Finaliza la sesión de invitado. Los datos temporales se borrarán."
-                  : "Cierra la sesión activa y vuelve a la selección de perfil."
-              }}
-            </p>
-          </div>
-
-          <button type="button" class="btn btn-ghost" @click="handleLogout">
-            <LogOut :size="14" />
-            Cerrar sesión
           </button>
         </div>
 
@@ -1566,6 +1496,7 @@
 </template>
 
 <script setup>
+import { navigateToArtist, toLocalDateStr } from "../lib/formatters.js";
 import {
   computed,
   nextTick,
@@ -1589,7 +1520,6 @@ import {
   LibraryIcon,
   Link2,
   ListMusic,
-  Lock,
   LogOut,
   Music2,
   Palette,
@@ -1614,14 +1544,8 @@ import SongIconCover from "../components/common/SongIconCover.vue";
 import GoogleDriveProfile from "../components/common/GoogleDriveProfile.vue";
 import { COLOR_PALETTES } from "../lib/colorPalettes.js";
 import { findUsernameOwner, validateUsername } from "../lib/profileIdentity.js";
-import {
-  normalizeVisualizerStyle,
-  VISUALIZER_STYLES,
-} from "../lib/visualizerStyles.js";
-import {
-  flushProfileSync,
-  profileSyncStatuses,
-} from "../services/profileArchives.js";
+import {normalizeVisualizerStyle, VISUALIZER_STYLES} from "../lib/visualizer.js";
+import {flushProfileSync, profileSyncStatuses} from "../services/profileArchives.js";
 
 const user = useUserStore();
 const library = useLibraryStore();
@@ -1649,9 +1573,7 @@ async function exportProfileChanges() {
     if (!saved) throw new Error("No se pudieron guardar los cambios en el almacenamiento interno.");
     await library.flushPendingProfileChanges(profileId);
     internalSaveComplete = true;
-    await flushProfileSync(profileId, {
-      requestPermission: Boolean(library.folderHandle),
-    });
+    await flushProfileSync(profileId, {requestPermission: Boolean(library.folderHandle)});
 
     const syncStatus = profileSyncStatuses[profileId];
     if (syncStatus?.status === "synced") {
@@ -1669,9 +1591,7 @@ async function exportProfileChanges() {
     profileExportMessage.value = internalSaveComplete
       ? "No se pudo guardar la copia. Comprueba los permisos e inténtalo de nuevo."
       : "No se pudo guardar el perfil. Inténtalo de nuevo.";
-  } finally {
-    isExportingProfile.value = false;
-  }
+  } finally {isExportingProfile.value = false;}
 }
 
 function updateThemeCarouselControls() {
@@ -1726,9 +1646,7 @@ watch(activeCategory, async (category) => {
   updateThemeCarouselControls();
 });
 
-// ============================================================
 // ESTADÍSTICAS DEL PERFIL
-// ============================================================
 
 const periodOptions = [
   { id: "day", label: "Hoy" },
@@ -1770,11 +1688,7 @@ const periodTitle = computed(() => {
     end.setDate(end.getDate() + 6);
     return `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`;
   }
-  if (p === "month") {
-    return range.start.toLocaleDateString("es-ES", {
-      month: "long",
-      year: "numeric",
-    });
+  if (p === "month") {return range.start.toLocaleDateString("es-ES", { month: "long", year: "numeric"});
   }
   return String(range.start.getFullYear());
 });
@@ -1799,10 +1713,7 @@ const canGoNext = computed(() => {
       ? new Date(periodAnchor.value)
       : new Date();
     const range = library.getPeriodRange(selectedPeriod.value, anchor);
-    const currentAnchor = library.getPeriodRange(
-      selectedPeriod.value,
-      new Date(),
-    ).anchor;
+    const currentAnchor = library.getPeriodRange(selectedPeriod.value, new Date()).anchor;
     return range.start.getTime() < currentAnchor.getTime();
   }
   return false;
@@ -1829,9 +1740,7 @@ const compareStats = computed(() => {
   const prevAnchor = library.shiftPeriod(selectedPeriod.value, anchor, -1);
   return library.getProfileStats(selectedPeriod.value, prevAnchor);
 });
-// ============================================================
 //   MÉTRICAS DEL GRÁFICO
-// ============================================================
 // Alterna entre métricas y devuelve el valor correspondiente de un bucket.
 function bucketMetricValue(bucket) {
   const m = selectedMetric.value;
@@ -1846,13 +1755,7 @@ function bucketMetricValue(bucket) {
   if (p === "day") return evDate.getHours() === bucket.hour;
   if (p === "week" || p === "month")
     return bucket.date === toLocalDateStr(evDate);
-  return (
-    evDate.getMonth() === bucket.monthIndex &&
-    evDate.getFullYear() === bucket.year
-  );
-}
-function toLocalDateStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return (evDate.getMonth() === bucket.monthIndex && evDate.getFullYear() === bucket.year);
 }
 // Buckets del gráfico con la métrica seleccionada. Para métricas "distintas"
 // se recalculan a partir de los eventos del periodo consultado.
@@ -1892,9 +1795,7 @@ const metricTotal = computed(() => {
 const compareSeries = computed(() => {
   if (!compareStats.value) return null;
   const metric = selectedMetric.value;
-  const compBuckets = (compareStats.value.chartData || []).map((b) => ({
-    ...b,
-  }));
+  const compBuckets = (compareStats.value.chartData || []).map((b) => ({...b}));
   if (metric !== "minutes" && metric !== "plays") {
     const start = compareStats.value.periodStart || 0;
     const end = compareStats.value.periodEnd || 0;
@@ -1949,40 +1850,6 @@ function formatListenTimeAbs(seconds) {
   const m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
-function kpiDelta(key) {
-  if (!compareStats.value) return null;
-  const cur = currentStats.value;
-  const prev = compareStats.value;
-  let curVal = 0;
-  let prevVal = 0;
-  if (key === "time") {
-    curVal = cur?.totalListenTime || 0;
-    prevVal = prev?.totalListenTime || 0;
-  } else if (key === "plays") {
-    curVal = cur?.totalPlays || 0;
-    prevVal = prev?.totalPlays || 0;
-  } else if (key === "songs") {
-    curVal = cur?.uniqueSongsCount || 0;
-    prevVal = prev?.uniqueSongsCount || 0;
-  } else if (key === "artists") {
-    curVal = cur?.uniqueArtistsCount || 0;
-    prevVal = prev?.uniqueArtistsCount || 0;
-  } else if (key === "playlists") {
-    curVal = cur?.uniquePlaylistsCount || 0;
-    prevVal = prev?.uniquePlaylistsCount || 0;
-  }
-  const diff = curVal - prevVal;
-  return {
-    diff,
-    positive: diff >= 0,
-    pct:
-      prevVal > 0
-        ? Math.round((diff / prevVal) * 1000) / 10
-        : diff > 0
-          ? 100
-          : 0,
-  };
-}
 // Navegación histórica.
 function goPrevPeriod() {
   const anchor = periodAnchor.value ? new Date(periodAnchor.value) : new Date();
@@ -1997,12 +1864,8 @@ function goNextPeriod() {
     .shiftPeriod(selectedPeriod.value, anchor, 1)
     .getTime();
 }
-function goToCurrentPeriod() {
-  periodAnchor.value = null;
-}
-// ============================================================
+function goToCurrentPeriod() {periodAnchor.value = null;}
 //   GRÁFICO DE BARRAS + TOOLTIP
-// ============================================================
 const selectedMetricLabel = computed(() => {
   const m = metricOptions.find((o) => o.id === selectedMetric.value);
   return m ? m.label : "Tiempo escuchado";
@@ -2031,19 +1894,13 @@ function formatMetricValue(bucket) {
 }
 // Tooltip interactivo (hover en desktop, tap en móvil).
 const hoveredBucket = ref(null);
-function setHoveredBucket(h) {
-  hoveredBucket.value = h;
-}
+function setHoveredBucket(h) {hoveredBucket.value = h;}
 function toggleHoveredBucket(h) {
-  if (hoveredBucket.value && hoveredBucket.value.index === h.index) {
-    hoveredBucket.value = null;
-  } else {
+  if (hoveredBucket.value && hoveredBucket.value.index === h.index) {hoveredBucket.value = null;} else {
     hoveredBucket.value = h;
   }
 }
-function clearHoveredBucket() {
-  hoveredBucket.value = null;
-}
+function clearHoveredBucket() {hoveredBucket.value = null;}
 const tooltipStyle = computed(() => {
   const h = hoveredBucket.value;
   if (!h || !chartBuckets.value.length) return { display: "none" };
@@ -2086,11 +1943,7 @@ function bucketFullTooltipLabel(bucket) {
       bucket.dayOfMonth != null
     ) {
       const d = new Date(bucket.year, bucket.month, bucket.dayOfMonth);
-      return d.toLocaleDateString("es-ES", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
+      return d.toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"});
     }
     return bucket.label || "";
   }
@@ -2101,17 +1954,11 @@ function bucketFullTooltipLabel(bucket) {
       bucket.dayNumber != null
     ) {
       const d = new Date(bucket.year, bucket.month, bucket.dayNumber);
-      return d.toLocaleDateString("es-ES", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
+      return d.toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"});
     }
     return bucket.label || "";
   }
-  if (bucket.monthIndex != null) {
-    return `${monthsFull[bucket.monthIndex]} ${bucket.year || ""}`.trim();
-  }
+  if (bucket.monthIndex != null) {return `${monthsFull[bucket.monthIndex]} ${bucket.year || ""}`.trim();}
   return bucket.label || "";
 }
 
@@ -2126,10 +1973,7 @@ function formatRelativeTime(timestamp) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays === 1) return "ayer";
   if (diffDays < 30) return `hace ${diffDays} días`;
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+  return new Date(timestamp).toLocaleDateString(undefined, {day: "numeric", month: "short"});
 }
 
 function playSpotlightSong(topSong) {
@@ -2137,9 +1981,7 @@ function playSpotlightSong(topSong) {
   const found = library.songs.find((s) => s.id === topSong.id);
   if (found) {
     library.playSong(found);
-    if (typeof window !== "undefined" && window.innerWidth <= 760) {
-      library.openNowPlaying();
-    }
+    if (typeof window !== "undefined" && window.innerWidth <= 760) {library.openNowPlaying();}
   }
 }
 
@@ -2148,19 +1990,11 @@ function playRankingSong(songId) {
   const found = library.songs.find((s) => s.id === songId);
   if (found) {
     library.playSong(found);
-    if (typeof window !== "undefined" && window.innerWidth <= 760) {
-      library.openNowPlaying();
-    }
+    if (typeof window !== "undefined" && window.innerWidth <= 760) {library.openNowPlaying();}
   }
 }
 
-function goToArtist(name) {
-  if (!name || name === "Unknown" || name === "Artista desconocido") return;
-  router.push({
-    name: "artist",
-    params: { name: encodeURIComponent(name.trim()) },
-  });
-}
+const goToArtist = (name) => navigateToArtist(router, name);
 
 // Navega a la playlist local (o a Favoritos, que usa la misma ruta).
 function goToPlaylist(playlistId) {
@@ -2175,32 +2009,18 @@ const isAvatarModalOpen = ref(false);
 const isSetPasswordModalOpen = ref(false);
 const isSettingPassword = ref(false);
 const passwordError = ref("");
-const passwordDraft = reactive({
-  password: "",
-  confirmPassword: "",
-});
+const passwordDraft = reactive({password: "", confirmPassword: ""});
 const avatarUrlDraft = ref("");
 
-const draft = reactive({
-  username: "",
-  displayName: "",
-  bio: "",
-  avatarUrl: "",
-});
+const draft = reactive({username: "", displayName: "", bio: "", avatarUrl: ""});
 const identityError = ref("");
 const profileUsernameStatus = computed(() => {
   const validation = validateUsername(draft.username);
   if (!draft.username.trim()) {
     return { state: "invalid", message: "El nombre de usuario es obligatorio.", available: false };
   }
-  if (!validation.valid) {
-    return { state: "invalid", message: validation.reason, available: false };
-  }
-  const owner = findUsernameOwner(
-    validation.username,
-    user.profilesList,
-    user.profile.id,
-  );
+  if (!validation.valid) {return { state: "invalid", message: validation.reason, available: false };}
+  const owner = findUsernameOwner(validation.username, user.profilesList, user.profile.id);
   if (owner) {
     return { state: "used", message: `@${validation.username} ya está en uso.`, available: false };
   }
@@ -2219,9 +2039,7 @@ const songsWithoutMetadata = computed(
 function flashSaved() {
   savedFlash.value = true;
 
-  setTimeout(() => {
-    savedFlash.value = false;
-  }, 1800);
+  setTimeout(() => {savedFlash.value = false;}, 1800);
 }
 
 function startEditing() {
@@ -2234,9 +2052,7 @@ function startEditing() {
   isEditing.value = true;
 }
 
-function cancelEditing() {
-  isEditing.value = false;
-}
+function cancelEditing() {isEditing.value = false;}
 
 async function saveIdentity() {
   identityError.value = "";
@@ -2260,15 +2076,11 @@ async function saveIdentity() {
       ...(avatarChanged ? { avatarUrl } : {}),
     });
 
-    if (avatarChanged) {
-      await user.setAvatar(avatarUrl);
-    }
+    if (avatarChanged) {await user.setAvatar(avatarUrl);}
 
     isEditing.value = false;
     flashSaved();
-  } catch (error) {
-    identityError.value = error?.message || "No se pudieron guardar los cambios.";
-  }
+  } catch (error) {identityError.value = error?.message || "No se pudieron guardar los cambios.";}
 }
 
 async function removeLibrary() {
@@ -2302,9 +2114,7 @@ function openAvatarModal() {
 async function saveAvatarUrl() {
   const url = avatarUrlDraft.value.trim();
 
-  if (url) {
-    await user.setAvatar(url);
-  }
+  if (url) {await user.setAvatar(url);}
 
   isAvatarModalOpen.value = false;
   flashSaved();
@@ -2322,10 +2132,7 @@ async function removeAvatar() {
 async function pickAvatarFile(event) {
   const file = event.target.files?.[0];
 
-  if (!file || !file.type.startsWith("image/")) {
-    event.target.value = "";
-    return;
-  }
+  if (!file || !file.type.startsWith("image/")) {event.target.value = ""; return;}
 
   try {
     const blob = await downscaleImage(file, 360);
@@ -2334,9 +2141,7 @@ async function pickAvatarFile(event) {
 
     isAvatarModalOpen.value = false;
     flashSaved();
-  } catch (error) {
-    console.error("Error al actualizar avatar:", error);
-  } finally {
+  } catch (error) {console.error("Error al actualizar avatar:", error);} finally {
     event.target.value = "";
   }
 }
@@ -2355,26 +2160,16 @@ async function resetPreferences() {
 
 async function handleLogout() {
   const result = await user.logout();
-  if (!result.success) {
-    window.alert(result.error || "No se pudo cerrar la sesión.");
-    return;
-  }
+  if (!result.success) {window.alert(result.error || "No se pudo cerrar la sesión."); return;}
   router.push("/welcome");
 }
 
 async function handleTogglePrivacy(newValue) {
   if (user.isGuest) return;
 
-  if (!newValue) {
-    await user.setProfilePrivacy(false);
-    flashSaved();
-    return;
-  }
+  if (!newValue) {await user.setProfilePrivacy(false); flashSaved(); return;}
 
-  if (user.hasPassword) {
-    await user.setProfilePrivacy(true);
-    flashSaved();
-  } else {
+  if (user.hasPassword) {await user.setProfilePrivacy(true); flashSaved();} else {
     passwordDraft.password = "";
     passwordDraft.confirmPassword = "";
     passwordError.value = "";
@@ -2396,35 +2191,22 @@ async function confirmSetPassword() {
   isSettingPassword.value = true;
   try {
     const res = await user.setProfilePrivacy(true, passwordDraft.password);
-    if (res.success) {
-      isSetPasswordModalOpen.value = false;
-      flashSaved();
-    } else {
+    if (res.success) {isSetPasswordModalOpen.value = false; flashSaved();} else {
       passwordError.value = res.error || "Error al establecer la contraseña.";
     }
-  } catch (err) {
-    passwordError.value = "Error al guardar la contraseña.";
-  } finally {
+  } catch (err) {passwordError.value = "Error al guardar la contraseña.";} finally {
     isSettingPassword.value = false;
   }
 }
 
-function cancelSetPassword() {
-  isSetPasswordModalOpen.value = false;
-  passwordError.value = "";
-}
+function cancelSetPassword() {isSetPasswordModalOpen.value = false; passwordError.value = "";}
 
 const isDeleteProfileModalOpen = ref(false);
 const deleteConfirmationInput = ref("");
 const isDeletingProfile = ref(false);
 
 const expectedProfileNickname = computed(() => {
-  return (
-    user.profile.username ||
-    user.profile.displayName ||
-    user.profile.name ||
-    "Oyente"
-  ).trim();
+  return (user.profile.username || user.profile.displayName || user.profile.name || "Oyente").trim();
 });
 
 const isDeleteNicknameMatching = computed(() => {
@@ -2451,9 +2233,7 @@ async function confirmWipeProfile() {
     await user.wipeProfile();
     isDeleteProfileModalOpen.value = false;
     router.push("/welcome");
-  } catch (err) {
-    console.error("[Profile] Error al eliminar perfil:", err);
-  } finally {
+  } catch (err) {console.error("[Profile] Error al eliminar perfil:", err);} finally {
     isDeletingProfile.value = false;
   }
 }
@@ -2478,7 +2258,5 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(() => {
-  window.removeEventListener("resize", updateThemeCarouselControls);
-});
+onBeforeUnmount(() => {window.removeEventListener("resize", updateThemeCarouselControls);});
 </script>

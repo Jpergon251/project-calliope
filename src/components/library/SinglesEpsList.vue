@@ -71,6 +71,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { scrollCarouselContainer } from '../../lib/formatters.js';
 import { ChevronLeft, ChevronRight, DiscAlbum } from 'lucide-vue-next';
 import AlbumList from '../common/AlbumList.vue';
 import CoverArt from '../common/CoverArt.vue';
@@ -93,9 +94,7 @@ const filteredReleases = computed(() => {
 const previewReleases = computed(() => filteredReleases.value.slice(0, PREVIEW_LIMIT));
 const releaseCards = computed(() => filteredReleases.value.map((release) => ({ ...release, name: release.title })));
 
-function releaseTypeLabel(type) {
-  return { single: 'Sencillo', ep: 'EP' }[type] || 'Publicación';
-}
+function releaseTypeLabel(type) {return { single: 'Sencillo', ep: 'EP' }[type] || 'Publicación';}
 
 function releaseFallbackCover(release) {
   const currentCover = release.cover || release.coverUrl;
@@ -110,16 +109,12 @@ function releaseFallbackCover(release) {
     .find((cover) => cover && cover !== currentCover) || null;
 }
 
-function openRelease(release) {
-  router.push({ name: 'album', params: { id: release.id } });
-}
+function openRelease(release) {router.push({ name: 'album', params: { id: release.id } });}
 
-function openAll() {
-  router.push({ path: '/library', query: { category: 'singles-eps' } });
-}
+function openAll() {router.push({ path: '/library', query: { category: 'singles-eps' } });}
 
 async function scrollCarousel(direction) {
   await nextTick();
-  carouselRef.value?.scrollBy({ left: Math.max(carouselRef.value.clientWidth * 0.8, 300) * direction, behavior: 'smooth' });
+  scrollCarouselContainer(carouselRef.value, direction);
 }
 </script>

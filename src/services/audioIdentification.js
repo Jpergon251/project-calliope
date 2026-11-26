@@ -1,7 +1,5 @@
 // audioIdentification.js
-// ============================================================================
 // CALLIOPE AUDIO IDENTIFICATION ENGINE
-// ============================================================================
 // Estrategia:
 //   File
 //    ├─ Local metadata
@@ -35,7 +33,6 @@
 // - Un género válido NO necesita consenso para sobrevivir.
 // - "Music", "Unknown", etc. se eliminan.
 // - "A Bocaitos - Single" se normaliza a "A Bocaitos".
-// ============================================================================
 
 import { parseBlob } from "music-metadata";
 import { Fingerprinter } from "rusty-chromaprint-wasm";
@@ -45,21 +42,26 @@ import {
   createReleaseGroup,
   createReleaseTrack,
   normalizeArtistCredits,
+  clean as safeString,
   cleanGenres,
   resolveReleaseType,
   normalizeComparable,
+  normalizeIsrc,
 } from "../models/musicEntities.js";
 import {
   deduplicateRecordingCandidates,
   deduplicateReleases,
   rankRecordingCandidates,
   rankReleases,
+  levenshteinDistance,
+  durationSimilarity,
+  normalizeArtist,
+  artistTextSimilarity as artistSimilarity,
+  textSimilarity,
   IDENTIFICATION_LIMITS,
 } from "./identificationRanking.js";
 
-// ============================================================================
 // CONFIGURACIÓN
-// ============================================================================
 
 const ENV = import.meta.env || {};
 
@@ -97,20 +99,14 @@ const CONFIG = {
 
   optionalProvider: {
     enabled:
-      String(
-        ENV.VITE_AUDIO_IDENTIFICATION_PROXY_ENABLED || "",
-      ).toLowerCase() === "true",
+      String(ENV.VITE_AUDIO_IDENTIFICATION_PROXY_ENABLED || "").toLowerCase() === "true",
 
     endpoint: ENV.VITE_AUDIO_IDENTIFICATION_PROXY_URL || "",
 
     timeout: 20000,
   },
 
-  audio: {
-    sampleRate: 48000,
-    channels: 1,
-    maxSecondsForFingerprint: 120,
-  },
+  audio: {sampleRate: 48000, channels: 1, maxSecondsForFingerprint: 120},
 
   identification: {
     minConfidence: 0.7,
@@ -125,9 +121,7 @@ const CONFIG = {
     durationAcceptable: 0.75,
   },
 
-  diagnostics: {
-    enabled: true,
-  },
+  diagnostics: {enabled: true},
 
   // Nivel de detalle de los logs en consola:
   //   "silent" -> nada, "error" -> solo fallos, "warn" -> fallos y avisos,
@@ -143,9 +137,7 @@ const MIN_FINGERPRINT_MATCH_SCORE = 0.5;
 // proceden de MusicBrainz) hace innecesaria la búsqueda textual de MusicBrainz.
 const STRONG_FINGERPRINT_SCORE = 0.85;
 
-// ============================================================================
 // LOGGER
-// ============================================================================
 //
 // Sustituye a los console.* sueltos: respeta `CONFIG.logLevel`, agrupa cada
 // petición en un único mensaje y mantiene el detalle completo accesible solo
@@ -155,11 +147,7 @@ const STRONG_FINGERPRINT_SCORE = 0.85;
 const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
 
 const log = {
-  _allowed(level) {
-    return (
-      LOG_LEVELS[level] <= (LOG_LEVELS[CONFIG.logLevel] ?? LOG_LEVELS.info)
-    );
-  },
+  _allowed(level) {return (LOG_LEVELS[level] <= (LOG_LEVELS[CONFIG.logLevel] ?? LOG_LEVELS.info));},
 
   _emit(method, scope, message, data) {
     if (
@@ -172,26 +160,16 @@ const log = {
               ? "debug"
               : "info",
       )
-    ) {
-      return;
-    }
+    ) {return;}
     const prefix = `[Calliope${scope ? `:${scope}` : ""}]`;
     if (data === undefined) console[method](`${prefix} ${message}`);
     else console[method](`${prefix} ${message}`, data);
   },
 
-  info(scope, message, data) {
-    this._emit("info", scope, message, data);
-  },
-  warn(scope, message, data) {
-    this._emit("warn", scope, message, data);
-  },
-  error(scope, message, data) {
-    this._emit("error", scope, message, data);
-  },
-  debug(scope, message, data) {
-    this._emit("debug", scope, message, data);
-  },
+  info(scope, message, data) {this._emit("info", scope, message, data);},
+  warn(scope, message, data) {this._emit("warn", scope, message, data);},
+  error(scope, message, data) {this._emit("error", scope, message, data);},
+  debug(scope, message, data) {this._emit("debug", scope, message, data);},
 };
 
 // Extrae el resumen legible de un error de fetch para el log de diagnóstico.
@@ -206,9 +184,7 @@ function describeError(error) {
   return `${status} · ${reason}${body}`;
 }
 
-// ============================================================================
 // PESOS DE FUENTES
-// ============================================================================
 
 const PROVIDER_WEIGHTS = {
   acoustid: 1.0,
@@ -220,9 +196,7 @@ const PROVIDER_WEIGHTS = {
   lrclib: 0.25,
 };
 
-// ============================================================================
 // GENRES
-// ============================================================================
 
 const GENERIC_GENRES = new Set([
   "music",
@@ -285,36 +259,20 @@ const GENRE_DISPLAY_NAMES = {
   electropop: "Electropop",
 };
 
-const GENRE_PARENT_KEYS = new Map([
-  ["latin pop", "pop"],
-  ["spanish pop", "pop"],
-  ["electropop", "pop"],
-]);
+const GENRE_PARENT_KEYS = new Map([["latin pop", "pop"], ["spanish pop", "pop"], ["electropop", "pop"]]);
 
-// ============================================================================
 // UTILIDADES
-// ============================================================================
 
 function clamp(value, min = 0, max = 1) {
   const number = Number(value);
 
-  if (!Number.isFinite(number)) {
-    return min;
-  }
+  if (!Number.isFinite(number)) {return min;}
 
   return Math.min(max, Math.max(min, number));
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function safeString(value) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value).trim();
 }
 
 function isMusicBrainzId(value) {
@@ -331,19 +289,6 @@ function normalizeText(value) {
     .replace(/[()[\]{}]/g, " ")
     .replace(/[_-]+/g, " ")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeIsrc(value) {
-  return safeString(value)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-}
-
-function normalizeArtist(value) {
-  return normalizeText(value)
-    .replace(/\b(feat|ft|featuring)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -373,128 +318,7 @@ function trackTitleSimilarity(left, right) {
   );
 }
 
-// Distancia de Levenshtein normalizada a 0..1 sobre dos cadenas ya
-// normalizadas. Compartida por todas las comparaciones de similitud.
-function normalizedSimilarity(aa, bb) {
-  if (!aa || !bb) {
-    return 0;
-  }
-
-  if (aa === bb) {
-    return 1;
-  }
-
-  const maxLength = Math.max(aa.length, bb.length);
-
-  if (!maxLength) {
-    return 1;
-  }
-
-  return clamp(1 - levenshteinDistance(aa, bb) / maxLength);
-}
-
-function similarity(a, b) {
-  return normalizedSimilarity(normalizeText(a), normalizeText(b));
-}
-
-function artistSimilarity(a, b) {
-  const aa = normalizeArtist(a);
-  const bb = normalizeArtist(b);
-
-  if (!aa || !bb) {
-    return 0;
-  }
-
-  if (aa === bb) {
-    return 1;
-  }
-
-  const splitArtists = (value) =>
-    value
-      .split(/\s*(?:,|&|\b(?:and|y|con|feat\.?|ft\.?|featuring)\b)\s*/i)
-      .map((item) => normalizeArtist(item))
-      .filter(Boolean);
-  const leftArtists = new Set(splitArtists(aa));
-  const rightArtists = new Set(splitArtists(bb));
-  const sharedArtists = [...leftArtists].filter((artist) =>
-    rightArtists.has(artist),
-  );
-
-  if (
-    sharedArtists.length &&
-    (sharedArtists.length === leftArtists.size ||
-      sharedArtists.length === rightArtists.size)
-  ) {
-    return 0.92;
-  }
-
-  return similarity(aa, bb);
-}
-
-function levenshteinDistance(a, b) {
-  if (a === b) {
-    return 0;
-  }
-
-  if (!a.length) {
-    return b.length;
-  }
-
-  if (!b.length) {
-    return a.length;
-  }
-
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i];
-
-    for (let j = 1; j <= b.length; j += 1) {
-      const insertion = current[j - 1] + 1;
-      const deletion = previous[j] + 1;
-      const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
-
-      current.push(Math.min(insertion, deletion, substitution));
-    }
-
-    previous = current;
-  }
-
-  return previous[b.length];
-}
-
-function durationSimilarity(a, b) {
-  const aa = Number(a);
-  const bb = Number(b);
-
-  if (!Number.isFinite(aa) || !Number.isFinite(bb) || aa <= 0 || bb <= 0) {
-    return 0;
-  }
-
-  const difference = Math.abs(aa - bb);
-
-  if (difference <= 1) {
-    return 1;
-  }
-
-  if (difference <= 2) {
-    return 0.97;
-  }
-
-  if (difference <= 4) {
-    return 0.9;
-  }
-
-  if (difference <= 8) {
-    return 0.75;
-  }
-
-  if (difference <= 15) {
-    return 0.5;
-  }
-
-  return 0;
-}
+const similarity = textSimilarity;
 
 function parseYear(value) {
   const match = safeString(value).match(/\b(19|20)\d{2}\b/);
@@ -502,13 +326,9 @@ function parseYear(value) {
   return match ? match[0] : "";
 }
 
-function cleanText(value) {
-  return safeString(value).replace(/\s+/g, " ").trim();
-}
+function cleanText(value) {return safeString(value).replace(/\s+/g, " ").trim();}
 
-// ============================================================================
 // GENRES & RELEASE TYPE
-// ============================================================================
 
 function normalizeGenreName(value) {
   return cleanText(value)
@@ -533,44 +353,27 @@ function displayGenreName(value) {
 function isUsefulGenre(value) {
   const genre = normalizeGenreName(value);
 
-  if (!genre) {
-    return false;
-  }
+  if (!genre) {return false;}
 
   const canonical = canonicalGenre(genre);
 
-  if (!canonical) {
-    return false;
-  }
+  if (!canonical) {return false;}
 
-  if (GENERIC_GENRES.has(canonical)) {
-    return false;
-  }
+  if (GENERIC_GENRES.has(canonical)) {return false;}
 
-  if (GENRE_NOISE.has(canonical)) {
-    return false;
-  }
+  if (GENRE_NOISE.has(canonical)) {return false;}
 
   // Evitar etiquetas que son claramente años.
-  if (/^\d{4}s?$/.test(canonical)) {
-    return false;
-  }
+  if (/^\d{4}s?$/.test(canonical)) {return false;}
 
-  if (genre.length > 80) {
-    return false;
-  }
+  if (genre.length > 80) {return false;}
 
   return true;
 }
 
-// ============================================================================
 // RELEASE TYPE DETECTION
-// ============================================================================
 
-function detectReleaseType(entity) {
-  if (!entity) {
-    return "unknown";
-  }
+function detectReleaseType(entity) {if (!entity) { return "unknown";}
 
   const primaryType = safeString(
     entity?.["primary-type"] || entity?.["release-group"]?.["primary-type"],
@@ -606,22 +409,16 @@ function detectReleaseType(entity) {
 function extractGenreList(entity, field) {
   const items = entity?.[field];
 
-  if (!Array.isArray(items)) {
-    return [];
-  }
+  if (!Array.isArray(items)) {return [];}
 
   return uniqueGenres(
     items.map((item) => (typeof item === "string" ? item : item?.name)),
   );
 }
 
-function extractGenres(entity) {
-  return extractGenreList(entity, "genres");
-}
+function extractGenres(entity) {return extractGenreList(entity, "genres");}
 
-function extractTags(entity) {
-  return extractGenreList(entity, "tags");
-}
+function extractTags(entity) {return extractGenreList(entity, "tags");}
 
 function uniqueGenres(values) {
   const result = [];
@@ -630,15 +427,11 @@ function uniqueGenres(values) {
   for (const value of values || []) {
     const genre = normalizeGenreName(value);
 
-    if (!isUsefulGenre(genre)) {
-      continue;
-    }
+    if (!isUsefulGenre(genre)) {continue;}
 
     const key = canonicalGenre(genre);
 
-    if (seen.has(key)) {
-      continue;
-    }
+    if (seen.has(key)) {continue;}
 
     seen.add(key);
     result.push(genre);
@@ -647,9 +440,7 @@ function uniqueGenres(values) {
   return result;
 }
 
-// ============================================================================
 // ALBUM TITLE SANITIZATION
-// ============================================================================
 
 function sanitizeAlbumName(
   albumName,
@@ -658,9 +449,7 @@ function sanitizeAlbumName(
 ) {
   let value = cleanText(albumName);
 
-  if (!value) {
-    return "";
-  }
+  if (!value) {return "";}
 
   const track = cleanText(trackTitle);
 
@@ -675,27 +464,19 @@ function sanitizeAlbumName(
     const stripped = value.replace(singlePattern, "").trim();
 
     // Si el nombre sin sufijo coincide mucho con la pista, usar la pista como álbum
-    if (stripped && track && similarity(stripped, track) >= 0.94) {
-      return track;
-    }
+    if (stripped && track && similarity(stripped, track) >= 0.94) {return track;}
 
     // Si el nombre completo coincide mucho con la pista, también usar la pista
-    if (track && similarity(value, track) >= 0.94) {
-      return track;
-    }
+    if (track && similarity(value, track) >= 0.94) {return track;}
 
     // Usar el nombre sin sufijo si existe
-    if (stripped) {
-      return stripped;
-    }
+    if (stripped) {return stripped;}
   }
 
   return value;
 }
 
-// ============================================================================
 // DIAGNÓSTICOS
-// ============================================================================
 
 function createDiagnostics() {
   return {
@@ -766,11 +547,7 @@ async function runProvider(diagnostics, provider, executor) {
           ? 1
           : 0;
 
-    finishAttempt(
-      attempt,
-      resultCount > 0 ? "success" : "no_match",
-      resultCount,
-    );
+    finishAttempt(attempt, resultCount > 0 ? "success" : "no_match", resultCount);
 
     // Una sola línea por proveedor, con resultado y tiempo.
     log.debug(
@@ -788,10 +565,7 @@ async function runProvider(diagnostics, provider, executor) {
       retryCount: error?.retryCount || 0,
     });
 
-    diagnostics.errors.push({
-      provider,
-      message,
-    });
+    diagnostics.errors.push({provider, message});
 
     // Un fallo se anuncia en una línea; el detalle completo (cuerpo de la
     // respuesta y stack) solo aparece en nivel `debug`.
@@ -809,9 +583,7 @@ async function runProvider(diagnostics, provider, executor) {
   }
 }
 
-// ============================================================================
 // FETCH
-// ============================================================================
 
 async function fetchWithTimeout(url, options = {}, timeout = 12000) {
   const controller = new AbortController();
@@ -821,19 +593,13 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
   const shortUrl =
     String(url).length > 120 ? `${String(url).slice(0, 120)}…` : String(url);
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
+  try {const response = await fetch(url, { ...options, signal: controller.signal});
 
     const text = await response.text();
 
     let data = null;
 
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
+    try {data = text ? JSON.parse(text) : null;} catch {
       data = null;
     }
 
@@ -853,13 +619,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
       error.data = data;
       error.retryAfter = response.headers.get("retry-after");
 
-      if (!data) {
-        log.debug(
-          "http",
-          `Respuesta no-JSON de ${shortUrl}`,
-          text?.slice(0, 200),
-        );
-      }
+      if (!data) {log.debug("http", `Respuesta no-JSON de ${shortUrl}`, text?.slice(0, 200));}
 
       throw error;
     }
@@ -873,33 +633,22 @@ async function fetchWithTimeout(url, options = {}, timeout = 12000) {
       log.debug("http", `Fallo de red en ${shortUrl}`, error?.message || error);
     }
     throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  } finally {clearTimeout(timeoutId);}
 }
 
 async function fetchJsonWithRetry(
   url,
   options = {},
-  {
-    timeout = 12000,
-    retries = 1,
-    retryDelay = 1000,
-    retryStatuses = [408, 429, 500, 502, 503, 504],
-  } = {},
+  {timeout = 12000, retries = 1, retryDelay = 1000, retryStatuses = [408, 429, 500, 502, 503, 504]} = {},
 ) {
   let lastError = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    try {
-      return await fetchWithTimeout(url, options, timeout);
-    } catch (error) {
+    try {return await fetchWithTimeout(url, options, timeout);} catch (error) {
       lastError = error;
       error.retryCount = attempt;
 
-      if (attempt >= retries || !retryStatuses.includes(error?.status)) {
-        throw error;
-      }
+      if (attempt >= retries || !retryStatuses.includes(error?.status)) {throw error;}
 
       let delay = retryDelay * 2 ** attempt;
 
@@ -914,9 +663,7 @@ async function fetchJsonWithRetry(
           ? Math.max(0, (retryAfterDate - Date.now()) / 1000)
           : NaN;
 
-      if (Number.isFinite(retryAfter) && retryAfter > 0) {
-        delay = retryAfter * 1000;
-      }
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {delay = retryAfter * 1000;}
 
       const jitter = Math.round(Math.random() * 250);
 
@@ -927,9 +674,7 @@ async function fetchJsonWithRetry(
   throw lastError;
 }
 
-// ============================================================================
 // MUSICBRAINZ QUEUE
-// ============================================================================
 
 let lastMusicBrainzRequest = 0;
 let musicBrainzQueue = Promise.resolve();
@@ -966,26 +711,18 @@ const MB_INC = {
 };
 
 async function musicBrainzRequest(path, params = {}) {
-  if (Date.now() < musicBrainzUnavailableUntil) {
-    return null;
-  }
+  if (Date.now() < musicBrainzUnavailableUntil) {return null;}
 
   const url = new URL(`${CONFIG.musicbrainz.endpoint}${path}`);
 
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== "") {
-      url.searchParams.set(key, value);
-    }
+    if (value !== undefined && value !== null && value !== "") {url.searchParams.set(key, value);}
   }
 
   return enqueueMusicBrainz(() =>
     fetchJsonWithRetry(
       url.toString(),
-      {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": CONFIG.musicbrainz.userAgent,
-        },
+      {headers: { Accept: "application/json", "User-Agent": CONFIG.musicbrainz.userAgent},
       },
       {
         timeout: CONFIG.musicbrainz.timeout,
@@ -1001,19 +738,14 @@ async function musicBrainzRequest(path, params = {}) {
           ? retryAfter * 1000
           : 30000;
       musicBrainzUnavailableUntil = Date.now() + Math.min(cooldown, 120000);
-      log.warn(
-        "musicbrainz",
-        "Servicio no disponible temporalmente; se continúa con las demás fuentes",
-      );
+      log.warn("musicbrainz", "Servicio no disponible temporalmente; se continúa con las demás fuentes");
       return null;
     }
     throw error;
   });
 }
 
-// ============================================================================
 // LOCAL METADATA
-// ============================================================================
 
 async function readLocalMetadata(file) {
   try {
@@ -1040,18 +772,14 @@ async function readLocalMetadata(file) {
             : [],
       ),
       isrc:
-        normalizeIsrc(
-          Array.isArray(common.isrc) ? common.isrc[0] : common.isrc,
-        ) || "",
+        normalizeIsrc(Array.isArray(common.isrc) ? common.isrc[0] : common.isrc) || "",
       musicBrainzRecordingId: isMusicBrainzId(common.musicbrainz_recordingid)
         ? safeString(common.musicbrainz_recordingid)
         : "",
       musicBrainzReleaseId: isMusicBrainzId(common.musicbrainz_releaseid)
         ? safeString(common.musicbrainz_releaseid)
         : "",
-      musicBrainzReleaseGroupId: isMusicBrainzId(
-        common.musicbrainz_releasegroupid,
-      )
+      musicBrainzReleaseGroupId: isMusicBrainzId(common.musicbrainz_releasegroupid)
         ? safeString(common.musicbrainz_releasegroupid)
         : "",
       acoustid: safeString(common.acoustid_id),
@@ -1079,9 +807,7 @@ async function readLocalMetadata(file) {
   }
 }
 
-// ============================================================================
 // FILENAME
-// ============================================================================
 
 function parseFilename(fileName) {
   let value = safeString(fileName);
@@ -1106,15 +832,10 @@ function parseFilename(fileName) {
     }
   }
 
-  return {
-    artist,
-    title,
-  };
+  return {artist, title};
 }
 
-// ============================================================================
 // AUDIO / FINGERPRINT
-// ============================================================================
 
 async function decodeAudio(file) {
   const arrayBuffer = await file.arrayBuffer();
@@ -1124,15 +845,11 @@ async function decodeAudio(file) {
       ? window.AudioContext || window.webkitAudioContext
       : globalThis.AudioContext || globalThis.webkitAudioContext;
 
-  if (!AudioContextClass) {
-    throw new Error("Web Audio API no disponible");
-  }
+  if (!AudioContextClass) {throw new Error("Web Audio API no disponible");}
 
   const context = new AudioContextClass();
 
-  try {
-    return await context.decodeAudioData(arrayBuffer.slice(0));
-  } catch (error) {
+  try {return await context.decodeAudioData(arrayBuffer.slice(0));} catch (error) {
     // Un fallo aquí explica que no haya huella y que AcoustID ni se consulte:
     // casi siempre es un formato que el navegador no sabe decodificar.
     log.error(
@@ -1159,9 +876,7 @@ function audioBufferToMonoInt16(audioBuffer, maxSeconds) {
   for (let channel = 0; channel < channels; channel += 1) {
     const data = audioBuffer.getChannelData(channel);
 
-    for (let i = 0; i < length; i += 1) {
-      mono[i] += data[i] / channels;
-    }
+    for (let i = 0; i < length; i += 1) {mono[i] += data[i] / channels;}
   }
 
   const pcm = new Int16Array(length);
@@ -1179,10 +894,7 @@ function audioBufferToMonoInt16(audioBuffer, maxSeconds) {
 async function generateFingerprint(file) {
   const audioBuffer = await decodeAudio(file);
 
-  const pcm = audioBufferToMonoInt16(
-    audioBuffer,
-    CONFIG.audio.maxSecondsForFingerprint,
-  );
+  const pcm = audioBufferToMonoInt16(audioBuffer, CONFIG.audio.maxSecondsForFingerprint);
 
   const fingerprinter = new Fingerprinter();
 
@@ -1211,9 +923,7 @@ async function generateFingerprint(file) {
   };
 }
 
-// ============================================================================
 // CONSTRUCCIÓN DE CANDIDATOS DESDE UNA GRABACIÓN
-// ============================================================================
 //
 // AcoustID, MusicBrainz/ISRC y MusicBrainz/búsqueda textual reciben el mismo
 // tipo de grabación y extraen exactamente los mismos campos. Antes ese bloque
@@ -1243,9 +953,7 @@ function candidateFromRecording(
 
     recordingId: safeString(recording?.id),
     releaseId: safeString(recording?.releases?.[0]?.id),
-    releaseGroupId: safeString(
-      recording?.["release-group"]?.id || recording?.releasegroups?.[0]?.id,
-    ),
+    releaseGroupId: safeString(recording?.["release-group"]?.id || recording?.releasegroups?.[0]?.id),
 
     isrc: normalizeIsrc(isrc || recording?.isrcs?.[0]),
 
@@ -1256,19 +964,13 @@ function candidateFromRecording(
   });
 }
 
-// ============================================================================
 // ACOUSTID
-// ============================================================================
 
 async function queryAcoustID(fingerprint, duration) {
-  if (!fingerprint) {
-    throw new Error("Sin huella acústica para consultar AcoustID");
-  }
+  if (!fingerprint) {throw new Error("Sin huella acústica para consultar AcoustID");}
 
   if (!CONFIG.acoustid.client) {
-    throw new Error(
-      "Falta VITE_ACOUSTID_CLIENT: define la clave de AcoustID en el archivo .env",
-    );
+    throw new Error("Falta VITE_ACOUSTID_CLIENT: define la clave de AcoustID en el archivo .env");
   }
 
   // AcoustID espera POST para huellas largas; por GET la URL se trunca y el
@@ -1299,21 +1001,14 @@ async function queryAcoustID(fingerprint, duration) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     },
-    {
-      timeout: 20000,
-      retries: 1,
-    },
+    {timeout: 20000, retries: 1},
   );
 
   if (data?.status && data.status !== "ok") {
-    throw new Error(
-      data?.error?.message || "AcoustID devolvió un estado de error",
-    );
+    throw new Error(data?.error?.message || "AcoustID devolvió un estado de error");
   }
 
-  if (data?.error) {
-    throw new Error(data.error.message || "AcoustID devolvió un error");
-  }
+  if (data?.error) {throw new Error(data.error.message || "AcoustID devolvió un error");}
 
   const results = Array.isArray(data?.results) ? data.results : [];
   const candidates = [];
@@ -1347,10 +1042,7 @@ async function queryAcoustID(fingerprint, duration) {
   );
 
   if (!results.length) {
-    log.debug(
-      "acoustid",
-      "La huella no coincide con ninguna grabación conocida",
-    );
+    log.debug("acoustid", "La huella no coincide con ninguna grabación conocida");
   }
 
   return candidates;
@@ -1361,10 +1053,7 @@ function buildFieldChoices(candidates = [], winner = null) {
     if (!winner || candidate === winner) return true;
     const titleScore = trackTitleSimilarity(candidate.title, winner.title);
     const artistScore = artistSimilarity(candidate.artist, winner.artist);
-    const durationScore = durationSimilarity(
-      candidate.duration,
-      winner.duration,
-    );
+    const durationScore = durationSimilarity(candidate.duration, winner.duration);
     return (
       titleScore >= 0.82 &&
       artistScore >= 0.7 &&
@@ -1379,11 +1068,7 @@ function buildFieldChoices(candidates = [], winner = null) {
       for (const item of values.filter(Boolean)) {
         const key = normalize(item);
         if (!key) continue;
-        const current = map.get(key) || {
-          value: item,
-          sources: [],
-          providers: [],
-        };
+        const current = map.get(key) || {value: item, sources: [], providers: []};
         current.sources.push(candidate.provider);
         current.providers.push(candidate.provider);
         map.set(key, current);
@@ -1404,9 +1089,7 @@ function buildFieldChoices(candidates = [], winner = null) {
   };
 }
 
-// ============================================================================
 // MUSICBRAINZ - ARTIST
-// ============================================================================
 
 function extractArtistNames(entity) {
   return extractArtistCredits(entity).map((credit) => credit.name);
@@ -1419,10 +1102,7 @@ function extractArtistCredit(entity) {
     .trim();
 }
 
-function extractArtistCredits(entity) {
-  if (!Array.isArray(entity?.["artist-credit"])) {
-    return [];
-  }
+function extractArtistCredits(entity) {if (!Array.isArray(entity?.["artist-credit"])) { return [];}
 
   return normalizeArtistCredits(entity["artist-credit"])
     .map((credit) => ({
@@ -1440,23 +1120,16 @@ function artistListFromMetadata(artist, entity) {
   return structuredNames.length ? structuredNames : artist ? [artist] : [];
 }
 
-// ============================================================================
 // MUSICBRAINZ - ISRC
-// ============================================================================
 
 async function queryMusicBrainzISRC(isrc) {
   const normalized = normalizeIsrc(isrc);
 
-  if (!normalized) {
-    return [];
-  }
+  if (!normalized) {return [];}
 
   const data = await musicBrainzRequest(
     `/isrc/${encodeURIComponent(normalized)}`,
-    {
-      inc: MB_INC.recording,
-      fmt: "json",
-    },
+    {inc: MB_INC.recording, fmt: "json"},
   );
 
   const recordings = Array.isArray(data?.recordings) ? data.recordings : [];
@@ -1471,18 +1144,11 @@ async function queryMusicBrainzISRC(isrc) {
   );
 }
 
-// ============================================================================
 // MUSICBRAINZ - TEXT
-// ============================================================================
 
-function escapeLucene(value) {
-  return safeString(value).replace(/([+\-!(){}\[\]^"~*?:\\/])/g, "\\$1");
-}
+function escapeLucene(value) {return safeString(value).replace(/([+\-!(){}\[\]^"~*?:\\/])/g, "\\$1");}
 
-async function musicBrainzSearch(query) {
-  if (!query) {
-    return [];
-  }
+async function musicBrainzSearch(query) {if (!query) { return [];}
 
   const data = await musicBrainzRequest("/recording", {
     query,
@@ -1496,11 +1162,7 @@ async function musicBrainzSearch(query) {
 
 function searchTextVariants(local, filename) {
   const titleValues = [local.title, filename.title].filter(Boolean);
-  const artistValues = [
-    local.artist,
-    local.albumArtist,
-    filename.artist,
-  ].filter(Boolean);
+  const artistValues = [local.artist, local.albumArtist, filename.artist].filter(Boolean);
   const stripSecondaryTitle = (value) =>
     safeString(value)
       .replace(
@@ -1511,10 +1173,7 @@ function searchTextVariants(local, filename) {
         /\s*\[(?:feat\.?|ft\.?|featuring|remix|version|live|edit|radio edit|acoustic|extended)[^\]]*\]/gi,
         "",
       )
-      .replace(
-        /\s+-\s+(?:remix|live|edit|radio edit|acoustic|extended|remastered)\b.*$/i,
-        "",
-      )
+      .replace(/\s+-\s+(?:remix|live|edit|radio edit|acoustic|extended|remastered)\b.*$/i, "")
       .replace(/\s+/g, " ")
       .trim();
   const titles = [
@@ -1527,10 +1186,7 @@ function searchTextVariants(local, filename) {
     ),
   ];
   const artists = [
-    ...new Set(
-      [...artistValues, ...artistValues.map(normalizeComparable)].filter(
-        Boolean,
-      ),
+    ...new Set([...artistValues, ...artistValues.map(normalizeComparable)].filter(Boolean),
     ),
   ];
   return { titles, artists };
@@ -1562,13 +1218,9 @@ async function queryMusicBrainzText(local, filename) {
     for (const recording of recordings) {
       const id = safeString(recording?.id);
 
-      if (id && seen.has(id)) {
-        continue;
-      }
+      if (id && seen.has(id)) {continue;}
 
-      if (id) {
-        seen.add(id);
-      }
+      if (id) {seen.add(id);}
 
       results.push(
         candidateFromRecording(recording, {
@@ -1583,9 +1235,7 @@ async function queryMusicBrainzText(local, filename) {
   return results;
 }
 
-// ============================================================================
 // ITUNES
-// ============================================================================
 
 async function queryITunes(local, filename) {
   const { titles, artists } = searchTextVariants(local, filename);
@@ -1617,10 +1267,7 @@ async function queryITunes(local, filename) {
     const data = await fetchJsonWithRetry(
       url.toString(),
       {},
-      {
-        timeout: CONFIG.itunes.timeout,
-        retries: 1,
-      },
+      {timeout: CONFIG.itunes.timeout, retries: 1},
     );
 
     for (const item of data?.results || []) {
@@ -1630,9 +1277,7 @@ async function queryITunes(local, filename) {
         normalizeText(item?.collectionName),
       ].join("|");
 
-      if (seen.has(key)) {
-        continue;
-      }
+      if (seen.has(key)) {continue;}
 
       seen.add(key);
 
@@ -1678,22 +1323,15 @@ async function queryDeezer(local, filename) {
   const title = titles[0];
   const artist = artists[0];
 
-  if (!title) {
-    return [];
-  }
+  if (!title) {return [];}
 
   const endpoint = getDeezerEndpoint("/search");
-  if (!endpoint) {
-    return [];
-  }
+  if (!endpoint) {return [];}
 
   const query = artist
     ? `artist:"${artist}" track:"${title}"`
     : `track:"${title}"`;
-  const url = new URL(
-    endpoint,
-    typeof window !== "undefined" ? window.location.origin : undefined,
-  );
+  const url = new URL(endpoint, typeof window !== "undefined" ? window.location.origin : undefined);
   url.searchParams.set("q", query);
   url.searchParams.set("limit", "10");
 
@@ -1718,9 +1356,7 @@ async function queryDeezer(local, filename) {
       raw: item,
     });
 
-    if (!candidate.title || seenAlbums.has(item?.album?.id)) {
-      continue;
-    }
+    if (!candidate.title || seenAlbums.has(item?.album?.id)) {continue;}
 
     seenAlbums.add(item?.album?.id);
 
@@ -1754,16 +1390,12 @@ async function fetchDeezerJson(url) {
 }
 
 function getDeezerEndpoint(path) {
-  if (CONFIG.deezer.proxyEndpoint) {
-    return `${CONFIG.deezer.proxyEndpoint.replace(/\/$/, "")}${path}`;
-  }
+  if (CONFIG.deezer.proxyEndpoint) {return `${CONFIG.deezer.proxyEndpoint.replace(/\/$/, "")}${path}`;}
 
   if (
     typeof window !== "undefined" &&
     /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
-  ) {
-    return `/api/deezer${path}`;
-  }
+  ) {return `/api/deezer${path}`;}
 
   return "";
 }
@@ -1775,15 +1407,11 @@ function inferITunesReleaseType(collectionName) {
   return "album";
 }
 
-// ============================================================================
 // LRCLIB
-// ============================================================================
 
 async function queryLRCLIB(local, filename) {
   const { titles, artists } = searchTextVariants(local, filename);
-  if (!titles.length) {
-    return [];
-  }
+  if (!titles.length) {return [];}
 
   const responses = await Promise.all(
     titles.slice(0, 5).map(async (title) => {
@@ -1829,41 +1457,25 @@ async function queryLRCLIB(local, filename) {
     });
 }
 
-// ============================================================================
 // PROVIDER OPCIONAL
-// ============================================================================
 
 async function queryOptionalProvider(file, local, filename) {
-  if (!CONFIG.optionalProvider.enabled || !CONFIG.optionalProvider.endpoint) {
-    return [];
-  }
+  if (!CONFIG.optionalProvider.enabled || !CONFIG.optionalProvider.endpoint) {return [];}
 
   const formData = new FormData();
 
   formData.append("file", file, file.name);
 
-  if (local.title) {
-    formData.append("title", local.title);
-  }
+  if (local.title) {formData.append("title", local.title);}
 
-  if (local.artist) {
-    formData.append("artist", local.artist);
-  }
+  if (local.artist) {formData.append("artist", local.artist);}
 
-  if (filename.title) {
-    formData.append("filenameTitle", filename.title);
-  }
+  if (filename.title) {formData.append("filenameTitle", filename.title);}
 
   const data = await fetchJsonWithRetry(
     CONFIG.optionalProvider.endpoint,
-    {
-      method: "POST",
-      body: formData,
-    },
-    {
-      timeout: CONFIG.optionalProvider.timeout,
-      retries: 1,
-    },
+    {method: "POST", body: formData},
+    {timeout: CONFIG.optionalProvider.timeout, retries: 1},
   );
 
   const results = Array.isArray(data)
@@ -1911,9 +1523,7 @@ async function queryOptionalProvider(file, local, filename) {
   );
 }
 
-// ============================================================================
 // CANDIDATOS
-// ============================================================================
 
 function makeCandidate(data = {}) {
   const genres = [
@@ -1925,9 +1535,7 @@ function makeCandidate(data = {}) {
   return {
     provider: data.provider || "unknown",
 
-    providers: [
-      ...new Set(data.providers || (data.provider ? [data.provider] : [])),
-    ],
+    providers: [...new Set(data.providers || (data.provider ? [data.provider] : []))],
 
     sourceType: data.sourceType || "text",
 
@@ -1979,9 +1587,7 @@ function makeCandidate(data = {}) {
   };
 }
 
-// ============================================================================
 // SCORE DE CANDIDATO
-// ============================================================================
 
 function scoreCandidate(candidate, context) {
   const referenceTitle = context.local.title || context.filename.title;
@@ -2006,10 +1612,7 @@ function scoreCandidate(candidate, context) {
       ? similarity(candidate.album, referenceAlbum)
       : 0;
 
-  const durationScore = durationSimilarity(
-    candidate.duration,
-    context.duration,
-  );
+  const durationScore = durationSimilarity(candidate.duration, context.duration);
 
   const providerWeight = PROVIDER_WEIGHTS[candidate.provider] || 0.5;
 
@@ -2024,76 +1627,50 @@ function scoreCandidate(candidate, context) {
     context.local.isrc &&
     candidate.isrc &&
     context.local.isrc === candidate.isrc
-  ) {
-    score += 0.15;
-  }
+  ) {score += 0.15;}
 
   if (
     context.local.musicBrainzRecordingId &&
     candidate.recordingId &&
     context.local.musicBrainzRecordingId === candidate.recordingId
-  ) {
-    score += 0.15;
-  }
+  ) {score += 0.15;}
 
-  if (titleScore >= 0.98 && artistScore >= 0.95) {
-    score += 0.04;
-  }
+  if (titleScore >= 0.98 && artistScore >= 0.95) {score += 0.04;}
 
-  if (durationScore >= 0.97) {
-    score += 0.04;
-  }
+  if (durationScore >= 0.97) {score += 0.04;}
 
   score *= 0.72 + providerWeight * 0.28;
 
   return clamp(score);
 }
 
-// ============================================================================
 // COMPATIBILIDAD ENTRE CANDIDATOS
-// ============================================================================
 
 function candidatesCompatible(a, b) {
-  if (a.recordingId && b.recordingId && a.recordingId === b.recordingId) {
-    return true;
-  }
+  if (a.recordingId && b.recordingId && a.recordingId === b.recordingId) {return true;}
 
-  if (a.recordingId && b.recordingId && a.recordingId !== b.recordingId) {
-    return false;
-  }
+  if (a.recordingId && b.recordingId && a.recordingId !== b.recordingId) {return false;}
 
-  if (a.isrc && b.isrc && a.isrc === b.isrc) {
-    return true;
-  }
+  if (a.isrc && b.isrc && a.isrc === b.isrc) {return true;}
 
-  if (a.isrc && b.isrc && a.isrc !== b.isrc) {
-    return false;
-  }
+  if (a.isrc && b.isrc && a.isrc !== b.isrc) {return false;}
 
-  if (a.acoustid && b.acoustid && a.acoustid !== b.acoustid) {
-    return false;
-  }
+  if (a.acoustid && b.acoustid && a.acoustid !== b.acoustid) {return false;}
 
   const titleScore = similarity(a.title, b.title);
 
   const artistScore = artistSimilarity(a.artist, b.artist);
 
-  if (titleScore < 0.92 || artistScore < 0.86) {
-    return false;
-  }
+  if (titleScore < 0.92 || artistScore < 0.86) {return false;}
 
   const durationScore = durationSimilarity(a.duration, b.duration);
 
-  if (a.duration > 0 && b.duration > 0 && durationScore < 0.65) {
-    return false;
-  }
+  if (a.duration > 0 && b.duration > 0 && durationScore < 0.65) {return false;}
 
   return true;
 }
 
-// ============================================================================
 // AGRUPACIÓN DE IDENTIDADES
-// ============================================================================
 
 function clusterCandidates(candidates) {
   const clusters = [];
@@ -2104,15 +1681,10 @@ function clusterCandidates(candidates) {
     for (const cluster of clusters) {
       if (
         cluster.some((existing) => candidatesCompatible(existing, candidate))
-      ) {
-        target = cluster;
-        break;
-      }
+      ) {target = cluster; break;}
     }
 
-    if (target) {
-      target.push(candidate);
-    } else {
+    if (target) {target.push(candidate);} else {
       clusters.push([candidate]);
     }
   }
@@ -2125,13 +1697,9 @@ function candidatesSuitableForEnrichment(identity, candidate, context = {}) {
     identity.recordingId &&
     candidate.recordingId &&
     identity.recordingId === candidate.recordingId
-  ) {
-    return true;
-  }
+  ) {return true;}
 
-  if (identity.isrc && candidate.isrc && identity.isrc === candidate.isrc) {
-    return true;
-  }
+  if (identity.isrc && candidate.isrc && identity.isrc === candidate.isrc) {return true;}
 
   const titleScore = trackTitleSimilarity(identity.title, candidate.title);
   const artistScore = artistSimilarity(identity.artist, candidate.artist);
@@ -2139,19 +1707,14 @@ function candidatesSuitableForEnrichment(identity, candidate, context = {}) {
   const localArtistScore = localArtist
     ? artistSimilarity(candidate.artist, localArtist)
     : 1;
-  const durationScore = durationSimilarity(
-    identity.duration || context.duration,
-    candidate.duration,
-  );
+  const durationScore = durationSimilarity(identity.duration || context.duration, candidate.duration);
 
   const titleAndDurationMatch = titleScore >= 0.92 && durationScore >= 0.9;
   if (
     titleScore < 0.86 ||
     localArtistScore < 0.6 ||
     (artistScore < 0.7 && !titleAndDurationMatch)
-  ) {
-    return false;
-  }
+  ) {return false;}
 
   if (identity.duration > 0 && candidate.duration > 0) {
     return durationSimilarity(identity.duration, candidate.duration) >= 0.5;
@@ -2163,14 +1726,9 @@ function candidatesSuitableForEnrichment(identity, candidate, context = {}) {
 function mergeCompatibleCandidates(identity, allCandidates, context = {}) {
   const merged = [...(identity.candidates || [])];
 
-  for (const candidate of allCandidates || []) {
-    if (merged.includes(candidate)) {
-      continue;
-    }
+  for (const candidate of allCandidates || []) {if (merged.includes(candidate)) { continue;}
 
-    if (candidatesSuitableForEnrichment(identity, candidate, context)) {
-      merged.push(candidate);
-    }
+    if (candidatesSuitableForEnrichment(identity, candidate, context)) {merged.push(candidate);}
   }
 
   return merged;
@@ -2186,10 +1744,7 @@ function candidateMatchesLocalRecording(candidate, context) {
   const artistScore = referenceArtist
     ? artistSimilarity(candidate.artist, referenceArtist)
     : 1;
-  const durationScore = durationSimilarity(
-    candidate.duration,
-    context.duration,
-  );
+  const durationScore = durationSimilarity(candidate.duration, context.duration);
 
   return (
     titleScore >= 0.86 &&
@@ -2198,9 +1753,7 @@ function candidateMatchesLocalRecording(candidate, context) {
   );
 }
 
-// ============================================================================
 // CONSENSO DE CAMPOS
-// ============================================================================
 
 function fieldCandidateWeight(candidate, field, context) {
   const providerWeight = PROVIDER_WEIGHTS[candidate.provider] || 0.5;
@@ -2211,9 +1764,7 @@ function fieldCandidateWeight(candidate, field, context) {
 
   const value = candidate[field];
 
-  if (!value) {
-    return 0;
-  }
+  if (!value) {return 0;}
 
   if (field === "title" && (context.local.title || context.filename.title)) {
     weight *=
@@ -2252,23 +1803,13 @@ function chooseConsensusValue(
   for (const candidate of candidates) {
     const value = cleanText(candidate[field]);
 
-    if (!value) {
-      continue;
-    }
+    if (!value) {continue;}
 
     const key = normalizer(value);
 
-    if (!key) {
-      continue;
-    }
+    if (!key) {continue;}
 
-    if (!groups.has(key)) {
-      groups.set(key, {
-        value,
-        weight: 0,
-        providers: new Set(),
-        candidates: [],
-      });
+    if (!groups.has(key)) {groups.set(key, { value, weight: 0, providers: new Set(), candidates: []});
     }
 
     const group = groups.get(key);
@@ -2282,13 +1823,7 @@ function chooseConsensusValue(
 
   const sorted = [...groups.values()].sort((a, b) => b.weight - a.weight);
 
-  if (!sorted.length) {
-    return {
-      value: "",
-      score: 0,
-      providers: [],
-      alternatives: [],
-    };
+  if (!sorted.length) {return { value: "", score: 0, providers: [], alternatives: []};
   }
 
   const winner = sorted[0];
@@ -2311,22 +1846,13 @@ function chooseNumericConsensus(candidates, field, context) {
   for (const candidate of candidates) {
     const value = safeString(candidate[field]);
 
-    if (!value) {
-      continue;
-    }
+    if (!value) {continue;}
 
     const key = field === "year" ? parseYear(value) : value;
 
-    if (!key) {
-      continue;
-    }
+    if (!key) {continue;}
 
-    if (!groups.has(key)) {
-      groups.set(key, {
-        value: key,
-        weight: 0,
-        providers: new Set(),
-      });
+    if (!groups.has(key)) {groups.set(key, { value: key, weight: 0, providers: new Set()});
     }
 
     const group = groups.get(key);
@@ -2338,12 +1864,7 @@ function chooseNumericConsensus(candidates, field, context) {
 
   const sorted = [...groups.values()].sort((a, b) => b.weight - a.weight);
 
-  if (!sorted.length) {
-    return {
-      value: "",
-      score: 0,
-      providers: [],
-    };
+  if (!sorted.length) {return { value: "", score: 0, providers: []};
   }
 
   return {
@@ -2353,9 +1874,7 @@ function chooseNumericConsensus(candidates, field, context) {
   };
 }
 
-// ============================================================================
 // CONSENSO DE IDENTIDAD
-// ============================================================================
 
 function buildClusterIdentity(members, context) {
   const sorted = [...members].sort(
@@ -2379,12 +1898,7 @@ function buildClusterIdentity(members, context) {
 
     album: chooseConsensusValue(members, "album", context),
 
-    albumArtist: chooseConsensusValue(
-      members,
-      "albumArtist",
-      context,
-      normalizeArtist,
-    ),
+    albumArtist: chooseConsensusValue(members, "albumArtist", context, normalizeArtist),
 
     year: chooseNumericConsensus(members, "year", context),
 
@@ -2401,10 +1915,7 @@ function buildClusterIdentity(members, context) {
     ...members.map((candidate) => scoreCandidate(candidate, context)),
   );
 
-  const diversityBonus = Math.min(
-    0.16,
-    Math.max(0, providers.length - 1) * 0.055,
-  );
+  const diversityBonus = Math.min(0.16, Math.max(0, providers.length - 1) * 0.055);
 
   const sameRecordingCount = best.recordingId
     ? members.filter((candidate) => candidate.recordingId === best.recordingId)
@@ -2421,11 +1932,7 @@ function buildClusterIdentity(members, context) {
   const titleArtistBonus =
     consensus.title.score >= 0.75 && consensus.artist.score >= 0.75 ? 0.05 : 0;
 
-  const confidence = clamp(
-    bestScore + diversityBonus + exactIdBonus + titleArtistBonus,
-    0,
-    0.995,
-  );
+  const confidence = clamp(bestScore + diversityBonus + exactIdBonus + titleArtistBonus, 0, 0.995);
 
   return {
     identityKey: buildIdentityKey(best),
@@ -2499,18 +2006,11 @@ function buildClusterIdentity(members, context) {
 }
 
 function buildIdentityKey(candidate) {
-  if (candidate.recordingId) {
-    return `mbid:${candidate.recordingId}`;
-  }
+  if (candidate.recordingId) {return `mbid:${candidate.recordingId}`;}
 
-  if (candidate.isrc) {
-    return `isrc:${candidate.isrc}`;
-  }
+  if (candidate.isrc) {return `isrc:${candidate.isrc}`;}
 
-  return [
-    normalizeArtist(candidate.artist),
-    normalizeText(candidate.title),
-  ].join("|");
+  return [normalizeArtist(candidate.artist), normalizeText(candidate.title)].join("|");
 }
 
 function chooseBestId(candidates, field) {
@@ -2519,9 +2019,7 @@ function chooseBestId(candidates, field) {
   for (const candidate of candidates) {
     const value = safeString(candidate[field]);
 
-    if (!value) {
-      continue;
-    }
+    if (!value) {continue;}
 
     const providerWeight = PROVIDER_WEIGHTS[candidate.provider] || 0.5;
 
@@ -2529,11 +2027,7 @@ function chooseBestId(candidates, field) {
 
     const key = value.toLowerCase();
 
-    if (!values.has(key)) {
-      values.set(key, {
-        value,
-        score: 0,
-      });
+    if (!values.has(key)) {values.set(key, { value, score: 0});
     }
 
     values.get(key).score += score;
@@ -2568,9 +2062,7 @@ function chooseBestCover(candidates, referenceAlbum = "") {
   return ranked[0]?.candidate.cover || "";
 }
 
-// ============================================================================
 // GENRE RESOLUTION
-// ============================================================================
 
 /**
  * Resuelve géneros con un sistema robusto que:
@@ -2579,13 +2071,7 @@ function chooseBestCover(candidates, referenceAlbum = "") {
  * - Permite máximo 5 géneros
  * - Retorna información de proveniencia
  */
-function resolveGenresImproved({
-  recording,
-  release,
-  releaseGroup,
-  candidates,
-  local,
-}) {
+function resolveGenresImproved({recording, release, releaseGroup, candidates, local}) {
   const genreMap = new Map();
 
   // Agregar evidencia de género desde cada fuente con sus pesos
@@ -2595,11 +2081,7 @@ function resolveGenresImproved({
 
       const key = canonicalGenre(genre);
       if (!genreMap.has(key)) {
-        genreMap.set(key, {
-          genre: displayGenreName(genre),
-          weight: 0,
-          sources: new Set(),
-        });
+        genreMap.set(key, {genre: displayGenreName(genre), weight: 0, sources: new Set()});
       }
 
       const entry = genreMap.get(key);
@@ -2618,11 +2100,7 @@ function resolveGenresImproved({
 
   // PRIORIDAD 3: MusicBrainz release-group
   addEvidence(extractGenres(releaseGroup), "musicbrainz-release-group", 0.9);
-  addEvidence(
-    extractTags(releaseGroup),
-    "musicbrainz-release-group-tags",
-    0.45,
-  );
+  addEvidence(extractTags(releaseGroup), "musicbrainz-release-group-tags", 0.45);
 
   // PRIORIDAD 4: Otros candidatos (fuentes textuales)
   for (const candidate of candidates || []) {
@@ -2670,9 +2148,7 @@ function resolveGenresImproved({
           (selectedItem) => canonicalGenre(selectedItem.genre) === parentKey,
         );
 
-        if (selectedParentIndex >= 0) {
-          selected.splice(selectedParentIndex, 1);
-        }
+        if (selectedParentIndex >= 0) {selected.splice(selectedParentIndex, 1);}
 
         discarded.push({
           genre: parent.genre,
@@ -2684,9 +2160,7 @@ function resolveGenresImproved({
       }
     }
 
-    if (!genreMap.has(canonicalGenre(item.genre))) {
-      continue;
-    }
+    if (!genreMap.has(canonicalGenre(item.genre))) {continue;}
 
     const hasReliableSource = [...item.sources].some((s) =>
       RELIABLE_SOURCES.has(s),
@@ -2738,9 +2212,7 @@ function resolveGenresImproved({
 
   const genres = selected.map((item) => item.genre);
   const genreSources = {};
-  for (const item of selected) {
-    genreSources[item.genre] = [...item.sources];
-  }
+  for (const item of selected) {genreSources[item.genre] = [...item.sources];}
 
   return {
     genres,
@@ -2754,10 +2226,7 @@ function resolveGenresImproved({
   };
 }
 
-async function lookupMusicBrainzRecording(recordingId) {
-  if (!recordingId) {
-    return null;
-  }
+async function lookupMusicBrainzRecording(recordingId) {if (!recordingId) { return null;}
 
   return musicBrainzRequest(`/recording/${encodeURIComponent(recordingId)}`, {
     inc: MB_INC.recordingFull,
@@ -2773,9 +2242,7 @@ function choosePreferredRelease(
 ) {
   const releases = Array.isArray(recording?.releases) ? recording.releases : [];
 
-  if (!releases.length) {
-    return null;
-  }
+  if (!releases.length) {return null;}
 
   const releaseTitleKey = (value) =>
     safeString(value)
@@ -2795,25 +2262,19 @@ function choosePreferredRelease(
     const leftTitleMatch = requestedTitle && leftTitle === requestedTitle;
     const rightTitleMatch = requestedTitle && rightTitle === requestedTitle;
 
-    if (leftTitleMatch !== rightTitleMatch) {
-      return Number(rightTitleMatch) - Number(leftTitleMatch);
-    }
+    if (leftTitleMatch !== rightTitleMatch) {return Number(rightTitleMatch) - Number(leftTitleMatch);}
 
     const preferredDifference =
       Number(right?.id === preferredReleaseId) -
       Number(left?.id === preferredReleaseId);
 
-    if (preferredDifference) {
-      return preferredDifference;
-    }
+    if (preferredDifference) {return preferredDifference;}
 
     const groupDifference =
       Number(rightGroupId === preferredGroupId) -
       Number(leftGroupId === preferredGroupId);
 
-    if (groupDifference) {
-      return groupDifference;
-    }
+    if (groupDifference) {return groupDifference;}
 
     const typePriority = {
       album: 1,
@@ -2835,20 +2296,13 @@ function choosePreferredRelease(
       Number(Array.isArray(right?.media) && right.media.length) -
       Number(Array.isArray(left?.media) && left.media.length);
 
-    if (mediaDifference) {
-      return mediaDifference;
-    }
+    if (mediaDifference) {return mediaDifference;}
 
-    return (
-      Number(left?.status !== "official") - Number(right?.status !== "official")
-    );
+    return (Number(left?.status !== "official") - Number(right?.status !== "official"));
   })[0];
 }
 
-async function lookupMusicBrainzRelease(releaseId) {
-  if (!releaseId) {
-    return null;
-  }
+async function lookupMusicBrainzRelease(releaseId) {if (!releaseId) { return null;}
 
   return musicBrainzRequest(`/release/${encodeURIComponent(releaseId)}`, {
     inc: MB_INC.release,
@@ -2856,30 +2310,20 @@ async function lookupMusicBrainzRelease(releaseId) {
   });
 }
 
-async function lookupMusicBrainzReleaseGroup(releaseGroupId) {
-  if (!releaseGroupId) {
-    return null;
-  }
+async function lookupMusicBrainzReleaseGroup(releaseGroupId) {if (!releaseGroupId) { return null;}
 
   return musicBrainzRequest(
     `/release-group/${encodeURIComponent(releaseGroupId)}`,
-    {
-      inc: MB_INC.releaseGroup,
-      fmt: "json",
-    },
+    {inc: MB_INC.releaseGroup, fmt: "json"},
   );
 }
 
-// ============================================================================
 // COVER ART
-// ============================================================================
 
 function normalizeArtworkUrl(value) {
   const url = safeString(value);
 
-  if (!url) {
-    return "";
-  }
+  if (!url) {return "";}
 
   return url
     .replace(/100x100bb/g, "600x600bb")
@@ -2895,10 +2339,7 @@ async function getCoverFromMusicBrainz(releaseId, releaseGroupId) {
   ].filter(Boolean);
 
   for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        headers: { Accept: "application/json" },
-      });
+    try {const response = await fetch(endpoint, { headers: { Accept: "application/json" }});
       if (!response.ok) continue;
       const payload = await response.json();
       const image =
@@ -3040,9 +2481,7 @@ function buildNormalizedIdentification({
   discoveredReleases = [],
 }) {
   const recordingId =
-    [recording?.id, identity.recordingId, local?.musicBrainzRecordingId].find(
-      isMusicBrainzId,
-    ) || "";
+    [recording?.id, identity.recordingId, local?.musicBrainzRecordingId].find(isMusicBrainzId) || "";
   const artistCredits = normalizeArtistCredits(
     recording?.["artist-credit"],
     extractArtistCredit(recording) || identity.artist || local?.artist,
@@ -3071,10 +2510,7 @@ function buildNormalizedIdentification({
     releaseMap.set(item.id, item);
     if (item.releaseGroupId)
       addGroup(
-        entity?.["release-group"] || {
-          id: item.releaseGroupId,
-          title: item.title,
-        },
+        entity?.["release-group"] || {id: item.releaseGroupId, title: item.title},
       );
   };
 
@@ -3082,9 +2518,7 @@ function buildNormalizedIdentification({
   for (const item of discoveredReleases || []) {
     if (!item?.id) continue;
     releaseMap.set(item.id, item);
-    if (item.releaseGroupId) {
-      addGroup({ id: item.releaseGroupId, title: item.title });
-    }
+    if (item.releaseGroupId) {addGroup({ id: item.releaseGroupId, title: item.title });}
   }
   if (release) addRelease(release);
   for (const candidate of releaseCandidates) {
@@ -3141,10 +2575,7 @@ function buildNormalizedIdentification({
     });
   }
   if (!releaseMap.size && (release || identity.album || local?.album))
-    addRelease(release, {
-      title: release?.title || identity.album || local.album,
-      cover,
-    });
+    addRelease(release, {title: release?.title || identity.album || local.album, cover});
 
   const releaseIds = [...releaseMap.keys()];
   const releaseGroups = [...groupMap.values()].map((group) => ({
@@ -3171,10 +2602,7 @@ function buildNormalizedIdentification({
         candidate.raw?.collectionName ||
         candidate.raw?.album?.title ||
         candidate.album;
-      if (
-        normalizeComparable(candidateReleaseTitle) !==
-        normalizeComparable(item.title)
-      )
+      if (normalizeComparable(candidateReleaseTitle) !== normalizeComparable(item.title))
         continue;
       for (const artist of candidate.artistCredits?.length
         ? candidate.artistCredits
@@ -3195,13 +2623,7 @@ function buildNormalizedIdentification({
 
   const normalizedReleases = rankReleases(
     [...releaseMap.values()],
-    {
-      recordingId,
-      title: identity.title,
-      album: identity.album,
-      artist: identity.artist,
-      artists,
-    },
+    {recordingId, title: identity.title, album: identity.album, artist: identity.artist, artists},
     { limit: Infinity },
   );
   const normalizedRecording = createRecording({
@@ -3221,11 +2643,7 @@ function buildNormalizedIdentification({
     musicBrainzRecordingId: recordingId,
     acoustid: findAcoustID(identity.candidates),
     localMetadata: local,
-    identifiedMetadata: {
-      recording,
-      releases: normalizedReleases,
-      releaseGroups,
-    },
+    identifiedMetadata: {recording, releases: normalizedReleases, releaseGroups},
     identification: {
       artistCredits,
       recordingConfidence: identity.confidence,
@@ -3275,9 +2693,7 @@ function discoverNormalizedReleases(recordings, recordingContext) {
     }
   }
 
-  return rankReleases([...releaseMap.values()], recordingContext, {
-    limit: Infinity,
-  });
+  return rankReleases([...releaseMap.values()], recordingContext, {limit: Infinity});
 }
 
 function recordingCandidateView(identity, recording, relatedReleases) {
@@ -3333,9 +2749,7 @@ function genreResolutionSources(candidates, genres) {
   return sources;
 }
 
-// ============================================================================
 // VALIDACIÓN
-// ============================================================================
 
 function validateIdentity(identity, context) {
   const problems = [];
@@ -3360,26 +2774,16 @@ function validateIdentity(identity, context) {
   const durationScore = durationSimilarity(identity.duration, context.duration);
 
   const hasStrongProvider = identity.providers.some((provider) =>
-    ["acoustid", "musicbrainz_isrc", "musicbrainz", "optional"].includes(
-      provider,
-    ),
+    ["acoustid", "musicbrainz_isrc", "musicbrainz", "optional"].includes(provider),
   );
 
-  if (!title) {
-    problems.push("missing-title");
-  }
+  if (!title) {problems.push("missing-title");}
 
-  if (!artist) {
-    problems.push("missing-artist");
-  }
+  if (!artist) {problems.push("missing-artist");}
 
-  if (titleScore < CONFIG.identification.minTitleSimilarity) {
-    problems.push("title-mismatch");
-  }
+  if (titleScore < CONFIG.identification.minTitleSimilarity) {problems.push("title-mismatch");}
 
-  if (artistScore < CONFIG.identification.minArtistSimilarity) {
-    problems.push("artist-mismatch");
-  }
+  if (artistScore < CONFIG.identification.minArtistSimilarity) {problems.push("artist-mismatch");}
 
   const hasAcousticProvider = identity.providers.some((provider) =>
     ["acoustid", "optional"].includes(provider),
@@ -3389,9 +2793,7 @@ function validateIdentity(identity, context) {
     context.duration > 0 &&
     identity.duration > 0 &&
     durationScore < 0.35
-  ) {
-    problems.push("duration-mismatch");
-  }
+  ) {problems.push("duration-mismatch");}
 
   const valid =
     problems.length === 0 &&
@@ -3459,24 +2861,14 @@ function hasReliableFingerprintEvidence(identity) {
 
 function isStrongIdentity(identity) {
   return identity.providers.some((provider) =>
-    [
-      "acoustid",
-      "musicbrainz_isrc",
-      "musicbrainz",
-      "itunes",
-      "optional",
-    ].includes(provider),
+    ["acoustid", "musicbrainz_isrc", "musicbrainz", "itunes", "optional"].includes(provider),
   );
 }
 
 function identitiesHaveDifferentEvidence(first, second) {
-  if (first.recordingId && second.recordingId) {
-    return first.recordingId !== second.recordingId;
-  }
+  if (first.recordingId && second.recordingId) {return first.recordingId !== second.recordingId;}
 
-  if (first.isrc && second.isrc) {
-    return first.isrc !== second.isrc;
-  }
+  if (first.isrc && second.isrc) {return first.isrc !== second.isrc;}
 
   return (
     similarity(first.title, second.title) < 0.94 ||
@@ -3484,9 +2876,7 @@ function identitiesHaveDifferentEvidence(first, second) {
   );
 }
 
-// ============================================================================
 // METADATA FINAL
-// ============================================================================
 
 function buildMetadata({
   identity,
@@ -3548,9 +2938,7 @@ function buildMetadata({
       local?.year,
   );
 
-  if (!year) {
-    year = identity.year || "";
-  }
+  if (!year) {year = identity.year || "";}
 
   const track =
     consensus?.track?.value ||
@@ -3619,9 +3007,7 @@ function buildMetadata({
 
     musicBrainzReleaseId: safeString(release?.id || identity.releaseId),
 
-    musicBrainzReleaseGroupId: safeString(
-      releaseGroup?.id || identity.releaseGroupId,
-    ),
+    musicBrainzReleaseGroupId: safeString(releaseGroup?.id || identity.releaseGroupId),
 
     isrc: normalizeIsrc(recording?.isrcs?.[0] || identity.isrc),
 
@@ -3643,9 +3029,7 @@ function findTrackNumber(recording, release) {
       if (
         track?.recording?.id === recording?.id ||
         track?.recording?.title === recording?.title
-      ) {
-        return safeString(track.position);
-      }
+      ) {return safeString(track.position);}
     }
   }
 
@@ -3665,9 +3049,7 @@ function findDiskNumber(recording, release) {
 
   for (const medium of media) {
     for (const track of medium?.tracks || []) {
-      if (track?.recording?.id === recording?.id) {
-        return safeString(medium.position);
-      }
+      if (track?.recording?.id === recording?.id) {return safeString(medium.position);}
     }
   }
 
@@ -3683,14 +3065,10 @@ function findDiskTotal(release) {
 function findAcoustID(candidates) {
   const candidate = candidates?.find((item) => item.provider === "acoustid");
 
-  return safeString(
-    candidate?.raw?.acoustid?.id || candidate?.raw?.acoustid?.recordingid || "",
-  );
+  return safeString(candidate?.raw?.acoustid?.id || candidate?.raw?.acoustid?.recordingid || "");
 }
 
-// ============================================================================
 // IDENTIFICACIÓN PRINCIPAL
-// ============================================================================
 
 // Pasos que sigue la identificación, en orden. La UI los usa para mostrar el
 // avance real del análisis; el motor los reporta vía `onProgress`.
@@ -3728,10 +3106,7 @@ function createProgressReporter(onProgress) {
   };
 }
 
-export async function identifyAudio(file, { onProgress } = {}) {
-  if (!file) {
-    return null;
-  }
+export async function identifyAudio(file, { onProgress } = {}) {if (!file) { return null;}
 
   const report = createProgressReporter(onProgress);
 
@@ -3745,9 +3120,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     optionalProvider: CONFIG.optionalProvider.enabled,
   });
 
-  // --------------------------------------------------------------------------
   // 1. Metadata local
-  // --------------------------------------------------------------------------
 
   report("local", "active");
 
@@ -3757,23 +3130,15 @@ export async function identifyAudio(file, { onProgress } = {}) {
 
   report("local", "complete", local.title || local.artist || "");
 
-  // --------------------------------------------------------------------------
   // 2. Filename
-  // --------------------------------------------------------------------------
 
   const filename = parseFilename(file.name);
 
   diagnostics.evidence.filename = filename;
 
-  const context = {
-    local,
-    filename,
-    duration: local.duration || 0,
-  };
+  const context = {local, filename, duration: local.duration || 0};
 
-  // --------------------------------------------------------------------------
   // 3. Fingerprint
-  // --------------------------------------------------------------------------
 
   let fingerprintData = null;
   let acoustidCandidates = [];
@@ -3800,18 +3165,13 @@ export async function identifyAudio(file, { onProgress } = {}) {
     fingerprintData?.fingerprint ? "Huella lista" : "Sin huella",
   );
 
-  // --------------------------------------------------------------------------
   // 4. AcoustID
-  // --------------------------------------------------------------------------
 
   report("acoustid", "active");
 
   if (fingerprintData?.fingerprint) {
     await runProvider(diagnostics, "acoustid", async () => {
-      acoustidCandidates = await queryAcoustID(
-        fingerprintData.fingerprint,
-        fingerprintData.duration,
-      );
+      acoustidCandidates = await queryAcoustID(fingerprintData.fingerprint, fingerprintData.duration);
 
       return acoustidCandidates;
     });
@@ -3836,9 +3196,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
   } else {
     const attempt = beginAttempt(diagnostics, "acoustid");
 
-    finishAttempt(attempt, "skipped", 0, {
-      reason: "fingerprint-unavailable",
-    });
+    finishAttempt(attempt, "skipped", 0, {reason: "fingerprint-unavailable"});
 
     log.error(
       "acoustid",
@@ -3848,9 +3206,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     report("acoustid", "failed", "Sin huella acústica");
   }
 
-  // --------------------------------------------------------------------------
   // 5. ISRC directo desde metadata local
-  // --------------------------------------------------------------------------
 
   let isrcCandidates = [];
 
@@ -3862,12 +3218,9 @@ export async function identifyAudio(file, { onProgress } = {}) {
   } else {
     const attempt = beginAttempt(diagnostics, "musicbrainz_isrc");
 
-    finishAttempt(attempt, "skipped", 0, {
-      reason: "no-local-isrc",
-    });
+    finishAttempt(attempt, "skipped", 0, {reason: "no-local-isrc"});
   }
 
-  // --------------------------------------------------------------------------
   // 6. Fuentes textuales
   //
   // AcoustID ya consulta MusicBrainz internamente y devuelve título, artistas
@@ -3875,7 +3228,6 @@ export async function identifyAudio(file, { onProgress } = {}) {
   // búsqueda textual de MusicBrainz es redundante (y la más limitada por el
   // rate limit de 1 req/s), así que se omite. iTunes, Deezer y LRCLIB se
   // mantienen porque aportan portadas y géneros que AcoustID no trae.
-  // --------------------------------------------------------------------------
 
   report("providers", "active");
 
@@ -3886,9 +3238,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
   if (strongAcousticMatch) {
     const attempt = beginAttempt(diagnostics, "musicbrainz");
 
-    finishAttempt(attempt, "skipped", 0, {
-      reason: "covered-by-acoustid-fingerprint",
-    });
+    finishAttempt(attempt, "skipped", 0, {reason: "covered-by-acoustid-fingerprint"});
   }
 
   const [
@@ -3925,9 +3275,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
 
   report("providers", "complete");
 
-  // --------------------------------------------------------------------------
   // 7. Todos los candidatos
-  // --------------------------------------------------------------------------
 
   const allCandidates = [
     ...acoustidCandidates,
@@ -3939,9 +3287,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     ...(optionalCandidates || []),
   ];
 
-  for (const candidate of allCandidates) {
-    candidate.rawScore = scoreCandidate(candidate, context);
-  }
+  for (const candidate of allCandidates) {candidate.rawScore = scoreCandidate(candidate, context);}
 
   diagnostics.candidateCount = allCandidates.length;
   diagnostics.evidence.allCandidates = allCandidates;
@@ -3968,10 +3314,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     afterDedupe: deduplicateRecordingCandidates(allCandidates, recordingContext)
       .length,
     afterSimilarity: rankedRecordingCandidates.length,
-    final: Math.min(
-      rankedRecordingCandidates.length,
-      IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
-    ),
+    final: Math.min(rankedRecordingCandidates.length, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
   };
   diagnostics.evidence.recordingCandidateLimit =
     IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS;
@@ -3996,9 +3339,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     };
   }
 
-  // --------------------------------------------------------------------------
   // 8. Agrupación
-  // --------------------------------------------------------------------------
 
   report("grouping", "active");
 
@@ -4031,9 +3372,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
       return b.confidence - a.confidence;
     });
 
-  // --------------------------------------------------------------------------
   // 9. Diagnóstico de candidatos
-  // --------------------------------------------------------------------------
 
   log.debug("grouping", `${identities.length} identidad(es) agrupada(s)`);
 
@@ -4048,9 +3387,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     })),
   );
 
-  // --------------------------------------------------------------------------
   // 10. Elegir ganador
-  // --------------------------------------------------------------------------
 
   let winner = selectBestIdentity(identities, context);
 
@@ -4065,10 +3402,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
       musicBrainzRecordingId: "",
       diagnostics,
       candidates: [],
-      recordingCandidates: identities.slice(
-        0,
-        IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
-      ),
+      recordingCandidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
     };
   }
 
@@ -4081,10 +3415,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
   const audioIdentities = identities.filter(hasReliableFingerprintEvidence);
   const hasAcousticIdentity =
     audioIdentities.length > 0 || acousticCandidates.length > 0;
-  const winnerValidationBeforeFingerprintFallback = validateIdentity(
-    winner,
-    context,
-  );
+  const winnerValidationBeforeFingerprintFallback = validateIdentity(winner, context);
   if (
     fingerprintAvailable &&
     !hasAcousticIdentity &&
@@ -4117,11 +3448,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     };
   }
 
-  const mergedWinnerCandidates = mergeCompatibleCandidates(
-    winner,
-    allCandidates,
-    context,
-  );
+  const mergedWinnerCandidates = mergeCompatibleCandidates(winner, allCandidates, context);
 
   const enrichmentCandidates = [
     ...new Set([
@@ -4143,9 +3470,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
 
   winner.validation = validation;
 
-  // --------------------------------------------------------------------------
   // 11. Evidencia competida
-  // --------------------------------------------------------------------------
   // Una diferencia pequeña entre candidatos no debe bloquear el editor:
   // el usuario necesita recibir una propuesta completa y poder revisarla.
   // Solo la validación de identidad decide si el resultado es utilizable.
@@ -4184,16 +3509,11 @@ export async function identifyAudio(file, { onProgress } = {}) {
       musicBrainzRecordingId: winner.recordingId || "",
       diagnostics,
       candidates: identities.slice(0, 10),
-      recordingCandidates: identities.slice(
-        0,
-        IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
-      ),
+      recordingCandidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
     };
   }
 
-  // --------------------------------------------------------------------------
   // 12. Enriquecimiento MusicBrainz
-  // --------------------------------------------------------------------------
 
   report("grouping", "complete");
   report("enrichment", "active");
@@ -4253,11 +3573,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
           : [identity.artist],
       },
     );
-    return recordingCandidateView(
-      identity,
-      candidateRecording,
-      relatedReleases,
-    );
+    return recordingCandidateView(identity, candidateRecording, relatedReleases);
   });
 
   const winnerDiscoveredReleases =
@@ -4334,9 +3650,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
 
   report("enrichment", "complete");
 
-  // --------------------------------------------------------------------------
   // 13. Géneros
-  // --------------------------------------------------------------------------
 
   report("genres", "active");
 
@@ -4361,9 +3675,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
       : "Sin géneros",
   );
 
-  // --------------------------------------------------------------------------
   // 14. Cover
-  // --------------------------------------------------------------------------
 
   report("cover", "active");
 
@@ -4375,10 +3687,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
   // La portada del release exacto tiene prioridad absoluta. Los proveedores
   // textuales suelen devolver la portada del álbum padre incluso cuando la
   // grabación también tiene un single con otra portada.
-  const releaseCandidateCover = chooseBestCover(
-    enrichmentCandidates,
-    release?.title || winner.album,
-  );
+  const releaseCandidateCover = chooseBestCover(enrichmentCandidates, release?.title || winner.album);
   const cover = mbCover || releaseCandidateCover || "";
 
   if (release && cover) {
@@ -4389,9 +3698,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
     ];
   }
 
-  // --------------------------------------------------------------------------
   // 15. Metadata final
-  // --------------------------------------------------------------------------
 
   const metadata = buildMetadata({
     identity: winner,
@@ -4462,14 +3769,9 @@ export async function identifyAudio(file, { onProgress } = {}) {
     // A recording is the only entity exposed to the application. MusicBrainz
     // release data may be consulted internally as metadata evidence, but never
     // becomes a relationship, candidate, or artwork owner in Calliope.
-    evidence: {
-      ...normalized.evidence,
-      release: undefined,
-    },
+    evidence: {...normalized.evidence, release: undefined},
 
-    confidenceByEntity: {
-      recordingConfidence: normalized.confidence.recordingConfidence,
-    },
+    confidenceByEntity: {recordingConfidence: normalized.confidence.recordingConfidence},
 
     confidence: winner.confidence,
 
@@ -4479,10 +3781,7 @@ export async function identifyAudio(file, { onProgress } = {}) {
 
     diagnostics,
 
-    candidates: identities.slice(
-      0,
-      IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS,
-    ),
+    candidates: identities.slice(0, IDENTIFICATION_LIMITS.MAX_CANDIDATE_RECORDINGS),
 
     recordingCandidates: discoveredRecordingEntries,
 
@@ -4497,10 +3796,6 @@ export async function identifyAudio(file, { onProgress } = {}) {
   };
 }
 
-// ============================================================================
 // DEFAULT EXPORT
-// ============================================================================
 
-export default {
-  identifyAudio,
-};
+export default {identifyAudio};

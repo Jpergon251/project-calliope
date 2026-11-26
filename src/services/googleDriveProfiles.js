@@ -2,6 +2,7 @@ import { reactive } from "vue";
 import { isTauriEnvironment } from "./tauriBridge.js";
 import {
   MAX_PROFILE_ARCHIVE_BYTES,
+  openProfileDb,
   profileArchiveFileName,
   serializeProfileArchive,
   validateProfileArchive,
@@ -27,21 +28,11 @@ export const driveSyncStatuses = reactive({});
 let googleIdentityPromise = null;
 let syncLifecycleInitialized = false;
 
-async function openProfileDb() {
-  return (await import("../lib/db.js")).dbPromise;
-}
+function getClientId() {return import.meta.env?.VITE_GOOGLE_CLIENT_ID?.trim() || "";}
 
-function getClientId() {
-  return import.meta.env?.VITE_GOOGLE_CLIENT_ID?.trim() || "";
-}
+export function isGoogleDriveConfigured() {return Boolean(getClientId());}
 
-export function isGoogleDriveConfigured() {
-  return Boolean(getClientId());
-}
-
-export function getDriveProfileArchiveName(profile) {
-  return profileArchiveFileName(profile);
-}
+export function getDriveProfileArchiveName(profile) {return profileArchiveFileName(profile);}
 
 export function validateDriveProfileArchiveIdentity(input, profile) {
   const { archive } = validateProfileArchive(input);
@@ -63,13 +54,9 @@ function assertWebOAuthAvailable() {
   }
 }
 
-function settingsKey(profileId) {
-  return `${LINK_KEY_PREFIX}${profileId}`;
-}
+function settingsKey(profileId) {return `${LINK_KEY_PREFIX}${profileId}`;}
 
-function syncSettingsKey(profileId) {
-  return `${SYNC_KEY_PREFIX}${profileId}`;
-}
+function syncSettingsKey(profileId) {return `${SYNC_KEY_PREFIX}${profileId}`;}
 
 async function getDriveSyncMetadata(profileId) {
   const db = await openProfileDb();
@@ -173,9 +160,7 @@ async function assertDriveSyncCurrent(profileId, accountId, accessToken, epoch) 
   }
 }
 
-function isOnline() {
-  return typeof navigator === "undefined" || navigator.onLine !== false;
-}
+function isOnline() {return typeof navigator === "undefined" || navigator.onLine !== false;}
 
 export async function getProfileDriveLink(profileId) {
   if (!profileId) return null;
@@ -210,10 +195,7 @@ function loadGoogleIdentityServices() {
       script.defer = true;
       document.head.appendChild(script);
     }
-  }).catch((error) => {
-    googleIdentityPromise = null;
-    throw error;
-  });
+  }).catch((error) => {googleIdentityPromise = null; throw error;});
   return googleIdentityPromise;
 }
 
@@ -261,9 +243,7 @@ function requestAccessToken({ prompt = "select_account consent" } = {}) {
       () => finish(reject, new Error("La autorización de Google se cerró o tardó demasiado. Inténtalo de nuevo.")),
       120_000,
     );
-    try {
-      client.requestAccessToken();
-    } catch (error) {
+    try {client.requestAccessToken();} catch (error) {
       finish(reject, error);
     }
   });
@@ -296,9 +276,7 @@ async function authorizeProfile(profileId, { connect = false } = {}) {
     return { ...cached, link: cachedLink };
   }
 
-  const tokenPromise = requestAccessToken({
-    prompt: connect ? "select_account consent" : "",
-  });
+  const tokenPromise = requestAccessToken({prompt: connect ? "select_account consent" : ""});
   const existingLink = linkCache.has(profileId)
     ? cachedLink
     : await getProfileDriveLink(profileId);
@@ -340,9 +318,7 @@ export async function connectGoogleDrive(profileId) {
   return authorized.link;
 }
 
-export async function authorizeGoogleDriveProfile(profileId) {
-  await authorizeProfile(profileId);
-}
+export async function authorizeGoogleDriveProfile(profileId) {await authorizeProfile(profileId);}
 
 export async function disconnectGoogleDrive(profileId) {
   if (!profileId) return;
@@ -367,9 +343,7 @@ export function clearGoogleDriveToken(profileId) {
   delete driveSyncStatuses[profileId];
 }
 
-function escapeDriveQuery(value) {
-  return String(value).replaceAll("\\", "\\\\").replaceAll("'", "\\'");
-}
+function escapeDriveQuery(value) {return String(value).replaceAll("\\", "\\\\").replaceAll("'", "\\'");}
 
 export function createGoogleDriveApi(accessToken, { onUnauthorized = () => {}, signal } = {}) {
   async function getDriveErrorReason(response) {
@@ -381,9 +355,7 @@ export function createGoogleDriveApi(accessToken, { onUnauthorized = () => {}, s
         if (reason) return reason;
       }
       return typeof body?.error?.status === "string" ? body.error.status : "";
-    } catch {
-      return "";
-    }
+    } catch {return "";}
   }
 
   async function request(url, options = {}) {
@@ -511,9 +483,7 @@ export function createGoogleDriveApi(accessToken, { onUnauthorized = () => {}, s
           throw new Error(`Hay varias carpetas «${name}» en la raíz de Drive. Resuelve el conflicto antes de continuar.`);
         }
         parentMatches = rootMatches[0]?.id === known.id;
-      } else {
-        parentMatches = known.parents?.includes(parentId);
-      }
+      } else {parentMatches = known.parents?.includes(parentId);}
       if (known.mimeType !== "application/vnd.google-apps.folder" || !parentMatches || known.name !== name) {
         throw new Error(`La carpeta de Drive «${name}» cambió de nombre o ubicación. No se creará otra automáticamente.`);
       }
@@ -564,11 +534,7 @@ export function createGoogleDriveApi(accessToken, { onUnauthorized = () => {}, s
     }
 
     const boundary = `calliope_${crypto.randomUUID()}`;
-    const metadata = JSON.stringify({
-      name: fileName,
-      mimeType: "application/json",
-      parents: [folderId],
-    });
+    const metadata = JSON.stringify({name: fileName, mimeType: "application/json", parents: [folderId]});
     const body = [
       `--${boundary}`,
       "Content-Type: application/json; charset=UTF-8",
@@ -658,10 +624,7 @@ async function loadCurrentProfile(profileId) {
 
 async function readDriveSnapshot(profile, link, api, { confirmCreateStructure = false } = {}) {
   let resolved;
-  try {
-    resolved = await resolveProfileDrive(profile, link, api, {
-      createMissing: false,
-    });
+  try {resolved = await resolveProfileDrive(profile, link, api, { createMissing: false});
   } catch (error) {
     if (!confirmCreateStructure) throw error;
     resolved = await resolveProfileDrive(profile, link, api, {
@@ -678,18 +641,14 @@ async function readDriveSnapshot(profile, link, api, { confirmCreateStructure = 
   if (
     fileMetadata.mimeType !== "application/json"
     || !fileMetadata.parents?.includes(resolved.profileFolder.id)
-  ) {
-    throw new Error("El archivo candidato de Drive cambió de tipo o ubicación. No se modificó.");
-  }
+  ) {throw new Error("El archivo candidato de Drive cambió de tipo o ubicación. No se modificó.");}
   const serialized = await api.downloadFile(file.id);
   if (new TextEncoder().encode(serialized).byteLength > MAX_PROFILE_ARCHIVE_BYTES) {
     throw new Error("El archivo remoto supera el límite permitido; no se modificó.");
   }
 
   let archive;
-  try {
-    archive = validateProfileArchive(JSON.parse(serialized)).archive;
-  } catch (error) {
+  try {archive = validateProfileArchive(JSON.parse(serialized)).archive;} catch (error) {
     throw new Error(`El archivo remoto no es un respaldo válido y no se reemplazó. ${error.message}`);
   }
   if (archive.profile.id !== profile.id) {
@@ -780,10 +739,7 @@ async function persistDriveConflict(profileId, localSnapshot, remoteSnapshot, me
 
 async function importDriveSnapshot(profileId, archive) {
   const db = await openProfileDb();
-  const [currentSongs, currentAlbums] = await Promise.all([
-    db.getAll("songs"),
-    db.getAll("albums"),
-  ]);
+  const [currentSongs, currentAlbums] = await Promise.all([db.getAll("songs"), db.getAll("albums")]);
   const { importProfileArchive } = await import("./profileArchives.js");
   await importProfileArchive(archive, {
     mode: "update",
@@ -850,11 +806,7 @@ async function performDriveProfileSync(profileId, {
   }
   const localArchive = JSON.parse(serialized);
   validateDriveProfileArchiveIdentity(localArchive, profile);
-  const localSnapshot = {
-    serialized,
-    archive: localArchive,
-    hash: await hashArchive(serialized),
-  };
+  const localSnapshot = {serialized, archive: localArchive, hash: await hashArchive(serialized)};
   const previous = await getDriveSyncMetadata(profileId);
   await updateDriveSyncStatus(profileId, "syncing", {
     localHash: localSnapshot.hash,
@@ -952,10 +904,7 @@ async function performDriveProfileSync(profileId, {
   }
   if (action === "download-remote") {
     const latestLocalJson = await serializeProfileArchive(profileId);
-    const latestLocal = {
-      serialized: latestLocalJson,
-      hash: await hashArchive(latestLocalJson),
-    };
+    const latestLocal = {serialized: latestLocalJson, hash: await hashArchive(latestLocalJson)};
     if (
       latestLocal.hash !== localSnapshot.hash
       || (syncRevisions.get(profileId) || 0) !== startingRevision
@@ -1118,11 +1067,7 @@ export async function syncDriveProfileNow(profile, {
   if (existing) {
     const result = await existing;
     if (forceUpload && result?.status === "synced" && !result.updated) {
-      return syncDriveProfileNow(profile, {
-        confirmCreateStructure,
-        allowInitialUpload,
-        forceUpload,
-      });
+      return syncDriveProfileNow(profile, {confirmCreateStructure, allowInitialUpload, forceUpload});
     }
     if ((syncRevisions.get(profile.id) || 0) !== revision) {
       await scheduleDriveProfileSync(profile.id, 0);
@@ -1139,9 +1084,7 @@ export async function syncDriveProfileNow(profile, {
   });
   syncPromises.set(profile.id, operation);
   let result;
-  try {
-    result = await operation;
-  } catch (error) {
+  try {result = await operation;} catch (error) {
     const previous = await getDriveSyncMetadata(profile.id);
     if (
       error.code === "drive-first-save-confirmation-required"
@@ -1186,9 +1129,7 @@ export async function syncDriveProfileNow(profile, {
     syncPromises.delete(profile.id);
     if (syncControllers.get(profile.id) === controller) syncControllers.delete(profile.id);
   }
-  if ((syncRevisions.get(profile.id) || 0) !== revision) {
-    await scheduleDriveProfileSync(profile.id, 0);
-  }
+  if ((syncRevisions.get(profile.id) || 0) !== revision) {await scheduleDriveProfileSync(profile.id, 0);}
   return result;
 }
 
@@ -1285,18 +1226,11 @@ export async function inspectDriveProfileInitialization(profile) {
     onUnauthorized: () => tokenCache.delete(profile.id),
   });
   let remote;
-  try {
-    remote = await readDriveSnapshot(profile, link, api);
-  } catch (error) {
+  try {remote = await readDriveSnapshot(profile, link, api);} catch (error) {
     if (error.code !== "drive-folder-missing") throw error;
     remote = null;
   }
-  await assertDriveSyncCurrent(
-    profile.id,
-    link.accountId,
-    accessToken,
-    syncEpochs.get(profile.id) || 0,
-  );
+  await assertDriveSyncCurrent(profile.id, link.accountId, accessToken, syncEpochs.get(profile.id) || 0);
   const currentProfile = await loadCurrentProfile(profile.id);
   if (normalizeUsername(currentProfile.username) !== normalizeUsername(profile.username)) {
     throw new Error("El perfil seleccionado cambió durante la revisión de Drive.");
@@ -1341,9 +1275,7 @@ export async function resolveDriveProfileInitialization(profile, choice, expecte
   }
 
   let remote;
-  try {
-    remote = await readDriveSnapshot(currentProfile, link, api);
-  } catch (error) {
+  try {remote = await readDriveSnapshot(currentProfile, link, api);} catch (error) {
     if (error.code !== "drive-folder-missing") throw error;
     remote = null;
   }
@@ -1421,9 +1353,7 @@ export async function resolveDriveProfileInitialization(profile, choice, expecte
   if (
     await hashArchive(afterUpload) !== localHash
     || (syncRevisions.get(profile.id) || 0) !== startingRevision
-  ) {
-    await scheduleDriveProfileSync(profile.id, DRIVE_SYNC_DEBOUNCE_MS);
-  }
+  ) {await scheduleDriveProfileSync(profile.id, DRIVE_SYNC_DEBOUNCE_MS);}
   return { choice, savedAt: Date.now(), updated: true };
 }
 
@@ -1545,9 +1475,7 @@ async function performDriveProfileConflictResolution(profileId, choice, signal) 
   const remoteArchive = validateDriveProfileArchiveIdentity(JSON.parse(conflict.remoteJson), profile);
   await assertDriveSyncCurrent(profileId, link.accountId, accessToken, syncEpoch);
   await importDriveSnapshot(profileId, remoteArchive);
-  try {
-    await assertDriveSyncCurrent(profileId, link.accountId, accessToken, syncEpoch);
-  } catch (error) {
+  try {await assertDriveSyncCurrent(profileId, link.accountId, accessToken, syncEpoch);} catch (error) {
     const latestJson = await serializeProfileArchive(profileId);
     if (await hashArchive(latestJson) === conflict.remoteHash) {
       await importDriveSnapshot(profileId, JSON.parse(currentLocal));
@@ -1584,17 +1512,12 @@ async function performDriveProfileConflictResolution(profileId, choice, signal) 
 
 export async function resolveDriveProfileConflict(profileId, choice) {
   const existing = syncPromises.get(profileId);
-  if (existing) {
-    await existing;
-    return resolveDriveProfileConflict(profileId, choice);
-  }
+  if (existing) {await existing; return resolveDriveProfileConflict(profileId, choice);}
   const controller = new AbortController();
   syncControllers.set(profileId, controller);
   const operation = performDriveProfileConflictResolution(profileId, choice, controller.signal);
   syncPromises.set(profileId, operation);
-  try {
-    return await operation;
-  } finally {
+  try {return await operation;} finally {
     syncPromises.delete(profileId);
     if (syncControllers.get(profileId) === controller) syncControllers.delete(profileId);
   }
@@ -1603,10 +1526,7 @@ export async function resolveDriveProfileConflict(profileId, choice) {
 export async function getDriveProfileConflictBackups(profileId) {
   const state = await getDriveSyncMetadata(profileId);
   if (!state?.conflict) throw new Error("No hay copias de conflicto disponibles.");
-  return {
-    localJson: state.conflict.localJson,
-    remoteJson: state.conflict.remoteJson,
-  };
+  return {localJson: state.conflict.localJson, remoteJson: state.conflict.remoteJson};
 }
 
 export async function recordDriveProfileRestore(profile, restoredArchive) {
@@ -1767,10 +1687,7 @@ export async function renameDriveProfileFolder(profile, nextName) {
   }
   const response = await fetch(`${DRIVE_API}/files/${encodeURIComponent(existing.id)}?fields=id,name,mimeType,parents`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: {Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json"},
     body: JSON.stringify({ name }),
   });
   if (!response.ok) {

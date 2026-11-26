@@ -133,14 +133,10 @@ function openModal() {
   coverLoadError.value = false;
   showModal.value = true;
 
-  nextTick(() => {
-    nameInputRef.value?.focus();
-  });
+  nextTick(() => {nameInputRef.value?.focus();});
 }
 
-function closeModal() {
-  showModal.value = false;
-}
+function closeModal() {showModal.value = false;}
 
 function createPlaylist() {
   if (!newPlaylistName.value.trim()) return;
@@ -154,7 +150,5 @@ function createPlaylist() {
 }
 
 // Expone el método openModal para uso mediante ref
-defineExpose({
-  openModal
-});
+defineExpose({openModal});
 </script>

@@ -50,9 +50,7 @@ const playlist = computed(() =>
 const playlistSongs = computed(() => {
   if (!playlist.value) return [];
 
-  if (playlist.value.id === "all") {
-    return library.songs;
-  }
+  if (playlist.value.id === "all") {return library.songs;}
 
   const orderedIds =
     playlist.value.id === library.FAVORITES_PLAYLIST_ID
@@ -66,21 +64,14 @@ const playlistSongs = computed(() => {
   return orderedIds.map((id) => songsById.get(id)).filter(Boolean);
 });
 
-const playlistMainCover = computed(() => {
-  return playlist.value?.cover || null;
-});
+const playlistMainCover = computed(() => {return playlist.value?.cover || null;});
 
 watch(
   playlist,
-  (pl) => {
-    if (pl) {
-      library.recordPlaylistPlayed(pl, playlistSongs.value.length);
-    }
+  (pl) => {if (pl) { library.recordPlaylistPlayed(pl, playlistSongs.value.length);}
   },
   { immediate: true },
 );
-
-
 
 function openEditModal() {
   if (!playlist.value) return;
@@ -101,8 +92,6 @@ const isSortablePlaylist = computed(
 );
 
 function handleReorder(songIds) {
-  if (playlist.value?.id) {
-    library.reorderPlaylistSongs(playlist.value.id, songIds);
-  }
+  if (playlist.value?.id) {library.reorderPlaylistSongs(playlist.value.id, songIds);}
 }
 </script>

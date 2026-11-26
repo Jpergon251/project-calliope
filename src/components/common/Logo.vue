@@ -7,5 +7,4 @@
         <span class="app-name"> CALLIOPE</span>
     </section>
 
-
 </template>

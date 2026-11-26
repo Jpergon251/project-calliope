@@ -1,24 +1,17 @@
-// =============================================================
 // Sistema central de portadas
-// -------------------------------------------------------------
 // Regla de oro:
 //  - En IndexedDB SOLO se guardan Blobs o URLs http(s)/data.
 //  - Las URLs "blob:" son efímeras (mueren al recargar), por lo
 //    que nunca deben persistirse. Este módulo centraliza la
 //    detección, saneamiento y resolución de portadas.
-// =============================================================
 
 const blobUrlCache = new WeakMap(); // Blob -> objectURL
 
 /** ¿Es una URL de objeto efímera (muere al recargar)? */
-export function isBlobUrl(cover) {
-  return typeof cover === "string" && cover.startsWith("blob:");
-}
+export function isBlobUrl(cover) {return typeof cover === "string" && cover.startsWith("blob:");}
 
 /** ¿Es un dato binario guardable en IndexedDB? */
-export function isBinaryCover(cover) {
-  return cover instanceof Blob || cover instanceof File;
-}
+export function isBinaryCover(cover) {return cover instanceof Blob || cover instanceof File;}
 
 /** ¿Es una portada persistible tal cual (http/data URL)? */
 export function isStorableUrl(cover) {
@@ -49,21 +42,11 @@ export function toDisplayUrl(cover) {
   if (!cover) return null;
   if (isBinaryCover(cover)) {
     let url = blobUrlCache.get(cover);
-    if (!url) {
-      url = URL.createObjectURL(cover);
-      blobUrlCache.set(cover, url);
-    }
+    if (!url) {url = URL.createObjectURL(cover); blobUrlCache.set(cover, url);}
     return url;
   }
-  if (typeof cover === "string" && cover.trim().length > 0) {
-    return cover.trim();
-  }
+  if (typeof cover === "string" && cover.trim().length > 0) {return cover.trim();}
   return null;
-}
-
-/** Libera object URLs en caché (opcional, p.ej. al vaciar biblioteca). */
-export function clearCoverCache() {
-  // WeakMap no es iterable; se libera solo con el GC. Reservado por simetría.
 }
 
 /**
@@ -106,15 +89,11 @@ export function resolveHistoryCover(library, entry) {
   }
 
   // 1. Si encontramos el recurso vivo en la sesión actual, usarlo:
-  if (liveCover) {
-    return toDisplayUrl(liveCover);
-  }
+  if (liveCover) {return toDisplayUrl(liveCover);}
 
   // 2. Si el registro guardado contiene una URL blob: huérfana de una sesión
   // anterior, NO la devolvemos para evitar net::ERR_FILE_NOT_FOUND en consola.
-  if (isBlobUrl(entry.cover)) {
-    return null;
-  }
+  if (isBlobUrl(entry.cover)) {return null;}
 
   // 3. Si era una URL externa http o data: válida, devolverla:
   return toDisplayUrl(entry.cover);
@@ -123,7 +102,7 @@ export function resolveHistoryCover(library, entry) {
 /**
  * Reduce y comprime una imagen local a un Blob JPEG para almacenamiento eficiente en IndexedDB.
  */
-export function downscaleImage(file, maxSize = 640) {
+export function downscaleImage(file, maxWidth = 640, maxHeight = maxWidth, quality = 0.88) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       return reject(new Error('Archivo no es una imagen válida'));
@@ -131,23 +110,25 @@ export function downscaleImage(file, maxSize = 640) {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      const scale = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return reject(new Error('No se pudo crear el contexto del canvas.'));
+      }
       ctx.drawImage(img, 0, 0, w, h);
+      const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
       canvas.toBlob(blob => {
         URL.revokeObjectURL(url);
         blob ? resolve(blob) : reject(new Error('No se pudo procesar la imagen'));
-      }, 'image/jpeg', 0.88);
+      }, mimeType, quality);
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Error al cargar la imagen'));
-    };
+    img.onerror = () => {URL.revokeObjectURL(url); reject(new Error('Error al cargar la imagen'));};
     img.src = url;
   });
 }

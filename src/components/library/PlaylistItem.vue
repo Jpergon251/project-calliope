@@ -32,21 +32,14 @@
 
 <script setup>
 import MediaCard from "../common/MediaCard.vue";
-import { Music } from "lucide-vue-next";
 import IconCover from "../common/IconCover.vue";
 
 import { useLibraryStore } from "../../stores/libraryStore";
 
 const library = useLibraryStore();
 
-const props = defineProps({
-    playlist: {
-        type: Object,
-        required: true
-    }
+const props = defineProps({playlist: { type: Object, required: true}
 });
 
-function recordClick() {
-    library.recordPlaylistPlayed(props.playlist, props.playlist?.songIds?.length);
-}
+function recordClick() {library.recordPlaylistPlayed(props.playlist, props.playlist?.songIds?.length);}
 </script>

@@ -186,24 +186,21 @@ import { useUserStore } from '../stores/userStore.js';
 import CoverArt from '../components/common/CoverArt.vue';
 import NoFolderState from '../components/common/NoFolderState.vue';
 import { Music2, Play } from 'lucide-vue-next';
+import { formatDuration, formatTimeOfDay, playHistoryEntry } from '../lib/formatters.js';
 
 const library = useLibraryStore();
 const user = useUserStore();
 const router = useRouter();
 
 const isMobile = ref(false);
-function updateIsMobile() {
-  isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;
-}
+function updateIsMobile() {isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760;}
 onMounted(() => {
   updateIsMobile();
   window.addEventListener('resize', updateIsMobile);
 
   refreshQuickPicks();
 });
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateIsMobile);
-});
+onBeforeUnmount(() => {window.removeEventListener('resize', updateIsMobile);});
 
 // Dynamic Greeting based on real time
 const greetingMessage = computed(() => {
@@ -227,10 +224,7 @@ const jumpBackInItems = computed(() => {
   const items = [];
 
   for (const entry of history) {
-    if (!seen.has(entry.itemId)) {
-      seen.add(entry.itemId);
-      items.push(entry);
-    }
+    if (!seen.has(entry.itemId)) {seen.add(entry.itemId); items.push(entry);}
     if (items.length >= 6) break;
   }
   return items;
@@ -242,10 +236,7 @@ const quickPickSongs = ref([]);
 function refreshQuickPicks() {
   const all = library.songs || [];
 
-  if (all.length === 0) {
-    quickPickSongs.value = [];
-    return;
-  }
+  if (all.length === 0) {quickPickSongs.value = []; return;}
 
   quickPickSongs.value = library.smartShuffle(all).slice(0, 6);
 }
@@ -257,9 +248,7 @@ const topPlaylists = computed(() => {
 
   const counts = new Map();
   for (const item of history) {
-    if (item.type === 'playlist') {
-      counts.set(item.itemId, (counts.get(item.itemId) || 0) + 1);
-    }
+    if (item.type === 'playlist') {counts.set(item.itemId, (counts.get(item.itemId) || 0) + 1);}
   }
 
   if (counts.size === 0) return [];
@@ -281,58 +270,22 @@ const recentHistoryItems = computed(() => {
 });
 
 function getTypeName(type) {
-  switch (type) {
-    case 'playlist': return 'Playlist';
-    default: return 'Canción';
-  }
+  switch (type) {case 'playlist': return 'Playlist'; default: return 'Canción';}
 }
 
 // Portada en vivo: resuelta desde la biblioteca actual, nunca desde la
 // URL (posiblemente muerta) persistida en el registro del historial.
-function historyItemCover(item) {
-  return resolveHistoryCover(library, item);
+function historyItemCover(item) {return resolveHistoryCover(library, item);}
+
+const formatTime = (timestamp) => formatTimeOfDay(timestamp, '');
+
+function playSong(song) {library.playSong(song); if (isMobile.value) { library.openNowPlaying();}
 }
 
-function formatDuration(seconds) {
-  if (!seconds || Number.isNaN(seconds)) return '';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
+const playHistoryItem = (item) => playHistoryEntry(item, { library, router, isMobile: isMobile.value });
 
-function formatTime(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
+function goToAlbum(albumId) {router.push({ name: 'album', params: { id: albumId } });}
 
-function playSong(song) {
-  library.playSong(song);
-  if (isMobile.value) {
-    library.openNowPlaying();
-  }
-}
-
-function playHistoryItem(item) {
-  if (item.type === 'song') {
-    const song = library.songs.find(s => s.id === item.itemId);
-    if (song) playSong(song);
-  } else if (item.type === 'album') {
-    goToAlbum(item.itemId);
-  } else if (item.type === 'playlist') {
-    goToPlaylist(item.itemId);
-  }
-}
-
-function goToAlbum(albumId) {
-  router.push({ name: 'album', params: { id: albumId } });
-}
-
-function goToPlaylist(playlistId) {
-  router.push({ name: 'playlist', params: { playlistId } });
-}
-
+function goToPlaylist(playlistId) {router.push({ name: 'playlist', params: { playlistId } });}
 
 </script>

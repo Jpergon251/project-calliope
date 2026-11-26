@@ -1,35 +1,19 @@
-// =============================================================
 // Perfil y preferencias del usuario (100% local).
 // Perfiles locales almacenados en IndexedDB ("profiles").
 // Soporte para perfiles privados con contraseñas derivadas con PBKDF2 + salt.
 // Modo invitado temporal sin persistencia de datos.
-// =============================================================
 import { defineStore } from "pinia";
 import { computed, ref, toRaw, watch } from "vue";
 import { dbPromise } from "../lib/db.js";
 import { toDisplayUrl } from "../lib/covers.js";
-import {
-  generateProfileId,
-  hashPassword,
-  verifyPassword,
-} from "../lib/crypto.js";
-import {
-  getColorPalette,
-  normalizePaletteId,
-} from "../lib/colorPalettes.js";
-import { normalizeVisualizerStyle } from "../lib/visualizerStyles.js";
+import {generateProfileId, hashPassword, verifyPassword} from "../lib/crypto.js";
+import {getColorPalette, normalizePaletteId} from "../lib/colorPalettes.js";
+import { normalizeVisualizerStyle } from "../lib/visualizer.js";
 import { DEFAULT_PREFERENCES } from "../lib/profilePreferences.js";
-import {
-  findUsernameOwner,
-  normalizeUsername,
-  validateUsername,
-} from "../lib/profileIdentity.js";
+import {findUsernameOwner, normalizeUsername, validateUsername} from "../lib/profileIdentity.js";
 import { useLibraryStore } from "./libraryStore.js";
 import { scheduleProfileSync } from "../services/profileArchives.js";
-import {
-  clearGoogleDriveToken,
-  resumeDriveProfileSync,
-} from "../services/googleDriveProfiles.js";
+import {clearGoogleDriveToken, resumeDriveProfileSync} from "../services/googleDriveProfiles.js";
 
 const LS_LEGACY_KEY = "calliope-user-profile";
 const LS_SESSION_KEY = "calliope-active-session";
@@ -88,9 +72,7 @@ export const useUserStore = defineStore("user", () => {
       profile.value.avatarUrl &&
       typeof profile.value.avatarUrl === "string" &&
       profile.value.avatarUrl.trim().length > 0
-    ) {
-      return profile.value.avatarUrl.trim();
-    }
+    ) {return profile.value.avatarUrl.trim();}
     return toDisplayUrl(avatarBlob.value);
   });
   const bannerUrl = computed(() => toDisplayUrl(bannerBlob.value));
@@ -116,25 +98,16 @@ export const useUserStore = defineStore("user", () => {
   );
 
   function normalizeProfile(raw = {}) {
-    const preferences = {
-      ...DEFAULT_PREFERENCES,
-      ...(raw.preferences || {}),
-    };
+    const preferences = {...DEFAULT_PREFERENCES, ...(raw.preferences || {})};
     if (
       raw.preferences?.accentColor === undefined &&
       raw.accentColor !== undefined
-    ) {
-      preferences.accentColor = raw.accentColor;
-    }
+    ) {preferences.accentColor = raw.accentColor;}
     preferences.accentColor = normalizePaletteId(preferences.accentColor);
-    preferences.visualizerStyle = normalizeVisualizerStyle(
-      preferences.visualizerStyle,
-    );
+    preferences.visualizerStyle = normalizeVisualizerStyle(preferences.visualizerStyle);
     // Una preferencia guardada como undefined no debe pisar el valor por defecto.
     for (const key of Object.keys(preferences)) {
-      if (preferences[key] === undefined) {
-        preferences[key] = DEFAULT_PREFERENCES[key];
-      }
+      if (preferences[key] === undefined) {preferences[key] = DEFAULT_PREFERENCES[key];}
     }
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
       // Una clave plana sólo aporta valor si la preferencia no viene ya en
@@ -143,24 +116,18 @@ export const useUserStore = defineStore("user", () => {
         raw[key] !== undefined &&
         raw.preferences?.[key] === undefined &&
         preferences[key] === undefined
-      ) {
-        preferences[key] = raw[key];
-      }
+      ) {preferences[key] = raw[key];}
     }
     // Mantener sincronizadas las claves planas con `preferences`. La interfaz
     // escribe en las claves planas (profile.accentColor) mientras que el
     // almacenamiento vive en `preferences`; sin esta copia se persistía el
     // valor antiguo y los ajustes se revertían al recargar.
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
-      if (preferences[key] !== undefined) {
-        raw[key] = preferences[key];
-      }
+      if (preferences[key] !== undefined) {raw[key] = preferences[key];}
     }
 
     const name = (raw.displayName || raw.name || raw.username || "").trim();
-    const isPriv = Boolean(
-      raw.private !== undefined ? raw.private : raw.isPrivate
-    );
+    const isPriv = Boolean(raw.private !== undefined ? raw.private : raw.isPrivate);
 
     return {
       id: raw.id || generateProfileId(),
@@ -183,9 +150,7 @@ export const useUserStore = defineStore("user", () => {
 
   async function persistProfileWithUniqueUsername(profileRecord, { create = false } = {}) {
     const usernameResult = validateUsername(profileRecord.username || "");
-    if (profileRecord.username && !usernameResult.valid) {
-      throw new Error(usernameResult.reason);
-    }
+    if (profileRecord.username && !usernameResult.valid) {throw new Error(usernameResult.reason);}
     if (create && !usernameResult.valid) {
       throw new Error(usernameResult.reason || "El nombre de usuario es obligatorio.");
     }
@@ -199,9 +164,7 @@ export const useUserStore = defineStore("user", () => {
       const owner = usernameResult.valid
         ? findUsernameOwner(usernameResult.username, profiles, create ? null : profileRecord.id)
         : null;
-      if (owner) {
-        throw new Error(`El nombre de usuario @${usernameResult.username} ya está en uso.`);
-      }
+      if (owner) {throw new Error(`El nombre de usuario @${usernameResult.username} ya está en uso.`);}
 
       // Las preferencias pendientes solo se consumen al crear un perfil. Al
       // volver a iniciar sesión, los valores por defecto pendientes no deben
@@ -214,30 +177,17 @@ export const useUserStore = defineStore("user", () => {
       else await store.put(normalized);
       await done;
       return normalized;
-    } catch (error) {
-      try { tx.abort(); } catch {}
-      try { await done; } catch {}
-      throw error;
-    }
+    } catch (error) {try { tx.abort(); } catch {} try { await done; } catch {} throw error;}
   }
   async function loadProfiles() {
-    try {
-      const db = await dbPromise;
-      if (!db.objectStoreNames.contains("profiles")) {
-        return [];
-      }
+    try {const db = await dbPromise; if (!db.objectStoreNames.contains("profiles")) { return [];}
       let list = await db.getAll("profiles");
-      if (!list || list.length === 0) {
-        list = await migrateLegacyProfileIfNeeded();
-      }
+      if (!list || list.length === 0) {list = await migrateLegacyProfileIfNeeded();}
       profilesList.value = (list || [])
         .map(normalizeProfile)
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       return profilesList.value;
-    } catch (err) {
-      console.warn("[userStore] Error al cargar perfiles locales:", err);
-      return [];
-    }
+    } catch (err) {console.warn("[userStore] Error al cargar perfiles locales:", err); return [];}
   }
 
   async function migrateLegacyProfileIfNeeded() {
@@ -249,9 +199,7 @@ export const useUserStore = defineStore("user", () => {
 
       const db = await dbPromise;
       let avatar = null;
-      try {
-        avatar = await db.get("settings", "profile-avatar");
-      } catch {}
+      try {avatar = await db.get("settings", "profile-avatar");} catch {}
 
       const migrated = normalizeProfile({
         ...parsed,
@@ -266,10 +214,7 @@ export const useUserStore = defineStore("user", () => {
       await db.put("profiles", migrated);
       localStorage.removeItem(LS_LEGACY_KEY);
       return [migrated];
-    } catch (e) {
-      console.warn("[userStore] Error al migrar perfil legado:", e);
-      return [];
-    }
+    } catch (e) {console.warn("[userStore] Error al migrar perfil legado:", e); return [];}
   }
 
   function createSession(profileId) {
@@ -288,16 +233,12 @@ export const useUserStore = defineStore("user", () => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(LS_SESSION_KEY, JSON.stringify(session));
     }
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem(SS_GUEST_KEY);
-    }
+    if (typeof sessionStorage !== "undefined") {sessionStorage.removeItem(SS_GUEST_KEY);}
 
     return session;
   }
 
-  function getActiveSession() {
-    return currentSession.value;
-  }
+  function getActiveSession() {return currentSession.value;}
 
   function isSessionValid(session = currentSession.value) {
     if (!session || typeof session !== "object") return false;
@@ -306,23 +247,17 @@ export const useUserStore = defineStore("user", () => {
     const now = Date.now();
 
     // 1. Comprobar si la sesión ha expirado
-    if (now >= session.expiresAt) {
-      return false;
-    }
+    if (now >= session.expiresAt) {return false;}
 
     // 2. Comprobar que no supere la duración máxima permitida de 24 horas
-    if (session.expiresAt - session.createdAt > SESSION_DURATION_MS + 2000) {
-      return false;
-    }
+    if (session.expiresAt - session.createdAt > SESSION_DURATION_MS + 2000) {return false;}
 
     return true;
   }
 
   function clearPendingPreferences() {
     pendingPreferences.value = { ...DEFAULT_PREFERENCES };
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem(SS_PENDING_PREFS_KEY);
-    }
+    if (typeof sessionStorage !== "undefined") {sessionStorage.removeItem(SS_PENDING_PREFS_KEY);}
   }
 
   function updateSessionActivity() {
@@ -330,26 +265,17 @@ export const useUserStore = defineStore("user", () => {
 
     const now = Date.now();
 
-    if (!isSessionValid(currentSession.value)) {
-      logout();
-      return;
-    }
+    if (!isSessionValid(currentSession.value)) {logout(); return;}
 
     currentSession.value.lastActivity = now;
 
     if (currentSession.value.isGuest) {
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem(
-          SS_GUEST_KEY,
-          JSON.stringify(currentSession.value)
-        );
+        sessionStorage.setItem(SS_GUEST_KEY, JSON.stringify(currentSession.value));
       }
     } else {
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          LS_SESSION_KEY,
-          JSON.stringify(currentSession.value)
-        );
+        localStorage.setItem(LS_SESSION_KEY, JSON.stringify(currentSession.value));
       }
     }
   }
@@ -395,12 +321,8 @@ export const useUserStore = defineStore("user", () => {
             bannerBlob.value = null;
             applyPreferences();
             return true;
-          } else {
-            sessionStorage.removeItem(SS_GUEST_KEY);
-          }
-        } catch {
-          sessionStorage.removeItem(SS_GUEST_KEY);
-        }
+          } else {sessionStorage.removeItem(SS_GUEST_KEY);}
+        } catch {sessionStorage.removeItem(SS_GUEST_KEY);}
       }
     }
 
@@ -436,9 +358,7 @@ export const useUserStore = defineStore("user", () => {
 
           // 5. Si ha expirado o el perfil no existe, eliminar la sesión
           localStorage.removeItem(LS_SESSION_KEY);
-        } catch {
-          localStorage.removeItem(LS_SESSION_KEY);
-        }
+        } catch {localStorage.removeItem(LS_SESSION_KEY);}
       }
     }
 
@@ -452,14 +372,8 @@ export const useUserStore = defineStore("user", () => {
   }
 
   async function load() {
-    try {
-      pendingPreferences.value = {
-        ...DEFAULT_PREFERENCES,
-        ...readPendingPreferences(),
-      };
-      pendingPreferences.value.accentColor = normalizePaletteId(
-        pendingPreferences.value.accentColor
-      );
+    try {pendingPreferences.value = { ...DEFAULT_PREFERENCES, ...readPendingPreferences()};
+      pendingPreferences.value.accentColor = normalizePaletteId(pendingPreferences.value.accentColor);
       pendingPreferences.value.visualizerStyle = normalizeVisualizerStyle(
         pendingPreferences.value.visualizerStyle,
       );
@@ -469,15 +383,11 @@ export const useUserStore = defineStore("user", () => {
       // en memoria (con las preferencias aún no guardadas) y lo sustituía
       // por la copia de IndexedDB, revirtiendo el color de acento y los
       // ajustes recién cambiados.
-      if (loaded.value && currentSession.value) {
-        return;
-      }
+      if (loaded.value && currentSession.value) {return;}
 
       await loadProfiles();
       await restoreSession();
-    } catch (err) {
-      console.warn("[userStore] Error en load():", err);
-    } finally {
+    } catch (err) {console.warn("[userStore] Error en load():", err);} finally {
       loaded.value = true;
     }
   }
@@ -497,16 +407,11 @@ export const useUserStore = defineStore("user", () => {
     if (!usernameResult.valid) throw new Error(usernameResult.reason);
 
     // Recoge lo elegido durante el onboarding (p. ej. el color de acento).
-    preferences = {
-      ...toRaw(pendingPreferences.value || {}),
-      ...preferences,
-    };
+    preferences = {...toRaw(pendingPreferences.value || {}), ...preferences};
     const id = generateProfileId();
     let credential = null;
 
-    if (isPrivate && password) {
-      credential = await hashPassword(password);
-    }
+    if (isPrivate && password) {credential = await hashPassword(password);}
 
     const newProfile = normalizeProfile({
       id,
@@ -520,10 +425,7 @@ export const useUserStore = defineStore("user", () => {
       updatedAt: Date.now(),
       isPrivate: Boolean(isPrivate),
       credential,
-      preferences: {
-        ...DEFAULT_PREFERENCES,
-        ...preferences,
-      },
+      preferences: {...DEFAULT_PREFERENCES, ...preferences},
     });
 
     const persistedProfile = await persistProfileWithUniqueUsername(newProfile, { create: true });
@@ -545,37 +447,21 @@ export const useUserStore = defineStore("user", () => {
     const db = await dbPromise;
     const target = await db.get("profiles", profileId);
 
-    if (!target) {
-      return { success: false, error: "Perfil no encontrado" };
-    }
+    if (!target) {return { success: false, error: "Perfil no encontrado" };}
 
-    const isTargetPrivate = Boolean(
-      target.private !== undefined ? target.private : target.isPrivate
-    );
+    const isTargetPrivate = Boolean(target.private !== undefined ? target.private : target.isPrivate);
 
     if (isTargetPrivate) {
-      if (!password) {
-        return {
-          success: false,
-          requiresPassword: true,
-          error: "Contraseña requerida",
-        };
+      if (!password) {return { success: false, requiresPassword: true, error: "Contraseña requerida"};
       }
       const valid = await verifyPassword(password, target.credential);
-      if (!valid) {
-        return {
-          success: false,
-          requiresPassword: true,
-          error: "Contraseña incorrecta",
-        };
+      if (!valid) {return { success: false, requiresPassword: true, error: "Contraseña incorrecta"};
       }
     }
 
     const previousProfileId = currentSession.value?.profileId;
     if (previousProfileId && previousProfileId !== profileId) {
-      try {
-        await useLibraryStore().flushPendingProfileChanges(previousProfileId);
-      } catch (error) {
+      try {await useLibraryStore().flushPendingProfileChanges(previousProfileId);} catch (error) {
         console.error("[userStore] No se pudieron guardar los ajustes antes del cambio:", error);
         return { success: false, error: "No se pudieron guardar los cambios pendientes del perfil actual." };
       }
@@ -597,10 +483,7 @@ export const useUserStore = defineStore("user", () => {
 
     applyPreferences();
 
-    try {
-      const library = useLibraryStore();
-      await library.switchProfile();
-    } catch {}
+    try {const library = useLibraryStore(); await library.switchProfile();} catch {}
 
     void resumeDriveProfileSync(profileId).catch((error) => {
       console.error("[userStore] No se pudo reanudar la sincronización de Drive:", error);
@@ -646,28 +529,18 @@ export const useUserStore = defineStore("user", () => {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(SS_GUEST_KEY, JSON.stringify(session));
     }
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(LS_SESSION_KEY);
-    }
+    if (typeof localStorage !== "undefined") {localStorage.removeItem(LS_SESSION_KEY);}
 
     applyPreferences();
 
-    try {
-      const library = useLibraryStore();
-      await library.switchProfile();
-    } catch {}
+    try {const library = useLibraryStore(); await library.switchProfile();} catch {}
 
     return session;
   }
 
-  async function loginAsGuest() {
-    startGuestSession();
-    return { success: true };
-  }
+  async function loginAsGuest() {startGuestSession(); return { success: true };}
 
-  function isGuestSession() {
-    return Boolean(currentSession.value?.isGuest);
-  }
+  function isGuestSession() {return Boolean(currentSession.value?.isGuest);}
 
   async function logout() {
     // Al cerrar sesión:
@@ -676,24 +549,16 @@ export const useUserStore = defineStore("user", () => {
     // - volver a mostrar la WelcomeScreen.
     const previousProfileId = currentSession.value?.profileId;
     if (previousProfileId) {
-      try {
-        await useLibraryStore().flushPendingProfileChanges(previousProfileId);
-      } catch (error) {
+      try {await useLibraryStore().flushPendingProfileChanges(previousProfileId);} catch (error) {
         console.error("[userStore] No se pudieron guardar los ajustes al cerrar sesión:", error);
         return { success: false, error: "No se pudieron guardar los cambios pendientes del perfil." };
       }
     }
 
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem(SS_GUEST_KEY);
-    }
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(LS_GUEST_PREFS_KEY);
-    }
+    if (typeof sessionStorage !== "undefined") {sessionStorage.removeItem(SS_GUEST_KEY);}
+    if (typeof localStorage !== "undefined") {localStorage.removeItem(LS_GUEST_PREFS_KEY);}
     clearPendingPreferences();
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(LS_SESSION_KEY);
-    }
+    if (typeof localStorage !== "undefined") {localStorage.removeItem(LS_SESSION_KEY);}
 
     currentSession.value = null;
     profile.value = { ...DEFAULT_PROFILE };
@@ -703,10 +568,7 @@ export const useUserStore = defineStore("user", () => {
     applyPreferences();
     await loadProfiles();
 
-    try {
-      const library = useLibraryStore();
-      await library.switchProfile();
-    } catch {}
+    try {const library = useLibraryStore(); await library.switchProfile();} catch {}
 
     return { success: true };
   }
@@ -723,11 +585,7 @@ export const useUserStore = defineStore("user", () => {
         const cred = await hashPassword(newPassword);
         profile.value.credential = cred;
       } else if (!profile.value.credential) {
-        return {
-          success: false,
-          requiresPassword: true,
-          error: "Se requiere establecer una contraseña",
-        };
+        return {success: false, requiresPassword: true, error: "Se requiere establecer una contraseña"};
       }
     }
 
@@ -743,9 +601,7 @@ export const useUserStore = defineStore("user", () => {
     try {
       const raw = localStorage.getItem(LS_GUEST_PREFS_KEY);
       return raw ? JSON.parse(raw) || {} : {};
-    } catch {
-      return {};
-    }
+    } catch {return {};}
   }
 
   function readPendingPreferences() {
@@ -753,36 +609,23 @@ export const useUserStore = defineStore("user", () => {
     try {
       const raw = sessionStorage.getItem(SS_PENDING_PREFS_KEY);
       return raw ? JSON.parse(raw) || {} : {};
-    } catch {
-      return {};
-    }
+    } catch {return {};}
   }
 
   function setPendingPreferences(partial = {}) {
-    pendingPreferences.value = {
-      ...pendingPreferences.value,
-      ...partial,
-    };
-    pendingPreferences.value.accentColor = normalizePaletteId(
-      pendingPreferences.value.accentColor
-    );
+    pendingPreferences.value = {...pendingPreferences.value, ...partial};
+    pendingPreferences.value.accentColor = normalizePaletteId(pendingPreferences.value.accentColor);
 
     if (typeof sessionStorage !== "undefined") {
       try {
-        sessionStorage.setItem(
-          SS_PENDING_PREFS_KEY,
-          JSON.stringify(pendingPreferences.value)
-        );
+        sessionStorage.setItem(SS_PENDING_PREFS_KEY, JSON.stringify(pendingPreferences.value));
       } catch {
         // sessionStorage puede no estar disponible; no es crítico.
       }
     }
   }
 
-  async function save() {
-    if (!profile.value.id) {
-      return false;
-    }
+  async function save() {if (!profile.value.id) { return false;}
 
     // La interfaz edita las claves planas (profile.showVisualizer,
     // profile.accentColor...), mientras que el almacenamiento vive en
@@ -790,9 +633,7 @@ export const useUserStore = defineStore("user", () => {
     // persista, venga de `updateProfile` o de un `v-model` directo.
     const syncedPreferences = { ...toRaw(profile.value.preferences || {}) };
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
-      if (profile.value[key] !== undefined) {
-        syncedPreferences[key] = toRaw(profile.value[key]);
-      }
+      if (profile.value[key] !== undefined) {syncedPreferences[key] = toRaw(profile.value[key]);}
     }
     profile.value.preferences = syncedPreferences;
 
@@ -829,10 +670,7 @@ export const useUserStore = defineStore("user", () => {
         const currentBannerBlob = bannerBlob.value || null;
 
         // Extraer un clon limpio sin Proxies de Vue que puedan causar DataCloneError
-        const cloneClean = {
-          ...rawProfile,
-          preferences: { ...rawPreferences },
-        };
+        const cloneClean = {...rawProfile, preferences: { ...rawPreferences }};
         delete cloneClean.avatarBlob;
         delete cloneClean.bannerBlob;
 
@@ -860,13 +698,9 @@ export const useUserStore = defineStore("user", () => {
         profile.value.avatarBlob = persisted.avatarBlob;
 
         const idx = profilesList.value.findIndex((p) => p.id === persisted.id);
-        if (idx >= 0) {
-          profilesList.value[idx] = { ...persisted };
-        }
+        if (idx >= 0) {profilesList.value[idx] = { ...persisted };}
       }
-    } catch (e) {
-      console.warn("[userStore] Error al guardar perfil:", e);
-    }
+    } catch (e) {console.warn("[userStore] Error al guardar perfil:", e);}
     return saved;
   }
 
@@ -876,17 +710,11 @@ export const useUserStore = defineStore("user", () => {
     // `save()` no persista el valor antiguo.
     const nextPreferences = { ...(profile.value.preferences || {}) };
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
-      if (partial[key] !== undefined) {
-        nextPreferences[key] = partial[key];
-      }
+      if (partial[key] !== undefined) {nextPreferences[key] = partial[key];}
     }
 
     const previousProfile = { ...profile.value };
-    const nextProfile = {
-      ...profile.value,
-      ...partial,
-      preferences: nextPreferences,
-    };
+    const nextProfile = {...profile.value, ...partial, preferences: nextPreferences};
     if (Object.prototype.hasOwnProperty.call(partial, "username")) {
       const usernameResult = validateUsername(partial.username);
       if (!usernameResult.valid) throw new Error(usernameResult.reason);
@@ -914,19 +742,11 @@ export const useUserStore = defineStore("user", () => {
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
       if (partial[key] !== undefined) preferences[key] = partial[key];
     }
-    const updated = normalizeProfile({
-      ...stored,
-      ...partial,
-      preferences,
-      updatedAt: Date.now(),
-    });
+    const updated = normalizeProfile({...stored, ...partial, preferences, updatedAt: Date.now()});
     await db.put("profiles", updated);
     const index = profilesList.value.findIndex((item) => item.id === profileId);
     if (index >= 0) profilesList.value[index] = updated;
-    if (currentSession.value?.profileId === profileId) {
-      profile.value = updated;
-      applyPreferences();
-    }
+    if (currentSession.value?.profileId === profileId) {profile.value = updated; applyPreferences();}
     scheduleProfileSync(profileId);
   }
 
@@ -934,11 +754,7 @@ export const useUserStore = defineStore("user", () => {
     const db = await dbPromise;
     const stored = await db.get("profiles", profileId);
     if (!stored) throw new Error("No se encontró el perfil para guardar la cola.");
-    const updated = {
-      ...stored,
-      queueState: queueState || null,
-      updatedAt: Date.now(),
-    };
+    const updated = {...stored, queueState: queueState || null, updatedAt: Date.now()};
     await db.put("profiles", updated);
     const index = profilesList.value.findIndex((item) => item.id === profileId);
     if (index >= 0) profilesList.value[index] = updated;
@@ -948,19 +764,12 @@ export const useUserStore = defineStore("user", () => {
 
   async function renameProfile(profileId, name) {
     const nextName = String(name || "").trim();
-    if (!profileId || !nextName) {
-      throw new Error("El nombre del perfil no puede estar vacío.");
-    }
+    if (!profileId || !nextName) {throw new Error("El nombre del perfil no puede estar vacío.");}
     const db = await dbPromise;
     const stored = await db.get("profiles", profileId);
     if (!stored) throw new Error("No se encontró el perfil que se desea renombrar.");
 
-    const renamed = {
-      ...stored,
-      name: nextName,
-      displayName: nextName,
-      updatedAt: Date.now(),
-    };
+    const renamed = {...stored, name: nextName, displayName: nextName, updatedAt: Date.now()};
     await db.put("profiles", renamed);
     const index = profilesList.value.findIndex((item) => item.id === profileId);
     if (index >= 0) profilesList.value[index] = normalizeProfile(renamed);
@@ -988,18 +797,12 @@ export const useUserStore = defineStore("user", () => {
     if (typeof data === "string" && data.trim()) {
       profile.value.avatarUrl = data.trim();
       avatarBlob.value = null;
-    } else if (data instanceof Blob) {
-      profile.value.avatarUrl = "";
-      avatarBlob.value = data;
-    } else {
+    } else if (data instanceof Blob) {profile.value.avatarUrl = ""; avatarBlob.value = data;} else {
       profile.value.avatarUrl = "";
       avatarBlob.value = null;
     }
 
-    if (!isGuest.value) {
-      await save();
-      return;
-    }
+    if (!isGuest.value) {await save(); return;}
 
     // Los invitados no tienen perfil en IndexedDB, así que persistimos el
     // avatar por separado para que sobreviva a una recarga.
@@ -1017,14 +820,10 @@ export const useUserStore = defineStore("user", () => {
           ? avatarBlob.value
           : profile.value.avatarUrl || null;
 
-      if (value) {
-        await db.put("settings", value, AVATAR_SETTING_KEY);
-      } else {
+      if (value) {await db.put("settings", value, AVATAR_SETTING_KEY);} else {
         await db.delete("settings", AVATAR_SETTING_KEY);
       }
-    } catch (err) {
-      console.warn("[userStore] No se pudo guardar el avatar del invitado:", err);
-    }
+    } catch (err) {console.warn("[userStore] No se pudo guardar el avatar del invitado:", err);}
   }
 
   /** Recupera el avatar del invitado guardado (URL o Blob). */
@@ -1033,16 +832,10 @@ export const useUserStore = defineStore("user", () => {
       const db = await dbPromise;
       if (!db.objectStoreNames.contains("settings")) return null;
       return (await db.get("settings", AVATAR_SETTING_KEY)) || null;
-    } catch {
-      return null;
-    }
+    } catch {return null;}
   }
 
-  async function setBanner(blob) {
-    bannerBlob.value = blob || null;
-    if (!isGuest.value) {
-      await save();
-    }
+  async function setBanner(blob) {bannerBlob.value = blob || null; if (!isGuest.value) { await save();}
   }
 
   async function resetPreferences({ keepIdentity = true } = {}) {
@@ -1059,28 +852,17 @@ export const useUserStore = defineStore("user", () => {
           credential: profile.value.credential,
         }
       : {};
-    profile.value = normalizeProfile({
-      ...DEFAULT_PROFILE,
-      ...identity,
-    });
-    if (!isGuest.value) {
-      await save();
-    }
+    profile.value = normalizeProfile({...DEFAULT_PROFILE, ...identity});
+    if (!isGuest.value) {await save();}
   }
 
   async function wipeProfile(profileId = null) {
     const targetId = profileId || profile.value.id;
-    if (!targetId || targetId === "guest") {
-      await logout();
-      return;
-    }
+    if (!targetId || targetId === "guest") {await logout(); return;}
 
     const wasActive = currentSession.value?.profileId === targetId;
 
-    if (wasActive) {
-      try {
-        await useLibraryStore().flushPendingProfileChanges(targetId);
-      } catch (error) {
+    if (wasActive) {try { await useLibraryStore().flushPendingProfileChanges(targetId);} catch (error) {
         console.error("[userStore] No se pudieron guardar los ajustes antes de eliminar el perfil:", error);
         throw new Error("No se pudo guardar el último cambio del perfil; no se eliminó.");
       }
@@ -1097,9 +879,7 @@ export const useUserStore = defineStore("user", () => {
           if (
             (storeName === "profiles" && record.id === targetId)
             || (storeName !== "profiles" && record.profileId === targetId)
-          ) {
-            await store.delete(record.id);
-          }
+          ) {await store.delete(record.id);}
         }
       }
       tx.objectStore("settings").delete(`music-folder-${targetId}`);
@@ -1108,9 +888,7 @@ export const useUserStore = defineStore("user", () => {
       await tx.done;
       clearGoogleDriveToken(targetId);
       if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.removeItem(`calliope:queue_state:${targetId}`);
-        } catch (error) {
+        try {localStorage.removeItem(`calliope:queue_state:${targetId}`);} catch (error) {
           console.warn("[userStore] No se pudo eliminar la cola local del perfil:", error);
         }
       }
@@ -1120,16 +898,12 @@ export const useUserStore = defineStore("user", () => {
       throw new Error("No se pudo eliminar el perfil. Los datos no confirmados se conservaron.");
     }
 
-    if (wasActive) {
-      await logout();
-    } else {
+    if (wasActive) {await logout();} else {
       await loadProfiles();
     }
   }
 
-  async function deleteProfile(profileId) {
-    await wipeProfile(profileId);
-  }
+  async function deleteProfile(profileId) {await wipeProfile(profileId);}
 
   // ---------- Aplicación de preferencias al documento ----------
   function applyPreferences() {
@@ -1167,9 +941,7 @@ export const useUserStore = defineStore("user", () => {
     if (isThemeChange) root.classList.add("theme-has-changed");
     root.classList.toggle("theme-transitioning", shouldTransitionTheme);
     root.dataset.theme = palette.value;
-    for (const [token, value] of Object.entries(palette.tokens)) {
-      root.style.setProperty(token, value);
-    }
+    for (const [token, value] of Object.entries(palette.tokens)) {root.style.setProperty(token, value);}
     root.classList.toggle("reduced-motion", Boolean(p.reducedMotion));
 
     if (shouldTransitionTheme) {

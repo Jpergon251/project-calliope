@@ -1,11 +1,7 @@
-// =============================================================
 // CALLIOPE DESIGN SYSTEM — PLAYLIST MODALS
 // (Crear playlist, Editar playlist, Confirmar eliminación)
-// =============================================================
 
-// -------------------------------------------------------------
 // BACKDROPS (Fondo oscuro borroso con soporte safe-area)
-// -------------------------------------------------------------
 .create-playlist-backdrop,
 .playlist-edit-modal,
 .delete-confirm-modal {
@@ -23,9 +19,7 @@
   box-sizing: border-box;
 }
 
-// -------------------------------------------------------------
 // MODAL CARDS (Tarjetas modales principales)
-// -------------------------------------------------------------
 .create-playlist-card,
 .playlist-edit-card,
 .delete-confirm-card {
@@ -49,9 +43,7 @@
   box-shadow: var(--theme-panel-shadow, 0 24px 64px rgba(0, 0, 0, 0.9));
 }
 
-// -------------------------------------------------------------
 // MODAL HEADER (Encabezado)
-// -------------------------------------------------------------
 .create-playlist-card,
 .playlist-edit-card {
   .modal-header {
@@ -171,9 +163,7 @@
   }
 }
 
-// -------------------------------------------------------------
 // FORM BODY (Campos de entrada)
-// -------------------------------------------------------------
 .create-playlist-form,
 .playlist-edit-form {
   display: flex;
@@ -304,9 +294,7 @@
   }
 }
 
-// -------------------------------------------------------------
 // DELETE MODAL BODY (Cuerpo de confirmación)
-// -------------------------------------------------------------
 .delete-modal-body {
   padding: 18px 24px 22px;
 
@@ -349,9 +337,7 @@
   }
 }
 
-// -------------------------------------------------------------
 // FOOTER ACTIONS (Botones de acción)
-// -------------------------------------------------------------
 .modal-footer,
 .delete-modal-footer {
   display: flex;
@@ -451,10 +437,8 @@
   }
 }
 
-// -------------------------------------------------------------
 // COMPATIBILIDAD CON ESTRUCTURA ANTERIOR
 // (Por si se usan selectores antiguos de CreatePlaylist / Delete)
-// -------------------------------------------------------------
 .modal-backdrop:not(.add-songs-backdrop):not(.metadata-modal-backdrop) {
   .modal-card {
     .modal-title {
@@ -462,43 +446,6 @@
       font-size: 1.25rem;
       font-weight: 750;
       color: var(--text-primary, #ffffff);
-    }
-
-    .input-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-
-      label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--text-secondary, #a3a3a3);
-
-        span {
-          color: var(--text-muted, #666666);
-          font-weight: 400;
-        }
-      }
-
-      input {
-        width: 100%;
-        height: 44px;
-        padding: 0 14px;
-        background: var(--bg-tertiary, #0a0a0a);
-        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-        border-radius: var(--radius-md, 12px);
-        color: var(--text-primary, #ffffff);
-        font-size: 0.94rem;
-        font-family: inherit;
-        box-sizing: border-box;
-
-        &:focus {
-          outline: none;
-          border-color: var(--accent, #25d866);
-          box-shadow: 0 0 0 3px var(--accent-muted, rgba(37, 216, 102, 0.14));
-        }
-      }
     }
 
     .actions,
@@ -613,9 +560,7 @@
   }
 }
 
-// -------------------------------------------------------------
 // RESPONSIVE (Móviles)
-// -------------------------------------------------------------
 @media (max-width: 600px) {
   .create-playlist-card,
   .playlist-edit-card,
@@ -645,9 +590,7 @@
   }
 }
 
-// -------------------------------------------------------------
 // ANIMACIONES
-// -------------------------------------------------------------
 @keyframes playlist-modal-fade-in {
   from {
     opacity: 0;

@@ -20,8 +20,8 @@ import {
   smoothVisualizerValue,
   visualizerAmplitude,
   visualizerMode,
-} from '../../lib/visualizerMath.js';
-import { normalizeVisualizerStyle } from '../../lib/visualizerStyles.js';
+  normalizeVisualizerStyle,
+} from '../../lib/visualizer.js';
 import { useUserStore } from '../../stores/userStore.js';
 
 const library = useLibraryStore();
@@ -37,12 +37,7 @@ let previousFrameTime = 0;
 const MIN_DB = -78;
 const MAX_DB = -18;
 const EMPTY_SPECTRUM = new Float32Array(0);
-const points = Array.from({ length: 64 }, () => ({
-  x: 0,
-  y: 0,
-  totalAmp: 0,
-  windowFactor: 0,
-}));
+const points = Array.from({ length: 64 }, () => ({x: 0, y: 0, totalAmp: 0, windowFactor: 0}));
 let frequencyData = null;
 
 function frequencyLevel(byteValue) {
@@ -60,9 +55,7 @@ const visualizerStyle = computed(() =>
 
 function initAnalyser() {
   analyser = library.getAudioAnalyser();
-  if (analyser && library.isPlaying) {
-    library.resumeAudioAnalyser();
-  }
+  if (analyser && library.isPlaying) {library.resumeAudioAnalyser();}
 }
 
 function drawAlternativeStyle(context, style, {
@@ -122,10 +115,7 @@ function drawAlternativeStyle(context, style, {
         Math.floor(Math.pow(progress, 1.3) * Math.max(0, smoothedSpectrum.length - 1) * 0.7),
         smoothedSpectrum.length - 1,
       );
-      const amplitude = visualizerAmplitude(
-        smoothedSpectrum[frequencyIndex] || 0,
-        libraryVolume,
-      );
+      const amplitude = visualizerAmplitude(smoothedSpectrum[frequencyIndex] || 0, libraryVolume);
       const barHeight = Math.min(height * 0.58, Math.max(4, amplitude * height * 0.58));
       const x = startX + index * (barWidth + gap);
       const y = baseline - barHeight;
@@ -139,20 +129,13 @@ function drawAlternativeStyle(context, style, {
 
 watch(
   () => library.isPlaying,
-  (playing) => {
-    if (playing) {
-      if (!analyser) initAnalyser();
-      library.resumeAudioAnalyser();
-    }
+  (playing) => {if (playing) { if (!analyser) initAnalyser(); library.resumeAudioAnalyser();}
   }
 );
 
 function draw() {
   const element = canvas.value;
-  if (!element) {
-    animationFrame = requestAnimationFrame(draw);
-    return;
-  }
+  if (!element) {animationFrame = requestAnimationFrame(draw); return;}
 
   const context = element.getContext('2d');
   const styles = getComputedStyle(document.documentElement);
@@ -169,10 +152,7 @@ function draw() {
   const width = element.clientWidth;
   const height = element.clientHeight;
 
-  if (!width || !height) {
-    animationFrame = requestAnimationFrame(draw);
-    return;
-  }
+  if (!width || !height) {animationFrame = requestAnimationFrame(draw); return;}
 
   if (element.width !== width * ratio || element.height !== height * ratio) {
     element.width = width * ratio;
@@ -387,15 +367,9 @@ function draw() {
   animationFrame = requestAnimationFrame(draw);
 }
 
-onMounted(() => {
-  initAnalyser();
-  draw();
-});
+onMounted(() => {initAnalyser(); draw();});
 
-onBeforeUnmount(() => {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame);
-  }
+onBeforeUnmount(() => {if (animationFrame) { cancelAnimationFrame(animationFrame);}
   smoothedSpectrum = null;
   frequencyData = null;
 });

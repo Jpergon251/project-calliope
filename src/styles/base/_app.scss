@@ -1,30 +1,18 @@
-/* ============================================================
-   APP LAYOUT
-   ============================================================ */
 
 .app-container {
   width: 100%;
   height: 100dvh;
   min-height: 0;
-
   display: flex;
   flex-direction: column;
-
   overflow: hidden;
-
   background: var(--bg-primary);
   color: var(--text-primary);
 }
-
-/* ============================================================
-   MAIN AREA
-   ============================================================ */
-
 .top-section {
   flex: 1;
   min-height: 0;
   min-width: 0;
-
   display: flex;
 }
 
@@ -32,7 +20,6 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-
   display: flex;
   flex-direction: column;
 }
@@ -41,16 +28,11 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-
   overflow-x: hidden;
   overflow-y: auto;
-
   background: var(--bg-primary);
-
   scrollbar-width: thin;
-  scrollbar-color:
-    rgba(var(--accent-rgb), 0.3)
-    transparent;
+  scrollbar-color: rgba(var(--accent-rgb), 0.3) transparent;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -65,32 +47,15 @@
     border-radius: 999px;
   }
 }
-
-/* ============================================================
-   SIDEBAR
-   ============================================================ */
-
 .sidebar {
   width: 244px;
   flex: 0 0 244px;
-
   overflow-y: auto;
-
   background: var(--sidebar-bg);
 }
-
-/* ============================================================
-   BOTTOM SECTION
-   ============================================================ */
-
 .bottom-section {
   flex-shrink: 0;
 }
-
-/* ============================================================
-   SHARED CONTENT
-   ============================================================ */
-
 .main > * {
   width: 100%;
   box-sizing: border-box;
@@ -101,11 +66,6 @@
 .main h3 {
   text-wrap: balance;
 }
-
-/* ============================================================
-   INPUTS
-   ============================================================ */
-
 .main input[type="text"],
 .main input[type="search"],
 .main input[type="url"],
@@ -116,15 +76,10 @@
   font: inherit;
   color: var(--text-primary);
   background: var(--bg-secondary);
-
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-
   box-sizing: border-box;
-
-  transition:
-    border-color var(--transition-normal),
-    box-shadow var(--transition-normal);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .main input[type="text"],
@@ -152,16 +107,9 @@
   outline: none;
   border-color: var(--accent);
 }
-
-/* ============================================================
-   PAGE TRANSITION
-   ============================================================ */
-
 .page-fade-enter-active,
 .page-fade-leave-active {
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 .page-fade-enter-from {
@@ -173,11 +121,6 @@
   opacity: 0;
   transform: translateY(-4px);
 }
-
-/* ============================================================
-   TOUCH
-   ============================================================ */
-
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -189,11 +132,6 @@ a {
     transform: none !important;
   }
 }
-
-/* ============================================================
-   MOBILE
-   ============================================================ */
-
 @media (max-width: 760px) {
   .top-section {
     display: contents;
@@ -205,22 +143,17 @@ a {
 
   .main {
     order: 1;
-
     width: 100%;
     min-height: 0;
-
     overflow-x: hidden;
     overflow-y: auto;
-
     -webkit-overflow-scrolling: touch;
   }
 
   .sidebar {
     order: 3;
-
     width: 100%;
     flex: 0 0 auto;
-
     overflow: visible;
   }
 
@@ -228,22 +161,12 @@ a {
     order: 2;
   }
 }
-
-/* ============================================================
-   TABLET
-   ============================================================ */
-
 @media (min-width: 761px) and (max-width: 1100px) {
   .sidebar {
     width: 224px;
     flex-basis: 224px;
   }
 }
-
-/* ============================================================
-   REDUCED MOTION
-   ============================================================ */
-
 .reduced-motion *,
 .reduced-motion *::before,
 .reduced-motion *::after {

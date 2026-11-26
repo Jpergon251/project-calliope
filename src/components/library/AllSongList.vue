@@ -108,41 +108,23 @@
 </template>
 
 <script setup>
-import {
-  computed,
-  nextTick,
-  ref,
-  watch,
-} from "vue";
+import {computed, nextTick, ref, watch} from "vue";
 
 import { useRouter } from "vue-router";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Music2,
-  Search,
-} from "lucide-vue-next";
+import { scrollCarouselContainer } from "../../lib/formatters.js";
+
+import {ChevronLeft, ChevronRight, Music2, Search} from "lucide-vue-next";
 
 import SongList from "../common/SongList.vue";
 
 import { useLibraryStore } from "../../stores/libraryStore.js";
 
-const props = defineProps({
-  searchQuery: {
-    type: String,
-    default: "",
-  },
+const props = defineProps({searchQuery: { type: String, default: ""},
 
-  preview: {
-    type: Boolean,
-    default: false,
-  },
+  preview: {type: Boolean, default: false},
 
-  previewLimit: {
-    type: Number,
-    default: 10,
-  },
+  previewLimit: {type: Number, default: 10},
 });
 
 const library = useLibraryStore();
@@ -153,80 +135,34 @@ const previewSongs = ref([]);
 
 const PREVIEW_LIMIT = 10;
 
-const searchQuery = computed(() => {
-  return props.searchQuery.trim();
-});
+const searchQuery = computed(() => {return props.searchQuery.trim();});
 
-const hasSearch = computed(() => {
-  return searchQuery.value.length > 0;
-});
-
-
-/* =========================================================
-   FILTRADO
-   ========================================================= */
-
+const hasSearch = computed(() => {return searchQuery.value.length > 0;});
 const filteredSongs = computed(() => {
   const songs = library.songs || [];
 
-  if (!searchQuery.value) {
-    return songs;
-  }
+  if (!searchQuery.value) {return songs;}
 
   const query = searchQuery.value.toLocaleLowerCase();
 
   return songs.filter((song) => {
-    const title = String(
-      song.title || song.name || ""
-    ).toLocaleLowerCase();
+    const title = String(song.title || song.name || "").toLocaleLowerCase();
 
-    const artist = String(
-      song.artist || ""
-    ).toLocaleLowerCase();
+    const artist = String(song.artist || "").toLocaleLowerCase();
 
     const releases = (song.releases || [])
       .map((release) => release?.title || "")
       .join(", ")
       .toLocaleLowerCase();
 
-    return (
-      title.includes(query) ||
-      artist.includes(query) ||
-      releases.includes(query)
-    );
+    return (title.includes(query) || artist.includes(query) || releases.includes(query));
   });
 });
-
-
-/* =========================================================
-   ALEATORIO
-   ========================================================= */
-
-function shuffle(array) {
-  const result = [...array];
-
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(
-      Math.random() * (i + 1)
-    );
-
-    [result[i], result[j]] = [
-      result[j],
-      result[i],
-    ];
-  }
-
-  return result;
-}
-
 
 function refreshPreviewSongs() {
   const songs = filteredSongs.value;
 
-  if (!songs.length) {
-    previewSongs.value = [];
-    return;
-  }
+  if (!songs.length) {previewSongs.value = []; return;}
 
   const limit = props.previewLimit || PREVIEW_LIMIT;
 
@@ -235,70 +171,23 @@ function refreshPreviewSongs() {
    * resultados relevantes en lugar de resultados aleatorios.
    */
   if (searchQuery.value) {
-    previewSongs.value = songs.slice(
-      0,
-      limit
-    );
+    previewSongs.value = songs.slice(0, limit);
 
     return;
   }
 
-  previewSongs.value = library.smartShuffle(songs).slice(
-    0,
-    limit
-  );
+  previewSongs.value = library.smartShuffle(songs).slice(0, limit);
 }
-
-
-/* =========================================================
-   CARRUSEL
-   ========================================================= */
-
 async function scrollCarousel(direction) {
   await nextTick();
-
-  const container = carouselRef.value;
-
-  if (!container) {
-    return;
-  }
-
-  const amount =
-    Math.max(
-      container.clientWidth * 0.8,
-      300
-    ) * direction;
-
-  container.scrollBy({
-    left: amount,
-    behavior: "smooth",
-  });
+  scrollCarouselContainer(carouselRef.value, direction);
 }
-
-
-/* =========================================================
-   NAVEGACIÓN
-   ========================================================= */
-
-function openAllSongs() {
-  router.push({
-    path: "/songs",
-  });
+function openAllSongs() {router.push({ path: "/songs"});
 }
-
-
-/* =========================================================
-   WATCHERS
-   ========================================================= */
-
 watch(
   () => library.songs.length,
-  () => {
-    refreshPreviewSongs();
-  },
-  {
-    immediate: true,
-  }
+  () => {refreshPreviewSongs();},
+  {immediate: true}
 );
 
 watch(
@@ -308,11 +197,7 @@ watch(
       refreshPreviewSongs();
 
       nextTick(() => {
-        if (carouselRef.value) {
-          carouselRef.value.scrollTo({
-            left: 0,
-            behavior: "auto",
-          });
+        if (carouselRef.value) {carouselRef.value.scrollTo({ left: 0, behavior: "auto"});
         }
       });
     }
@@ -321,19 +206,13 @@ watch(
 
 watch(
   () => props.preview,
-  (isPreview) => {
-    if (isPreview) {
-      refreshPreviewSongs();
-    }
+  (isPreview) => {if (isPreview) { refreshPreviewSongs();}
   }
 );
-
 
 /*
  * Permite que Library.vue u otro padre pueda controlar
  * el carrusel si lo necesita en el futuro.
  */
-defineExpose({
-  scrollCarousel,
-});
+defineExpose({scrollCarousel});
 </script>

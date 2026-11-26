@@ -231,40 +231,21 @@
 </template>
 
 <script setup>
-import {
-  computed,
-  nextTick,
-  ref,
-  watch,
-} from "vue";
+import {computed, nextTick, ref, watch} from "vue";
 
 import { useRouter } from "vue-router";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Mic2,
-  Search,
-  User,
-} from "lucide-vue-next";
+import { scrollCarouselContainer, shuffleArray } from "../../lib/formatters.js";
+
+import {ChevronLeft, ChevronRight, Mic2, Search, User} from "lucide-vue-next";
 
 import { useLibraryStore } from "../../stores/libraryStore.js";
 
-const props = defineProps({
-  searchQuery: {
-    type: String,
-    default: "",
-  },
+const props = defineProps({searchQuery: { type: String, default: ""},
 
-  preview: {
-    type: Boolean,
-    default: false,
-  },
+  preview: {type: Boolean, default: false},
 
-  previewLimit: {
-    type: Number,
-    default: 10,
-  },
+  previewLimit: {type: Number, default: 10},
 });
 
 const library = useLibraryStore();
@@ -275,150 +256,49 @@ const previewArtists = ref([]);
 
 const PREVIEW_LIMIT = 10;
 
-const searchQuery = computed(() => {
-  return props.searchQuery.trim();
-});
+const searchQuery = computed(() => {return props.searchQuery.trim();});
 
-const hasSearch = computed(() => {
-  return searchQuery.value.length > 0;
-});
-
-
-/* =========================================================
-   FILTRADO
-   ========================================================= */
-
+const hasSearch = computed(() => {return searchQuery.value.length > 0;});
 const filteredArtists = computed(() => {
   const artists = library.artists || [];
 
-  if (!searchQuery.value) {
-    return artists;
-  }
+  if (!searchQuery.value) {return artists;}
 
   const query = searchQuery.value.toLocaleLowerCase();
 
   return artists.filter((artist) => {
-    const name = String(
-      artist.name || ""
-    ).toLocaleLowerCase();
+    const name = String(artist.name || "").toLocaleLowerCase();
 
     return name.includes(query);
   });
 });
-
-
-/* =========================================================
-   ALEATORIO
-   ========================================================= */
-
-function shuffle(array) {
-  const result = [...array];
-
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(
-      Math.random() * (i + 1)
-    );
-
-    [result[i], result[j]] = [
-      result[j],
-      result[i],
-    ];
-  }
-
-  return result;
-}
-
-
 function refreshPreviewArtists() {
   const artists = filteredArtists.value;
 
-  if (!artists.length) {
-    previewArtists.value = [];
-    return;
-  }
+  if (!artists.length) {previewArtists.value = []; return;}
 
   const limit = props.previewLimit || PREVIEW_LIMIT;
 
-  if (searchQuery.value) {
-    previewArtists.value = artists.slice(
-      0,
-      limit
-    );
+  if (searchQuery.value) {previewArtists.value = artists.slice(0, limit); return;}
 
-    return;
-  }
-
-  previewArtists.value = shuffle(artists).slice(
-    0,
-    limit
-  );
+  previewArtists.value = shuffleArray(artists).slice(0, limit);
 }
-
-
-/* =========================================================
-   CARRUSEL
-   ========================================================= */
-
 async function scrollCarousel(direction) {
   await nextTick();
+  scrollCarouselContainer(carouselRef.value, direction);
+}
+function openArtist(artist) {if (!artist?.name) { return;}
 
-  const container = carouselRef.value;
-
-  if (!container) {
-    return;
-  }
-
-  const amount =
-    Math.max(
-      container.clientWidth * 0.8,
-      300
-    ) * direction;
-
-  container.scrollBy({
-    left: amount,
-    behavior: "smooth",
+  router.push({name: "artist", params: { name: encodeURIComponent(artist.name)},
   });
 }
 
-
-/* =========================================================
-   NAVEGACIÓN
-   ========================================================= */
-
-function openArtist(artist) {
-  if (!artist?.name) {
-    return;
-  }
-
-  router.push({
-    name: "artist",
-    params: {
-      name: encodeURIComponent(
-        artist.name
-      ),
-    },
-  });
+function openAllArtists() {router.push({ path: "/artists"});
 }
-
-function openAllArtists() {
-  router.push({
-    path: "/artists",
-  });
-}
-
-
-/* =========================================================
-   WATCHERS
-   ========================================================= */
-
 watch(
   () => library.artists.length,
-  () => {
-    refreshPreviewArtists();
-  },
-  {
-    immediate: true,
-  }
+  () => {refreshPreviewArtists();},
+  {immediate: true}
 );
 
 watch(
@@ -428,11 +308,7 @@ watch(
       refreshPreviewArtists();
 
       nextTick(() => {
-        if (carouselRef.value) {
-          carouselRef.value.scrollTo({
-            left: 0,
-            behavior: "auto",
-          });
+        if (carouselRef.value) {carouselRef.value.scrollTo({ left: 0, behavior: "auto"});
         }
       });
     }
@@ -441,14 +317,9 @@ watch(
 
 watch(
   () => props.preview,
-  (isPreview) => {
-    if (isPreview) {
-      refreshPreviewArtists();
-    }
+  (isPreview) => {if (isPreview) { refreshPreviewArtists();}
   }
 );
 
-defineExpose({
-  scrollCarousel,
-});
+defineExpose({scrollCarousel});
 </script>

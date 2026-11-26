@@ -20,9 +20,7 @@ const syncRevisions = new Map();
 
 export const profileSyncStatuses = reactive({});
 
-async function openProfileDb() {
-  return (await import("../lib/db.js")).dbPromise;
-}
+export async function openProfileDb() {return (await import("../lib/db.js")).dbPromise;}
 
 function isBinary(value) {
   return value instanceof Blob
@@ -303,13 +301,9 @@ function hashOpaqueValue(value) {
   return hash.toString(16).padStart(16, "0");
 }
 
-export function profileMetricArtistId(name) {
-  return `artist-stat-${hashProfileMetricKey(name)}`;
-}
+export function profileMetricArtistId(name) {return `artist-stat-${hashProfileMetricKey(name)}`;}
 
-export function profileMetricAlbumId(id) {
-  return `album-stat-${hashProfileMetricKey(id)}`;
-}
+export function profileMetricAlbumId(id) {return `album-stat-${hashProfileMetricKey(id)}`;}
 
 export function profileSongReferenceId(id) {
   const value = String(id || "");
@@ -412,10 +406,7 @@ export function buildProfileArchive({ profile, playlists, history, stats, rating
     exportedAt: new Date().toISOString(),
     profile: cleanProfile,
     playlists: cleanPlaylists,
-    metrics: {
-      summary: cleanStats.summary,
-      events: cleanStats.events,
-    },
+    metrics: {summary: cleanStats.summary, events: cleanStats.events},
     history: cleanHistory,
     ratings: cleanRatings,
     queue: archiveQueue(queue),
@@ -439,9 +430,7 @@ export function validateProfileArchive(input) {
   if (!Number.isInteger(input.formatVersion) || input.formatVersion > PROFILE_ARCHIVE_VERSION) {
     throw new Error(`La versión ${input.formatVersion} del perfil no es compatible con esta versión de Calliope.`);
   }
-  if (input.formatVersion < 1) {
-    throw new Error("La versión del perfil no es válida.");
-  }
+  if (input.formatVersion < 1) {throw new Error("La versión del perfil no es válida.");}
 
   const archive = input.formatVersion === 1
     ? migrateProfileArchiveV1(input)
@@ -453,9 +442,7 @@ export function validateProfileArchive(input) {
     username !== undefined
     && username !== ""
     && (typeof username !== "string" || !validateUsername(username).valid)
-  ) {
-    throw new Error("El nombre de usuario del perfil no es válido.");
-  }
+  ) {throw new Error("El nombre de usuario del perfil no es válido.");}
   if (
     !archive.profile
     || typeof archive.profile.id !== "string"
@@ -476,18 +463,14 @@ export function validateProfileArchive(input) {
     || !archive.profile.preferences
     || typeof archive.profile.preferences !== "object"
     || Array.isArray(archive.profile.preferences)
-  ) {
-    throw new Error("Faltan datos obligatorios o tienen tipos incorrectos.");
-  }
+  ) {throw new Error("Faltan datos obligatorios o tienen tipos incorrectos.");}
   for (const [key, value] of Object.entries(archive.profile.preferences)) {
     const defaultValue = DEFAULT_PREFERENCES[key];
     if (
       defaultValue === undefined
       || typeof value !== typeof defaultValue
       || (key === "volume" && (!Number.isFinite(value) || value < 0 || value > 1))
-    ) {
-      throw new Error(`La preferencia «${key}» no es compatible o tiene un tipo incorrecto.`);
-    }
+    ) {throw new Error(`La preferencia «${key}» no es compatible o tiene un tipo incorrecto.`);}
   }
 
   assertRecordArray(archive.playlists, "listas");
@@ -510,9 +493,7 @@ export function validateProfileArchive(input) {
       || !Number.isInteger(playlist.order)
       || (playlist.cover !== undefined && typeof playlist.cover !== "string")
       || (playlist.cover && !portableImageSource(playlist.cover))
-    ) {
-      throw new Error("Hay una lista de reproducción no válida.");
-    }
+    ) {throw new Error("Hay una lista de reproducción no válida.");}
   }
   for (const record of archive.history) {
     if (
@@ -523,9 +504,7 @@ export function validateProfileArchive(input) {
       || !record.itemId
       || !Number.isFinite(record.timestamp)
       || !Number.isFinite(record.playCount)
-    ) {
-      throw new Error("Hay un registro de historial no válido.");
-    }
+    ) {throw new Error("Hay un registro de historial no válido.");}
     if (
       (record.title !== undefined && typeof record.title !== "string")
       || (record.subtitle !== undefined && typeof record.subtitle !== "string")
@@ -533,9 +512,7 @@ export function validateProfileArchive(input) {
       || (record.releaseId !== undefined && (typeof record.releaseId !== "string" || !record.releaseId))
       || (record.releaseType !== undefined && typeof record.releaseType !== "string")
       || (record.albumId !== undefined && (typeof record.albumId !== "string" || !record.albumId))
-    ) {
-      throw new Error("Los datos descriptivos del historial no son válidos.");
-    }
+    ) {throw new Error("Los datos descriptivos del historial no son válidos.");}
   }
   for (const rating of archive.ratings) {
     if (!rating || typeof rating.songId !== "string" || !rating.songId || !["like", "dislike", "neutral"].includes(rating.rating)) {
@@ -549,9 +526,7 @@ export function validateProfileArchive(input) {
       || !event.songId
       || !Number.isFinite(event.listenTime)
       || !Number.isFinite(event.timestamp)
-    ) {
-      throw new Error("Hay un evento de reproducción no válido.");
-    }
+    ) {throw new Error("Hay un evento de reproducción no válido.");}
   }
   if (
     archive.queue !== undefined
@@ -565,9 +540,7 @@ export function validateProfileArchive(input) {
       )
       || (archive.queue.repeatMode !== undefined && !["off", "all", "one"].includes(archive.queue.repeatMode))
     )
-  ) {
-    throw new Error("El estado de la cola de reproducción no es válido.");
-  }
+  ) {throw new Error("El estado de la cola de reproducción no es válido.");}
 
   const canonicalArchive = buildProfileArchive({
     profile: archive.profile,
@@ -658,11 +631,7 @@ export function resolveProfileSongReferences(archive, currentSongs = [], current
         }
       : null,
   };
-  return {
-    archive: resolvedArchive,
-    resolvedCount,
-    unresolvedCount: songIds.size - resolvedCount,
-  };
+  return {archive: resolvedArchive, resolvedCount, unresolvedCount: songIds.size - resolvedCount};
 }
 
 function mapQueueSongReferences(queue, resolveSongId) {
@@ -717,10 +686,7 @@ export async function resolveStoredProfileSongReferences(profileId, currentSongs
   const resolvedRecords = {};
 
   for (const [storeName, mapRecord] of [
-    ["playlists", (record) => ({
-      ...record,
-      songIds: (record.songIds || []).map(resolveSongId),
-    })],
+    ["playlists", (record) => ({...record, songIds: (record.songIds || []).map(resolveSongId)})],
     ["history", (record) => ({
       ...record,
       itemId: record.type === "song"
@@ -832,9 +798,7 @@ function migrateProfileArchiveV1(input) {
     || !input.library
     || !Array.isArray(input.library.songs)
     || !Array.isArray(input.library.metadata)
-  ) {
-    throw new Error("El respaldo v1 está incompleto o no tiene una estructura válida.");
-  }
+  ) {throw new Error("El respaldo v1 está incompleto o no tiene una estructura válida.");}
   assertRecordArray(input.playlists, "listas");
   assertRecordArray(input.history, "historial");
   assertRecordArray(input.ratings, "valoraciones");
@@ -852,9 +816,7 @@ function migrateProfileArchiveV1(input) {
     || Array.isArray(input.profile.preferences)
     || (input.metrics.summary !== null
       && (typeof input.metrics.summary !== "object" || Array.isArray(input.metrics.summary)))
-  ) {
-    throw new Error("La identidad o las métricas del respaldo v1 no son válidas.");
-  }
+  ) {throw new Error("La identidad o las métricas del respaldo v1 no son válidas.");}
   for (const [key, value] of Object.entries(input.profile.preferences)) {
     const defaultValue = DEFAULT_PREFERENCES[key];
     if (defaultValue === undefined || typeof value !== typeof defaultValue) {
@@ -869,9 +831,7 @@ function migrateProfileArchiveV1(input) {
       || typeof playlist.name !== "string"
       || !Array.isArray(playlist.songIds)
       || playlist.songIds.some((id) => typeof id !== "string" || !id)
-    ) {
-      throw new Error("El respaldo v1 contiene una lista de reproducción no válida.");
-    }
+    ) {throw new Error("El respaldo v1 contiene una lista de reproducción no válida.");}
   }
   for (const item of input.history) {
     if (
@@ -880,18 +840,14 @@ function migrateProfileArchiveV1(input) {
       || typeof item.itemId !== "string"
       || !item.itemId
       || !Number.isFinite(item.timestamp)
-    ) {
-      throw new Error("El respaldo v1 contiene un registro de historial no válido.");
-    }
+    ) {throw new Error("El respaldo v1 contiene un registro de historial no válido.");}
   }
   for (const rating of input.ratings) {
     if (
       !rating
       || typeof rating.songId !== "string"
       || !["like", "dislike", "neutral"].includes(rating.rating)
-    ) {
-      throw new Error("El respaldo v1 contiene una valoración no válida.");
-    }
+    ) {throw new Error("El respaldo v1 contiene una valoración no válida.");}
   }
   for (const event of input.metrics.events) {
     if (
@@ -900,9 +856,7 @@ function migrateProfileArchiveV1(input) {
       || !event.songId
       || !Number.isFinite(event.listenTime)
       || !Number.isFinite(event.timestamp)
-    ) {
-      throw new Error("El respaldo v1 contiene un evento de reproducción no válido.");
-    }
+    ) {throw new Error("El respaldo v1 contiene un evento de reproducción no válido.");}
   }
   for (const song of input.library.songs) {
     if (!song || typeof song.id !== "string" || !song.id) {
@@ -926,18 +880,14 @@ function migrateProfileArchiveV1(input) {
       )
       || (input.queue.repeatMode !== undefined && !["off", "all", "one"].includes(input.queue.repeatMode))
     )
-  ) {
-    throw new Error("El estado de cola del respaldo v1 no es válido.");
-  }
+  ) {throw new Error("El estado de cola del respaldo v1 no es válido.");}
 
   const playlists = input.playlists.map((item) => ({ ...item, songIds: [...item.songIds] }));
   const legacyFavorites = input.favorites?.songIds;
   if (
     legacyFavorites !== undefined
     && (!Array.isArray(legacyFavorites) || legacyFavorites.some((id) => typeof id !== "string" || !id))
-  ) {
-    throw new Error("La lista de favoritos del respaldo v1 no es válida.");
-  }
+  ) {throw new Error("La lista de favoritos del respaldo v1 no es válida.");}
   if (Array.isArray(legacyFavorites)) {
     let favorites = playlists.find((playlist) => playlist.id === "favorites");
     if (!favorites && legacyFavorites.length) {
@@ -967,9 +917,7 @@ function migrateProfileArchiveV2(input) {
     || !Array.isArray(input.ratings)
     || !input.metrics
     || !Array.isArray(input.metrics.events)
-  ) {
-    throw new Error("El respaldo v2 está incompleto o no tiene una estructura válida.");
-  }
+  ) {throw new Error("El respaldo v2 está incompleto o no tiene una estructura válida.");}
   assertRecordArray(input.playlists, "listas");
   assertRecordArray(input.history, "historial");
   assertRecordArray(input.ratings, "valoraciones");
@@ -985,18 +933,14 @@ function migrateProfileArchiveV2(input) {
     || Array.isArray(input.profile.preferences)
     || (input.metrics.summary !== null
       && (typeof input.metrics.summary !== "object" || Array.isArray(input.metrics.summary)))
-  ) {
-    throw new Error("La identidad o las métricas del respaldo v2 no son válidas.");
-  }
+  ) {throw new Error("La identidad o las métricas del respaldo v2 no son válidas.");}
   for (const [key, value] of Object.entries(input.profile.preferences)) {
     const defaultValue = DEFAULT_PREFERENCES[key];
     if (
       defaultValue === undefined
       || typeof value !== typeof defaultValue
       || (key === "volume" && (!Number.isFinite(value) || value < 0 || value > 1))
-    ) {
-      throw new Error(`La preferencia «${key}» del respaldo v2 no es válida.`);
-    }
+    ) {throw new Error(`La preferencia «${key}» del respaldo v2 no es válida.`);}
   }
   validateStatsSummary(input.metrics.summary);
   for (const playlist of input.playlists) {
@@ -1008,9 +952,7 @@ function migrateProfileArchiveV2(input) {
       || !Array.isArray(playlist.songIds)
       || playlist.songIds.some((id) => typeof id !== "string" || !id)
       || !Number.isInteger(playlist.order)
-    ) {
-      throw new Error("El respaldo v2 contiene una lista de reproducción no válida.");
-    }
+    ) {throw new Error("El respaldo v2 contiene una lista de reproducción no válida.");}
   }
   for (const item of input.history) {
     if (
@@ -1021,9 +963,7 @@ function migrateProfileArchiveV2(input) {
       || !item.itemId
       || !Number.isFinite(item.timestamp)
       || !Number.isFinite(item.playCount)
-    ) {
-      throw new Error("El respaldo v2 contiene un registro de historial no válido.");
-    }
+    ) {throw new Error("El respaldo v2 contiene un registro de historial no válido.");}
   }
   for (const rating of input.ratings) {
     if (
@@ -1031,9 +971,7 @@ function migrateProfileArchiveV2(input) {
       || typeof rating.songId !== "string"
       || !rating.songId
       || !["like", "dislike", "neutral"].includes(rating.rating)
-    ) {
-      throw new Error("El respaldo v2 contiene una valoración no válida.");
-    }
+    ) {throw new Error("El respaldo v2 contiene una valoración no válida.");}
   }
   for (const event of input.metrics.events) {
     if (
@@ -1042,9 +980,7 @@ function migrateProfileArchiveV2(input) {
       || !event.songId
       || !Number.isFinite(event.listenTime)
       || !Number.isFinite(event.timestamp)
-    ) {
-      throw new Error("El respaldo v2 contiene un evento de reproducción no válido.");
-    }
+    ) {throw new Error("El respaldo v2 contiene un evento de reproducción no válido.");}
   }
   if (
     input.queue !== undefined
@@ -1058,9 +994,7 @@ function migrateProfileArchiveV2(input) {
       )
       || (input.queue.repeatMode !== undefined && !["off", "all", "one"].includes(input.queue.repeatMode))
     )
-  ) {
-    throw new Error("El estado de cola del respaldo v2 no es válido.");
-  }
+  ) {throw new Error("El estado de cola del respaldo v2 no es válido.");}
 
   return buildProfileArchive({
     profile: input.profile,
@@ -1102,10 +1036,7 @@ export async function collectProfileArchive(profileId) {
   }
 
   const archive = buildProfileArchive({
-    profile: {
-      ...profile,
-      avatarUrl: await portableImageValue(profile.avatarBlob || profile.avatarUrl),
-    },
+    profile: {...profile, avatarUrl: await portableImageValue(profile.avatarBlob || profile.avatarUrl)},
     playlists,
     history: allHistory.filter((item) => item.profileId === profileId),
     stats: { summary, events },
@@ -1311,9 +1242,7 @@ export async function importProfileArchive(archive, {
     if (mode === "update") {
       for (const store of [playlistStore, historyStore, statsStore, ratingStore]) {
         const existing = await store.getAll();
-        for (const item of existing) {
-          if (item.profileId === profileId) await store.delete(item.id);
-        }
+        for (const item of existing) {if (item.profileId === profileId) await store.delete(item.id);}
       }
     }
 
@@ -1369,10 +1298,7 @@ async function writeWebProfileArchive(profile, serialized) {
     if (error?.name === "NotFoundError") return null;
     throw error;
   });
-  const preferredName = normalizeProfileDirectoryName(
-    profile.displayName || profile.name,
-    profileId,
-  );
+  const preferredName = normalizeProfileDirectoryName(profile.displayName || profile.name, profileId);
   const profileDirectories = [];
   for await (const entry of profilesRoot.values()) {
     if (entry.kind === "directory") profileDirectories.push(entry);
@@ -1387,9 +1313,7 @@ async function writeWebProfileArchive(profile, serialized) {
         if (archive?.profile?.id === profileId) {
           identityFiles.push({ directory, parent, fileName: entry.name, canonical });
         }
-      } catch {
-        continue;
-      }
+      } catch {continue;}
     }
   };
   for (const directory of profileDirectories) {
@@ -1415,18 +1339,13 @@ async function writeWebProfileArchive(profile, serialized) {
       && previous.directory.name === preferredMatch.name;
     let hasUnknownFiles = false;
     if (!sameIdentity) {
-      for await (const entry of preferredMatch.values()) {
-        hasUnknownFiles = true;
-        break;
-      }
+      for await (const entry of preferredMatch.values()) {hasUnknownFiles = true; break;}
     }
     if (hasUnknownFiles) {
       targetName = normalizeProfileDirectoryName(preferredName, profileId, existingNames);
     } else if (preferredMatch.name !== preferredName && !sameIdentity) {
       targetName = normalizeProfileDirectoryName(preferredName, profileId, existingNames);
-    } else {
-      targetName = preferredMatch.name;
-    }
+    } else {targetName = preferredMatch.name;}
   }
 
   const destination = await profilesRoot.getDirectoryHandle(targetName, { create: true });
@@ -1439,9 +1358,7 @@ async function writeWebProfileArchive(profile, serialized) {
     && previous.fileName === fileName;
   if (existingExpected && !samePreviousFile) {
     let existingArchive;
-    try {
-      existingArchive = JSON.parse(await (await existingExpected.getFile()).text());
-    } catch {
+    try {existingArchive = JSON.parse(await (await existingExpected.getFile()).text());} catch {
       throw new Error(`El archivo ${fileName} ya existe, pero no es un JSON válido; no se sobrescribió.`);
     }
     if (existingArchive?.profile?.id !== profileId) {
@@ -1451,10 +1368,7 @@ async function writeWebProfileArchive(profile, serialized) {
 
   const fileHandle = existingExpected || await destination.getFileHandle(fileName, { create: true });
   const writable = await fileHandle.createWritable();
-  try {
-    await writable.write(serialized);
-    await writable.close();
-  } catch (error) {
+  try {await writable.write(serialized); await writable.close();} catch (error) {
     try { await writable.abort(); } catch {}
     throw error;
   }
@@ -1544,9 +1458,7 @@ export async function flushProfileSync(profileId, { requestPermission = false } 
   const revision = syncRevisions.get(profileId) || 0;
   const promise = performProfileSync(profileId);
   syncPromises.set(profileId, promise);
-  try {
-    await promise;
-  } finally {
+  try {await promise;} finally {
     syncPromises.delete(profileId);
   }
   if ((syncRevisions.get(profileId) || 0) !== revision) {

@@ -30,9 +30,7 @@ function mimeTypeForPath(path) {
   return MIME_TYPES[extension] || "application/octet-stream";
 }
 
-export function isTauriEnvironment() {
-  return isTauri();
-}
+export function isTauriEnvironment() {return isTauri();}
 
 export async function selectMusicFolder() {
   if (isTauriEnvironment()) {
@@ -58,10 +56,7 @@ export async function selectMusicFolder() {
       resolve({ type: "files", files: Array.from(input.files || []) });
       input.remove();
     }, { once: true });
-    input.addEventListener("cancel", () => {
-      resolve(null);
-      input.remove();
-    }, { once: true });
+    input.addEventListener("cancel", () => {resolve(null); input.remove();}, { once: true });
     input.click();
   });
 }
@@ -72,19 +67,11 @@ export async function listMusicFiles(selection) {
     const visit = async (directoryPath) => {
       for (const entry of await readDir(directoryPath)) {
         const path = await join(directoryPath, entry.name);
-        if (entry.isDirectory) {
-          await visit(path);
-          continue;
-        }
+        if (entry.isDirectory) {await visit(path); continue;}
 
         const extension = entry.name.split(".").pop()?.toLowerCase();
         if (entry.isFile && AUDIO_EXTENSIONS.has(extension)) {
-          files.push({
-            name: entry.name,
-            path,
-            uri: path,
-            mimeType: mimeTypeForPath(path),
-          });
+          files.push({name: entry.name, path, uri: path, mimeType: mimeTypeForPath(path)});
         }
       }
     };
@@ -98,9 +85,7 @@ export async function listMusicFiles(selection) {
   }
 
   const entries = [];
-  for await (const entry of selection.values()) {
-    if (entry.kind === "file") entries.push(entry);
-  }
+  for await (const entry of selection.values()) {if (entry.kind === "file") entries.push(entry);}
   return entries;
 }
 

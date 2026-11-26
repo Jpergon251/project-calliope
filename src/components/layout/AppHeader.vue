@@ -30,18 +30,32 @@
           {{ user.initials }}
         </span>
       </RouterLink>
+      <button
+        type="button"
+        class="header-action settings-action"
+        aria-label="Abrir opciones"
+        title="Opciones"
+        :aria-expanded="settingsOpen"
+        @click="settingsOpen = !settingsOpen"
+      >
+        <Settings :size="18" />
+      </button>
+      <SettingsDrawer :open="settingsOpen" @close="settingsOpen = false" />
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useUserStore } from "../../stores/userStore.js";
+import { Settings } from "lucide-vue-next";
 import BackButton from "../common/BackButton.vue";
+import SettingsDrawer from "../SettingsDrawer.vue";
 
 const route = useRoute();
 const user = useUserStore();
+const settingsOpen = ref(false);
 
 const labels = {
   Home: ["Inicio", "Descubre"],

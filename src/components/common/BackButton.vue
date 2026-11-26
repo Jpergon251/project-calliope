@@ -16,13 +16,8 @@ const route = useRoute()
 const ROOT_ROUTES = new Set(['Home', 'Library', 'Songs', 'Albums', 'Artists', 'Playlists', 'Settings', 'Profile'])
 
 const isMobile = ref(false)
-function check() {
-  isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760
-}
-onMounted(() => {
-  check()
-  window.addEventListener('resize', check)
-})
+function check() {isMobile.value = typeof window !== 'undefined' && window.innerWidth <= 760}
+onMounted(() => {check(), window.addEventListener('resize', check)})
 onBeforeUnmount(() => window.removeEventListener('resize', check))
 
 const visible = computed(() => isMobile.value && !ROOT_ROUTES.has(route.name))
@@ -40,9 +35,7 @@ function goBack() {
   // router.back() solo si hay una entrada anterior real dentro de la app;
   // vue-router expone el estado de historial a través de window.history.
   const fallback = FALLBACK[route.name] || { name: 'Home' }
-  if (window.history.state && window.history.state.back != null) {
-    router.back()
-  } else {
+  if (window.history.state && window.history.state.back != null) {router.back()} else {
     router.push(fallback)
   }
 }

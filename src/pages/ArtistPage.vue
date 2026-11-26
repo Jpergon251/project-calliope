@@ -544,6 +544,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { downscaleImage } from "../lib/covers.js";
 
 import { useRoute, useRouter } from "vue-router";
 
@@ -557,7 +558,6 @@ import {
   ListPlus,
   LoaderCircle,
   Music2,
-  Pencil,
   Play,
   Sparkles,
   Trash2,
@@ -572,17 +572,10 @@ import { useLibraryStore } from "../stores/libraryStore.js";
 const route = useRoute();
 const router = useRouter();
 const library = useLibraryStore();
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
 function decodeRouteValue(value) {
   const stringValue = String(value || "");
 
-  try {
-    return decodeURIComponent(stringValue);
-  } catch {
+  try {return decodeURIComponent(stringValue);} catch {
     return stringValue;
   }
 }
@@ -597,49 +590,26 @@ function sameArtistName(a, b) {
       .toLowerCase()
   );
 }
-
-/* ============================================================
-   ARTIST IDENTITY
-============================================================ */
-
 const artistName = computed(() => {
-  return decodeRouteValue(
-    route.params.name || route.params.artist || route.params.id || "",
-  );
+  return decodeRouteValue(route.params.name || route.params.artist || route.params.id || "");
 });
 
 const artistData = computed(() => {
   const name = artistName.value;
 
-  if (!name) {
-    return null;
-  }
+  if (!name) {return null;}
 
   return (
     library.artists.find((artist) => sameArtistName(artist.name, name)) || null
   );
 });
-
-/* ============================================================
-   ARTIST DATA
-============================================================ */
-
 const artistDisplayName = computed(() => {
-  return (
-    artistData.value?.artisticName ||
-    artistData.value?.name ||
-    artistName.value ||
-    "Artista"
-  );
+  return (artistData.value?.artisticName || artistData.value?.name || artistName.value || "Artista");
 });
 
-const artistRealName = computed(() => {
-  return artistData.value?.realName || "";
-});
+const artistRealName = computed(() => {return artistData.value?.realName || "";});
 
-const artistDescription = computed(() => {
-  return artistData.value?.description || "";
-});
+const artistDescription = computed(() => {return artistData.value?.description || "";});
 
 /*
  * IMPORTANT:
@@ -650,18 +620,11 @@ const artistDescription = computed(() => {
  * If there isn't one, we deliberately return null so the template
  * renders the Lucide UserRound fallback.
  */
-const artistCover = computed(() => {
-  return artistData.value?.customCover || null;
-});
+const artistCover = computed(() => {return artistData.value?.customCover || null;});
 
-const hasCustomCover = computed(() => {
-  return Boolean(artistData.value?.customCover);
-});
+const hasCustomCover = computed(() => {return Boolean(artistData.value?.customCover);});
 
-const artistSongs = computed(() => {
-  if (artistData.value?.songs) {
-    return artistData.value.songs;
-  }
+const artistSongs = computed(() => {if (artistData.value?.songs) { return artistData.value.songs;}
 
   return library.songs.filter((song) =>
     sameArtistName(song.artist, artistName.value),
@@ -675,15 +638,9 @@ const artistAlbums = computed(() => {
   if (artistData.value?.albums) {
     return artistData.value.albums.map((album) => {
       const songCount = library.songs.filter((song) => {
-        return (
-          song.albumId === album.id || (song.album && song.album === album.name)
-        );
+        return (song.albumId === album.id || (song.album && song.album === album.name));
       }).length;
-      return {
-        ...album,
-        songCount,
-        songs: album.songs || [],
-      };
+      return {...album, songCount, songs: album.songs || []};
     });
   }
 
@@ -693,31 +650,19 @@ const artistAlbums = computed(() => {
     if (!name) return;
 
     if (!albums.has(name)) {
-      albums.set(name, {
-        id: `${artistName.value}-${name}`,
-        name,
-        cover: song.cover || null,
-        songs: [],
-      });
+      albums.set(name, {id: `${artistName.value}-${name}`, name, cover: song.cover || null, songs: []});
     }
 
     albums.get(name).songs.push(song);
 
-    if (!albums.get(name).cover && song.cover) {
-      albums.get(name).cover = song.cover;
-    }
+    if (!albums.get(name).cover && song.cover) {albums.get(name).cover = song.cover;}
   });
 
-  return Array.from(albums.values()).map((album) => ({
-    ...album,
-    songCount: album.songs.length,
-  }));
+  return Array.from(albums.values()).map((album) => ({...album, songCount: album.songs.length}));
 });
 
 const collaboratorNames = computed(() => {
-  if (artistData.value?.collaboratorNames) {
-    return artistData.value.collaboratorNames;
-  }
+  if (artistData.value?.collaboratorNames) {return artistData.value.collaboratorNames;}
 
   const collaborators = new Set();
 
@@ -730,18 +675,11 @@ const collaboratorNames = computed(() => {
     structuredArtists
       .map((artist) => typeof artist === 'string' ? artist : artist?.name)
       .filter(Boolean)
-      .forEach((name) => {
-        if (!sameArtistName(name, artistName.value)) collaborators.add(name);
-      });
+      .forEach((name) => {if (!sameArtistName(name, artistName.value)) collaborators.add(name);});
   });
 
   return Array.from(collaborators);
 });
-
-/* ============================================================
-   SONG CAROUSEL
-============================================================ */
-
 const artistSongsCarousel = ref(null);
 
 function scrollArtistSongs(direction) {
@@ -751,16 +689,8 @@ function scrollArtistSongs(direction) {
 
   const amount = Math.max(container.clientWidth * 0.78, 260);
 
-  container.scrollBy({
-    left: amount * direction,
-    behavior: "smooth",
-  });
+  container.scrollBy({left: amount * direction, behavior: "smooth"});
 }
-
-/* ============================================================
-   PLAY ARTIST
-============================================================ */
-
 function playArtist() {
   if (!artistSongs.value.length) return;
 
@@ -777,64 +707,35 @@ function playArtist() {
     typeof window !== "undefined" &&
     window.innerWidth <= 760 &&
     typeof library.openNowPlaying === "function"
-  ) {
-    library.openNowPlaying();
-  }
+  ) {library.openNowPlaying();}
 }
-
-/* ============================================================
-   QUEUE ARTIST
-============================================================ */
-
 function addArtistToQueue() {
   if (!artistSongs.value.length) return;
 
   if (typeof library.addToQueue === "function") {
-    artistSongs.value.forEach((song) => {
-      library.addToQueue(song);
-    });
+    artistSongs.value.forEach((song) => {library.addToQueue(song);});
 
     return;
   }
 
-  if (typeof library.addSongsToQueue === "function") {
-    library.addSongsToQueue(artistSongs.value);
-  }
+  if (typeof library.addSongsToQueue === "function") {library.addSongsToQueue(artistSongs.value);}
 }
-
-/* ============================================================
-   NAVIGATION
-============================================================ */
-
 function openAllArtistSongs() {
-  router.push({
-    path: "/library",
-    query: {
-      category: "songs",
-      artist: artistName.value,
-    },
+  router.push({path: "/library", query: { category: "songs", artist: artistName.value},
   });
 }
 
 function openAlbum(album) {
   if (!album) return;
 
-  router.push({
-    name: "album",
-    params: {
-      id: album.id || album.name,
-    },
+  router.push({name: "album", params: { id: album.id || album.name},
   });
 }
 
 function openCollaborator(name) {
   if (!name) return;
 
-  router.push({
-    name: "artist",
-    params: {
-      name: encodeURIComponent(name),
-    },
+  router.push({name: "artist", params: { name: encodeURIComponent(name)},
   });
 }
 
@@ -845,111 +746,17 @@ function collaboratorDisplayName(name) {
 
   return artist?.artisticName || artist?.name || name;
 }
-
-/* ============================================================
-   ARTIST EDITOR
-============================================================ */
-
 const isArtistModalOpen = ref(false);
 const isSavingArtist = ref(false);
 
 const artistUrlDraft = ref("");
 
-const artistProfileDraft = ref({
-  artisticName: "",
-  realName: "",
-  description: "",
-});
+const artistProfileDraft = ref({artisticName: "", realName: "", description: ""});
 
 const pendingArtistImage = ref(null);
 const editorImagePreview = ref(null);
 
 let temporaryImageObjectUrl = null;
-
-/* ============================================================
-   IMAGE HELPERS
-============================================================ */
-
-/*
- * Self-contained image downscaler.
- *
- * No imageUtils.js required.
- *
- * The resulting value is a Blob so it can be persisted without
- * keeping the original huge image in memory/storage.
- */
-function downscaleImage(
-  file,
-  maxWidth = 1280,
-  maxHeight = 1280,
-  quality = 0.88,
-) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const image = new Image();
-
-      image.onload = () => {
-        const scale = Math.min(
-          1,
-          maxWidth / image.naturalWidth,
-          maxHeight / image.naturalHeight,
-        );
-
-        const width = Math.max(1, Math.round(image.naturalWidth * scale));
-
-        const height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-        const canvas = document.createElement("canvas");
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const context = canvas.getContext("2d");
-
-        if (!context) {
-          reject(new Error("No se pudo crear el contexto del canvas."));
-          return;
-        }
-
-        context.drawImage(image, 0, 0, width, height);
-
-        const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error("No se pudo procesar la imagen."));
-              return;
-            }
-
-            resolve(blob);
-          },
-          mimeType,
-          quality,
-        );
-      };
-
-      image.onerror = () => {
-        reject(new Error("No se pudo cargar la imagen."));
-      };
-
-      image.src = reader.result;
-    };
-
-    reader.onerror = () => {
-      reject(new Error("No se pudo leer el archivo."));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-/* ============================================================
-   OPEN MODAL
-============================================================ */
-
 function openArtistModal() {
   const profile =
     typeof library.getArtistProfile === "function"
@@ -989,15 +796,8 @@ function openArtistModal() {
 
   isArtistModalOpen.value = true;
 
-  nextTick(() => {
-    document.body.classList.add("artist-modal-open");
-  });
+  nextTick(() => {document.body.classList.add("artist-modal-open");});
 }
-
-/* ============================================================
-   CLOSE MODAL
-============================================================ */
-
 function closeArtistModal() {
   if (isSavingArtist.value) return;
 
@@ -1015,11 +815,6 @@ function closeArtistModal() {
 
   document.body.classList.remove("artist-modal-open");
 }
-
-/* ============================================================
-   IMAGE FILE
-============================================================ */
-
 async function pickArtistImageFile(event) {
   const file = event?.target?.files?.[0];
 
@@ -1030,26 +825,17 @@ async function pickArtistImageFile(event) {
 
     pendingArtistImage.value = image;
 
-    if (temporaryImageObjectUrl) {
-      URL.revokeObjectURL(temporaryImageObjectUrl);
-    }
+    if (temporaryImageObjectUrl) {URL.revokeObjectURL(temporaryImageObjectUrl);}
 
     temporaryImageObjectUrl = URL.createObjectURL(image);
 
     editorImagePreview.value = temporaryImageObjectUrl;
 
     artistUrlDraft.value = "";
-  } catch (error) {
-    console.error("Error procesando imagen del artista:", error);
-  }
+  } catch (error) {console.error("Error procesando imagen del artista:", error);}
 
   event.target.value = "";
 }
-
-/* ============================================================
-   REMOVE IMAGE
-============================================================ */
-
 function removePendingArtistImage() {
   pendingArtistImage.value = null;
 
@@ -1062,18 +848,10 @@ function removePendingArtistImage() {
   editorImagePreview.value = null;
   artistUrlDraft.value = "";
 }
-
-/* ============================================================
-   URL PREVIEW
-============================================================ */
-
 function previewArtistUrl() {
   const url = artistUrlDraft.value.trim();
 
-  if (!url) {
-    if (!pendingArtistImage.value) {
-      editorImagePreview.value = null;
-    }
+  if (!url) {if (!pendingArtistImage.value) { editorImagePreview.value = null;}
 
     return;
   }
@@ -1088,11 +866,6 @@ function previewArtistUrl() {
 
   editorImagePreview.value = url;
 }
-
-/* ============================================================
-   SAVE PROFILE
-============================================================ */
-
 async function saveArtistProfileChanges() {
   if (isSavingArtist.value) return;
 
@@ -1116,20 +889,14 @@ async function saveArtistProfileChanges() {
      */
     if (pendingArtistImage.value) {
       if (typeof library.setCustomArtistCover === "function") {
-        await library.setCustomArtistCover(
-          artistName.value,
-          pendingArtistImage.value,
-        );
+        await library.setCustomArtistCover(artistName.value, pendingArtistImage.value);
       }
     } else if (artistUrlDraft.value.trim()) {
     /*
      * URL image.
      */
       if (typeof library.setCustomArtistCover === "function") {
-        await library.setCustomArtistCover(
-          artistName.value,
-          artistUrlDraft.value.trim(),
-        );
+        await library.setCustomArtistCover(artistName.value, artistUrlDraft.value.trim());
       }
     } else if (!editorImagePreview.value && hasCustomCover.value) {
     /*
@@ -1143,21 +910,11 @@ async function saveArtistProfileChanges() {
     await library.init();
 
     closeArtistModal();
-  } catch (error) {
-    console.error("Error guardando perfil del artista:", error);
-  } finally {
+  } catch (error) {console.error("Error guardando perfil del artista:", error);} finally {
     isSavingArtist.value = false;
   }
 }
-
-/* ============================================================
-   CLEANUP
-============================================================ */
-
-onBeforeUnmount(() => {
-  if (temporaryImageObjectUrl) {
-    URL.revokeObjectURL(temporaryImageObjectUrl);
-  }
+onBeforeUnmount(() => {if (temporaryImageObjectUrl) { URL.revokeObjectURL(temporaryImageObjectUrl);}
 
   document.body.classList.remove("artist-modal-open");
 });
