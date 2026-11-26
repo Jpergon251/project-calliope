@@ -128,7 +128,7 @@
       </div>
     </section>
 
-    <div class="song-atmosphere" :class="{ active: library.isPlaying }" aria-label="Visualizador de audio">
+    <div v-if="user.profile.showVisualizer" class="song-atmosphere" :class="{ active: library.isPlaying }" aria-label="Visualizador de audio">
       <AudioVisualizer />
     </div>
 
@@ -146,6 +146,7 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
+import { useUserStore } from "../stores/userStore.js";
 import { computed, ref } from "vue";
 import { DiscAlbum, Heart, Pause, Pencil, Play, ThumbsDown, ThumbsUp } from "lucide-vue-next";
 import CoverArt from "../components/common/CoverArt.vue";
@@ -155,6 +156,7 @@ import { formatTime, navigateToArtist } from "../lib/formatters.js";
 const route = useRoute();
 const router = useRouter();
 const library = useLibraryStore();
+const user = useUserStore();
 const metadataEditorSong = ref(null);
 
 const song = computed(() =>

@@ -1,6 +1,7 @@
 export const DEFAULT_PREFERENCES = {
   accentColor: "miami-vice",
   visualizerStyle: "classic",
+  visualizerAmplitude: 1,
   reducedMotion: false,
   showVisualizer: true,
   autoplayOnStart: false,

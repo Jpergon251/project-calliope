@@ -1522,9 +1522,9 @@
   left: 0;
   z-index: 0;
   width: 100vw;
-  height: clamp(140px, 18vh, 180px);
+  height: clamp(200px, 26vh, 280px);
   margin: 0;
-  overflow: hidden;
+  overflow: visible;
   border: none;
   background: transparent;
   pointer-events: none;

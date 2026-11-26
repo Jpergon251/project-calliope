@@ -8,7 +8,7 @@ import { dbPromise } from "../lib/db.js";
 import { toDisplayUrl } from "../lib/covers.js";
 import {generateProfileId, hashPassword, verifyPassword} from "../lib/crypto.js";
 import {getColorPalette, normalizePaletteId} from "../lib/colorPalettes.js";
-import { normalizeVisualizerStyle } from "../lib/visualizer.js";
+import { normalizeVisualizerAmplitude, normalizeVisualizerStyle } from "../lib/visualizer.js";
 import { DEFAULT_PREFERENCES } from "../lib/profilePreferences.js";
 import {findUsernameOwner, normalizeUsername, validateUsername} from "../lib/profileIdentity.js";
 import { useLibraryStore } from "./libraryStore.js";
@@ -105,6 +105,7 @@ export const useUserStore = defineStore("user", () => {
     ) {preferences.accentColor = raw.accentColor;}
     preferences.accentColor = normalizePaletteId(preferences.accentColor);
     preferences.visualizerStyle = normalizeVisualizerStyle(preferences.visualizerStyle);
+    preferences.visualizerAmplitude = normalizeVisualizerAmplitude(preferences.visualizerAmplitude);
     // Una preferencia guardada como undefined no debe pisar el valor por defecto.
     for (const key of Object.keys(preferences)) {
       if (preferences[key] === undefined) {preferences[key] = DEFAULT_PREFERENCES[key];}
@@ -377,6 +378,9 @@ export const useUserStore = defineStore("user", () => {
       pendingPreferences.value.visualizerStyle = normalizeVisualizerStyle(
         pendingPreferences.value.visualizerStyle,
       );
+      pendingPreferences.value.visualizerAmplitude = normalizeVisualizerAmplitude(
+        pendingPreferences.value.visualizerAmplitude,
+      );
 
       // `load()` se invoca desde el router, App.vue y varias páginas.
       // Volver a restaurar la sesión ya restaurada descartaba el perfil
@@ -615,6 +619,9 @@ export const useUserStore = defineStore("user", () => {
   function setPendingPreferences(partial = {}) {
     pendingPreferences.value = {...pendingPreferences.value, ...partial};
     pendingPreferences.value.accentColor = normalizePaletteId(pendingPreferences.value.accentColor);
+    pendingPreferences.value.visualizerAmplitude = normalizeVisualizerAmplitude(
+      pendingPreferences.value.visualizerAmplitude,
+    );
 
     if (typeof sessionStorage !== "undefined") {
       try {
@@ -708,6 +715,12 @@ export const useUserStore = defineStore("user", () => {
     // La interfaz escribe claves planas (p. ej. `accentColor`), pero el
     // almacenamiento vive en `preferences`. Sincronizamos ambas para que
     // `save()` no persista el valor antiguo.
+    if (Object.prototype.hasOwnProperty.call(partial, "visualizerAmplitude")) {
+      partial = {
+        ...partial,
+        visualizerAmplitude: normalizeVisualizerAmplitude(partial.visualizerAmplitude),
+      };
+    }
     const nextPreferences = { ...(profile.value.preferences || {}) };
     for (const key of Object.keys(DEFAULT_PREFERENCES)) {
       if (partial[key] !== undefined) {nextPreferences[key] = partial[key];}

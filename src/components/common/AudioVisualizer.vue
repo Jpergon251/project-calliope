@@ -20,6 +20,7 @@ import {
   smoothVisualizerValue,
   visualizerAmplitude,
   visualizerMode,
+  normalizeVisualizerAmplitude,
   normalizeVisualizerStyle,
 } from '../../lib/visualizer.js';
 import { useUserStore } from '../../stores/userStore.js';
@@ -52,6 +53,9 @@ const visualizerState = computed(() =>
 const visualizerStyle = computed(() =>
   normalizeVisualizerStyle(user.profile.visualizerStyle),
 );
+const amplitudeFactor = computed(() =>
+  normalizeVisualizerAmplitude(user.profile.visualizerAmplitude),
+);
 
 function initAnalyser() {
   analyser = library.getAudioAnalyser();
@@ -60,6 +64,8 @@ function initAnalyser() {
 
 function drawAlternativeStyle(context, style, {
   height,
+  topInset,
+  bottomInset,
   startX,
   availableWidth,
   points,
@@ -67,6 +73,7 @@ function drawAlternativeStyle(context, style, {
   libraryVolume,
   gainScale,
   energyLevel,
+  amplitudeFactor,
   visualizerColor,
   visualizerRgba,
 }) {
@@ -79,7 +86,7 @@ function drawAlternativeStyle(context, style, {
     const barCount = 32;
     const gap = Math.max(2, availableWidth * 0.008);
     const barWidth = Math.max(1, (availableWidth - gap * (barCount - 1)) / barCount);
-    const baseline = height * 0.82;
+    const baseline = height - bottomInset;
     for (let index = 0; index < barCount; index++) {
       const progress = index / (barCount - 1);
       const frequencyIndex = Math.min(
@@ -88,7 +95,10 @@ function drawAlternativeStyle(context, style, {
       );
       const level = smoothedSpectrum[frequencyIndex] || 0;
       const amplitude = visualizerAmplitude(level, libraryVolume);
-      const barHeight = Math.max(2, amplitude * height * 0.58);
+      const barHeight = Math.min(
+        baseline - topInset,
+        Math.max(2, amplitude * amplitudeFactor * height * 0.58),
+      );
       const x = startX + index * (barWidth + gap);
       context.fillStyle = visualizerRgba(0.35 + Math.min(0.55, amplitude * 0.5));
       context.fillRect(x, baseline - barHeight, barWidth, barHeight);
@@ -108,7 +118,7 @@ function drawAlternativeStyle(context, style, {
     const barCount = Math.min(40, Math.max(16, Math.floor(availableWidth / 10)));
     const gap = Math.max(2, availableWidth * 0.006);
     const barWidth = (availableWidth - gap * (barCount - 1)) / barCount;
-    const baseline = height * 0.82;
+    const baseline = height - bottomInset;
     for (let index = 0; index < barCount; index++) {
       const progress = index / (barCount - 1);
       const frequencyIndex = Math.min(
@@ -116,7 +126,10 @@ function drawAlternativeStyle(context, style, {
         smoothedSpectrum.length - 1,
       );
       const amplitude = visualizerAmplitude(smoothedSpectrum[frequencyIndex] || 0, libraryVolume);
-      const barHeight = Math.min(height * 0.58, Math.max(4, amplitude * height * 0.58));
+      const barHeight = Math.min(
+        baseline - topInset,
+        Math.max(4, amplitude * amplitudeFactor * height * 0.58),
+      );
       const x = startX + index * (barWidth + gap);
       const y = baseline - barHeight;
       context.fillStyle = visualizerRgba(0.45 + Math.min(0.5, amplitude * 0.5));
@@ -203,7 +216,12 @@ function draw() {
   }
   energyLevel = smoothedMotion;
 
-  const centerY = height * 0.58;
+  // Reservamos un área transparente alrededor del dibujo para que las formas
+  // y sus halos no alcancen el borde físico del canvas.
+  const verticalInset = Math.max(24, Math.min(44, height * 0.14));
+  const drawingTop = verticalInset;
+  const drawingBottom = height - verticalInset;
+  const centerY = drawingTop + (drawingBottom - drawingTop) * 0.58;
   const isMobile = width <= 768;
   const availableWidth = isMobile ? width : width * 0.96;
   const startX = (width - availableWidth) / 2;
@@ -234,18 +252,24 @@ function draw() {
 
     const totalAmp = gainScale === 0
       ? 0
-      : (amp + idleWave * (1 - energyLevel * 0.6)) * windowFactor;
-    const y = centerY - totalAmp;
+      : (amp + idleWave * (1 - energyLevel * 0.6)) * windowFactor * amplitudeFactor.value;
+    const clampedAmp = Math.max(
+      -(drawingBottom - centerY),
+      Math.min(centerY - drawingTop, totalAmp),
+    );
+    const y = centerY - clampedAmp;
 
     points[i].x = x;
     points[i].y = y;
-    points[i].totalAmp = totalAmp;
+    points[i].totalAmp = clampedAmp;
     points[i].windowFactor = windowFactor;
   }
 
   if (visualizerStyle.value !== 'classic') {
     drawAlternativeStyle(context, visualizerStyle.value, {
       height,
+      topInset: drawingTop,
+      bottomInset: height - drawingBottom,
       startX,
       availableWidth,
       points,
@@ -253,6 +277,7 @@ function draw() {
       libraryVolume: library.volume,
       gainScale,
       energyLevel,
+      amplitudeFactor: amplitudeFactor.value,
       visualizerColor,
       visualizerRgba,
     });
@@ -263,7 +288,7 @@ function draw() {
 
   // 1. Relleno con gradiente bajo la onda (iluminación de campo de energía neon)
   if (gainScale > 0 && energyLevel > 0.05) {
-    const fillGradient = context.createLinearGradient(0, centerY - height * 0.4, 0, centerY + 10);
+    const fillGradient = context.createLinearGradient(0, drawingTop, 0, drawingBottom);
     fillGradient.addColorStop(0, visualizerRgba(0.16 * energyLevel));
     fillGradient.addColorStop(0.7, visualizerRgba(0.04 * energyLevel));
     fillGradient.addColorStop(1, visualizerRgba(0));

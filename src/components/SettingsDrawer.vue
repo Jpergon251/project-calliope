@@ -126,6 +126,35 @@
                     </button>
                   </div>
                 </div>
+                <div class="setting-row setting-column visualizer-amplitude-setting">
+                  <div class="visualizer-amplitude-heading">
+                    <div>
+                      <strong>Amplitud del visualizador</strong>
+                      <p>Controla cuánto se mueven las ondas, barras y puntos.</p>
+                    </div>
+                    <output for="visualizer-amplitude">{{ visualizerAmplitude.toFixed(1) }}x</output>
+                  </div>
+                  <div class="visualizer-amplitude-control">
+                    <input
+                      id="visualizer-amplitude"
+                      :value="visualizerAmplitude"
+                      type="range"
+                      min="0.5"
+                      max="2.5"
+                      step="0.1"
+                      aria-label="Amplitud del visualizador"
+                      @input="setVisualizerAmplitude"
+                    />
+                    <button
+                      type="button"
+                      class="visualizer-amplitude-reset"
+                      :disabled="visualizerAmplitude === 1"
+                      @click="updatePreference('visualizerAmplitude', 1)"
+                    >
+                      Restablecer
+                    </button>
+                  </div>
+                </div>
                 <div class="setting-row">
                   <div>
                     <strong>Menos animaciones</strong>
@@ -407,7 +436,7 @@ import GoogleDriveProfile from "./common/GoogleDriveProfile.vue";
 import { useUserStore } from "../stores/userStore.js";
 import { useLibraryStore } from "../stores/libraryStore.js";
 import { COLOR_PALETTES } from "../lib/colorPalettes.js";
-import { normalizeVisualizerStyle, VISUALIZER_STYLES } from "../lib/visualizer.js";
+import { normalizeVisualizerAmplitude, normalizeVisualizerStyle, VISUALIZER_STYLES } from "../lib/visualizer.js";
 import { collectProfileArchive, MAX_PROFILE_ARCHIVE_BYTES, profileArchiveFileName, validateProfileArchive, resolveProfileSongReferences, importProfileArchive as saveImportedProfile } from "../services/profileArchives.js";
 import { inspectProfileIdentity, validateUsername } from "../lib/profileIdentity.js";
 
@@ -432,11 +461,15 @@ const password = ref("");
 const passwordConfirm = ref("");
 const passwordError = ref("");
 const selectedVisualizerStyle = computed(() => normalizeVisualizerStyle(user.profile.visualizerStyle));
+const visualizerAmplitude = computed(() => normalizeVisualizerAmplitude(user.profile.visualizerAmplitude));
 const isPrivate = computed(() => Boolean(user.profile.private ?? user.profile.isPrivate));
 
 function close() { emit("close"); }
 function onKeydown(event) { if (event.key === "Escape" && props.open) close(); }
 function updatePreference(key, value) { user.updateProfile({ [key]: value }); }
+function setVisualizerAmplitude(event) {
+  updatePreference("visualizerAmplitude", normalizeVisualizerAmplitude(event.target.value));
+}
 
 async function removeLibrary() {
   if (!window.confirm("¿Eliminar la carpeta seleccionada? Tus archivos originales no se borrarán.")) return;
@@ -764,6 +797,41 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   flex-wrap: wrap;
   gap: 6px;
 }
+.visualizer-amplitude-heading,
+.visualizer-amplitude-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.visualizer-amplitude-heading { justify-content: space-between; }
+.visualizer-amplitude-heading > div { min-width: 0; }
+.visualizer-amplitude-heading output {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-surface);
+  color: var(--accent-light);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.visualizer-amplitude-control input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.visualizer-amplitude-reset {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.visualizer-amplitude-reset:disabled { cursor: default; opacity: 0.45; }
 .drawer-select {
   max-width: 48%;
   padding: 8px;

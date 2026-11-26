@@ -174,8 +174,10 @@
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px 2px 14px;
+  padding: 4px 12px 14px;
   scroll-snap-type: x proximity;
+  scroll-padding-inline: 12px;
+  box-sizing: border-box;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--border-hover) transparent;

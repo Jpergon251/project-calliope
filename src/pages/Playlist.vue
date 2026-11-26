@@ -15,6 +15,7 @@
     />
 
     <div
+      v-if="user.profile.showVisualizer"
       class="playlist-atmosphere"
       :class="{ active: library.isPlaying }"
       aria-label="Visualizador de audio"
@@ -35,11 +36,13 @@ import EditPlaylist from "../components/modals/EditPlaylist.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 
 import { useLibraryStore } from "../stores/libraryStore.js";
+import { useUserStore } from "../stores/userStore.js";
 
 const route = useRoute();
 const router = useRouter();
 
 const library = useLibraryStore();
+const user = useUserStore();
 
 const editPlaylistModal = ref(null);
 

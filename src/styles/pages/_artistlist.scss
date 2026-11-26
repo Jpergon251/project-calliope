@@ -121,13 +121,17 @@
     min-width: 0;
     gap: 20px;
     margin: 0;
-    padding: 4px 4px 12px;
+    // El padding forma parte del viewport: mantiene el mismo respiro a ambos
+    // lados sin reducir el ancho disponible de la sección.
+    padding: 4px 12px 12px;
     border: 0;
     background: transparent;
     box-shadow: none;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x proximity;
+    scroll-padding-inline: 12px;
+    box-sizing: border-box;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {

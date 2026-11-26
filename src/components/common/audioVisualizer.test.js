@@ -5,6 +5,7 @@ import {
   smoothVisualizerValue,
   visualizerAmplitude,
   visualizerMode,
+  normalizeVisualizerAmplitude,
   normalizeVisualizerStyle,
   VISUALIZER_STYLES,
 } from "../../lib/visualizer.js";
@@ -75,4 +76,13 @@ test("available visualizer styles exclude retired styles and invalid preferences
   for (const { value } of VISUALIZER_STYLES) {
     assert.equal(normalizeVisualizerStyle(value), value);
   }
+});
+
+test("visualizer amplitude preference stays within the supported range and one is neutral", () => {
+  assert.equal(normalizeVisualizerAmplitude(undefined), 1);
+  assert.equal(normalizeVisualizerAmplitude(1), 1);
+  assert.equal(normalizeVisualizerAmplitude(0.54), 0.5);
+  assert.equal(normalizeVisualizerAmplitude(2.46), 2.5);
+  assert.equal(normalizeVisualizerAmplitude(0), 0.5);
+  assert.equal(normalizeVisualizerAmplitude(9), 2.5);
 });

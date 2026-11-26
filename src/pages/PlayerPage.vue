@@ -159,7 +159,7 @@
         </div>
       </section>
 
-      <section class="player-page-visualizer" aria-label="Visualizador de audio">
+      <section v-if="user.profile.showVisualizer" class="player-page-visualizer" aria-label="Visualizador de audio">
         <AudioVisualizer />
       </section>
     </template>
@@ -189,6 +189,7 @@ import {
   ThumbsUp,
 } from 'lucide-vue-next';
 import { useLibraryStore } from '../stores/libraryStore.js';
+import { useUserStore } from '../stores/userStore.js';
 import AudioVisualizer from '../components/common/AudioVisualizer.vue';
 import VolumeModal from '../components/player/VolumeModal.vue';
 import SongIconCover from '../components/common/SongIconCover.vue';
@@ -201,6 +202,7 @@ const emit = defineEmits(['close']);
 const router = useRouter();
 const route = useRoute();
 const library = useLibraryStore();
+const user = useUserStore();
 const song = computed(() => library.playingSong);
 
 const songArtists = computed(() => {

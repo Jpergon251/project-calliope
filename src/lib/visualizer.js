@@ -16,6 +16,12 @@ export function visualizerAmplitude(level, volume) {
   return emphasizedLevel * scaledVisualizerGain(volume);
 }
 
+export function normalizeVisualizerAmplitude(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 1;
+  return Math.round(Math.min(2.5, Math.max(0.5, numericValue)) * 10) / 10;
+}
+
 export function smoothVisualizerValue(
   current,
   target,

@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import {computed, nextTick, ref, watch} from "vue";
+import {computed, nextTick, onMounted, ref, watch} from "vue";
 
 import { useRouter } from "vue-router";
 
@@ -178,6 +178,11 @@ function refreshPreviewSongs() {
 
   previewSongs.value = library.smartShuffle(songs).slice(0, limit);
 }
+function resetCarouselPosition() {
+  if (carouselRef.value) {
+    carouselRef.value.scrollTo({ left: 0, behavior: "auto" });
+  }
+}
 async function scrollCarousel(direction) {
   await nextTick();
   scrollCarouselContainer(carouselRef.value, direction);
@@ -196,10 +201,7 @@ watch(
     if (props.preview) {
       refreshPreviewSongs();
 
-      nextTick(() => {
-        if (carouselRef.value) {carouselRef.value.scrollTo({ left: 0, behavior: "auto"});
-        }
-      });
+      nextTick(resetCarouselPosition);
     }
   }
 );
@@ -209,6 +211,9 @@ watch(
   (isPreview) => {if (isPreview) { refreshPreviewSongs();}
   }
 );
+
+watch(previewSongs, () => nextTick(resetCarouselPosition), { flush: "post" });
+onMounted(() => nextTick(resetCarouselPosition));
 
 /*
  * Permite que Library.vue u otro padre pueda controlar

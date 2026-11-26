@@ -117,25 +117,30 @@
   .song-preview-list {
     width: 100%;
     min-width: 0;
-    overflow: hidden;
+    // Este es el único viewport del carrusel. Antes el `overflow: hidden`
+    // de este wrapper y el scroll del hijo creaban dos bordes de recorte.
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 12px 12px;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    box-sizing: border-box;
+
+    &::-webkit-scrollbar { display: none; }
 
     .song-list {
       display: flex;
       align-items: stretch;
-      width: max-content;
+      // Un ancho definido permite calcular tarjetas enteras por viewport.
+      // El overflow de los elementos adicionales lo recoge el wrapper padre.
+      width: 100%;
       min-width: 100%;
       gap: 10px;
       margin: 0;
-      padding: 4px 4px 10px;
+      padding: 0;
       list-style: none;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scroll-snap-type: x proximity;
-      scrollbar-width: none;
-
-      &::-webkit-scrollbar {
-        display: none;
-      }
+      overflow: visible;
 
       > li {
         flex: 0 0 300px;
@@ -326,7 +331,6 @@
     .song-preview-list {
       .song-list {
         gap: 8px;
-        padding: 3px 2px 8px;
 
         > li {
           flex-basis: 245px;
@@ -375,7 +379,7 @@
 }
 
 .all-songs .song-preview-list .song-list {
-  width: max-content;
+  width: 100%;
   min-width: 100%;
-  max-width: none;
+  max-width: 100%;
 }

@@ -10,7 +10,7 @@
             :is-sortable="false"
         />
 
-        <div class="album-atmosphere" :class="{ active: libraryStore.isPlaying }" aria-label="Visualizador de audio">
+        <div v-if="user.profile.showVisualizer" class="album-atmosphere" :class="{ active: libraryStore.isPlaying }" aria-label="Visualizador de audio">
             <AudioVisualizer />
         </div>
 
@@ -21,11 +21,13 @@
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useLibraryStore } from "../stores/libraryStore.js";
+import { useUserStore } from "../stores/userStore.js";
 import PlayListSongs from "../components/library/PlayListSongs.vue";
 import AudioVisualizer from "../components/common/AudioVisualizer.vue";
 
 const route = useRoute();
 const libraryStore = useLibraryStore();
+const user = useUserStore();
 
 const albumId = computed(() => route.params.id);
 
